@@ -328,6 +328,8 @@ class Packet : public Printable
     /// A pointer to the original request.
     RequestPtr req;
 
+    //smurthy
+    bool isPacketFromLSQ = false;
   private:
    /**
     * A pointer to the data being transferred. It can be different

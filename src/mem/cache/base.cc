@@ -345,6 +345,8 @@ BaseCache::recvTimingReq(PacketPtr pkt)
         PacketList writebacks;
         // Note that lat is passed by reference here. The function
         // access() will set the lat value.
+
+        DPRINTF(Cache, "HELLO from Cache\n");
         satisfied = access(pkt, blk, lat, writebacks);
 
         // After the evicted blocks are selected, they must be forwarded
@@ -934,6 +936,10 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
     // Access block in the tags
     Cycles tag_latency(0);
     blk = tags->accessBlock(pkt->getAddr(), pkt->isSecure(), tag_latency);
+
+    //smurthy
+    if (pkt->isPacketFromLSQ)
+        DPRINTF(Cache,"Packet come from LSQ\n");
 
     DPRINTF(Cache, "%s for %s %s\n", __func__, pkt->print(),
             blk ? "hit " + blk->print() : "miss");

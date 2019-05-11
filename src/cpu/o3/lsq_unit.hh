@@ -822,6 +822,8 @@ LSQUnit<Impl>::read(LSQRequest *req, int load_idx)
         load_inst->memData = new uint8_t[req->mainRequest()->getSize()];
     }
 
+
+    DPRINTF(LSQUnit, "HELLO from LSQ\n");
     // For now, load throughput is constrained by the number of
     // load FUs only, and loads do not consume a cache port (only
     // stores do).

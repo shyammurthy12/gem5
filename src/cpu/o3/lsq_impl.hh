@@ -1003,6 +1003,9 @@ LSQ<Impl>::SingleDataRequest::buildPackets()
                     :  Packet::createWrite(request()));
         _packets.back()->dataStatic(_inst->memData);
         _packets.back()->senderState = _senderState;
+
+        //smurthy
+        _packets.back()->isPacketFromLSQ = true;
     }
     assert(_packets.size() == 1);
 }
