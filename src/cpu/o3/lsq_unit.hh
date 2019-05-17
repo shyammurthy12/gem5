@@ -609,6 +609,7 @@ template <class Impl>
 Fault
 LSQUnit<Impl>::read(LSQRequest *req, int load_idx)
 {
+    DPRINTF(LSQUnit,"HELLO1_1 from LSQUnit\n");
     LQEntry& load_req = loadQueue[load_idx];
     const DynInstPtr& load_inst = load_req.instruction();
 
@@ -840,6 +841,10 @@ LSQUnit<Impl>::read(LSQRequest *req, int load_idx)
         req->senderState(state);
     }
     req->buildPackets();
+    if (load_inst->isNonSpeculative())
+       DPRINTF(LSQUnit, "In LSQ, the load is non-speculative\n");
+    else
+       DPRINTF(LSQUnit, "In LSQ, the load is speculative\n");
     req->sendPacketToCache();
     if (!req->isSent())
         iewStage->blockMemInst(load_inst);

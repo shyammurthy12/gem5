@@ -146,6 +146,8 @@ class BaseDynInst : public ExecContext, public RefCounted
     /** The sequence number of the instruction. */
     InstSeqNum seqNum;
 
+    InstSeqNum lastControlFlowInstruction;
+
     /** The StaticInst used by this BaseDynInst. */
     const StaticInstPtr staticInst;
 

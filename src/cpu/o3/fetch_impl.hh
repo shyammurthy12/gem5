@@ -550,6 +550,8 @@ DefaultFetch<Impl>::deactivateThread(ThreadID tid)
     }
 }
 
+InstSeqNum lastControlFlowInstruction_encountered = -1;
+
 template <class Impl>
 bool
 DefaultFetch<Impl>::lookupAndUpdateNextPC(
@@ -560,10 +562,13 @@ DefaultFetch<Impl>::lookupAndUpdateNextPC(
     // this function updates it.
     bool predict_taken;
 
+
     if (!inst->isControl()) {
         TheISA::advancePC(nextPC, inst->staticInst);
         inst->setPredTarg(nextPC);
         inst->setPredTaken(false);
+        inst->lastControlFlowInstruction =
+                lastControlFlowInstruction_encountered;
         return false;
     }
 
@@ -580,7 +585,8 @@ DefaultFetch<Impl>::lookupAndUpdateNextPC(
                 "predicted to be not taken\n",
                 tid, inst->seqNum, inst->pcState().instAddr());
     }
-
+    inst->lastControlFlowInstruction = lastControlFlowInstruction_encountered;
+    lastControlFlowInstruction_encountered = inst->seqNum;
     DPRINTF(Fetch, "[tid:%i] [sn:%llu] Branch at PC %#x "
             "predicted to go to %s\n",
             tid, inst->seqNum, inst->pcState().instAddr(), nextPC);
@@ -588,8 +594,9 @@ DefaultFetch<Impl>::lookupAndUpdateNextPC(
     inst->setPredTaken(predict_taken);
 
     ++fetchedBranches;
-
-    if (predict_taken) {
+    ++_fetchedBranches;
+   DPRINTF(Fetch,"Number of fetched branches is %llu\n",_fetchedBranches);
+   if (predict_taken) {
         ++predictedBranches;
     }
 

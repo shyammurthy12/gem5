@@ -524,6 +524,7 @@ class DefaultFetch
     Stats::Scalar fetchedInsts;
     /** Total number of fetched branches. */
     Stats::Scalar fetchedBranches;
+    uint64_t _fetchedBranches = 0;
     /** Stat for total number of predicted branches. */
     Stats::Scalar predictedBranches;
     /** Stat for total number of cycles spent fetching. */

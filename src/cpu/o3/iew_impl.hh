@@ -1234,6 +1234,12 @@ DefaultIEW<Impl>::executeInsts()
         DPRINTF(IEW, "Execute: Processing PC %s, [tid:%i] [sn:%llu].\n",
                 inst->pcState(), inst->threadNumber,inst->seqNum);
 
+        DPRINTF(IEW, "Execute: Processing PC %s whose last control flow
+                        sequence number is, [tid:%i] [sn:%llu], last control
+                        flow sequence number [sn:%llu]\n",
+                inst->pcState(),
+                inst->threadNumber,
+                inst->seqNum,inst->lastControlFlowInstruction);
         // Notify potential listeners that this instruction has started
         // executing
         ppExecute->notify(inst);
@@ -1337,6 +1343,10 @@ DefaultIEW<Impl>::executeInsts()
             // will be replaced and we will lose it.
             if (inst->getFault() == NoFault) {
                 inst->execute();
+                if (inst->isControl())
+                    DPRINTF(IEW,"Finished resolving control flow instruction
+                                    with sequence number
+                                    [sn:%llu]\n",inst->seqNum);
                 if (!inst->readPredicate())
                     inst->forwardOldRegs();
             }
@@ -1366,9 +1376,16 @@ DefaultIEW<Impl>::executeInsts()
             // that have not been executed.
             bool loadNotExecuted = !inst->isExecuted() && inst->isLoad();
 
+
+            //DPRINTF(IEW, "HELLO before Branch mispredict %d\n",inst->seqNum);
             if (inst->mispredicted() && !loadNotExecuted) {
                 fetchRedirect[tid] = true;
-
+                if ((inst->isControl())||(inst->notAnInst()))
+                   DPRINTF(IEW, "HELLO before Branch mispredict and the value
+                                   of toCommit->sqaush[tid] is %d and
+                                   toCommit->squashedSeqNum[tid] are
+                                   %d\n",toCommit->squash[tid],
+                                   toCommit->squashedSeqNum[tid]);
                 DPRINTF(IEW, "[tid:%i] [sn:%llu] Execute: "
                         "Branch mispredict detected.\n",
                         tid,inst->seqNum);
@@ -1671,6 +1688,8 @@ DefaultIEW<Impl>::checkMisprediction(const DynInstPtr& inst)
         if (inst->mispredicted()) {
             fetchRedirect[tid] = true;
 
+
+           // DPRINTF(IEW, "HELLO before Branch mispredict\n");
             DPRINTF(IEW, "[tid:%i] [sn:%llu] Execute: "
                     "Branch mispredict detected.\n",
                     tid,inst->seqNum);

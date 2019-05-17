@@ -295,6 +295,10 @@ LSQUnit<Impl>::insertLoad(const DynInstPtr &load_inst)
     assert(!loadQueue.full());
     assert(loads < loadQueue.capacity());
 
+    if (load_inst->isNonSpeculative())
+      DPRINTF(LSQUnit, "Inserting non-speculative load\n");
+    else
+      DPRINTF(LSQUnit, "Inserting speculative load\n");
     DPRINTF(LSQUnit, "Inserting load PC %s, idx:%i [sn:%lli]\n",
             load_inst->pcState(), loadQueue.tail(), load_inst->seqNum);
 
@@ -542,8 +546,10 @@ LSQUnit<Impl>::executeLoad(const DynInstPtr &inst)
 
     load_fault = inst->initiateAcc();
 
+    DPRINTF(LSQUnit, "HELLO1_2 from LSQUnit\n");
     if (inst->isTranslationDelayed() && load_fault == NoFault)
         return load_fault;
+
 
     // If the instruction faulted or predicated false, then we need to send it
     // along to commit without the instruction completing.
