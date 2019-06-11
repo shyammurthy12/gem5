@@ -40,12 +40,18 @@
 
 #include "arch/x86/utility.hh"
 
+#include <fstream>
+#include <sstream>
+
 #include "arch/x86/interrupts.hh"
 #include "arch/x86/registers.hh"
 #include "arch/x86/x86_traits.hh"
+#include "base/logging.hh"
 #include "cpu/base.hh"
 #include "fputils/fp80.h"
 #include "sim/full_system.hh"
+
+using namespace std;
 
 namespace X86ISA {
 
@@ -366,5 +372,84 @@ storeFloat80(void *_mem, double value)
     fp80_t fp80 = fp80_cvfd(value);
     memcpy(_mem, fp80.bits, 10);
 }
+
+void
+installSegDesc(ThreadContext *tc, SegmentRegIndex seg,
+               SegDescriptor desc, bool longmode)
+{
+    uint64_t base = desc.baseLow + (desc.baseHigh << 24);
+    bool honorBase = !longmode || seg == SEGMENT_REG_FS ||
+                                  seg == SEGMENT_REG_GS ||
+                                  seg == SEGMENT_REG_TSL ||
+                                  seg == SYS_SEGMENT_REG_TR;
+    uint64_t limit = desc.limitLow | (desc.limitHigh << 16);
+    if (desc.g)
+        limit = limit * PageBytes + PageBytes - 1;
+
+    SegAttr attr = 0;
+
+    attr.dpl = desc.dpl;
+    attr.unusable = 0;
+    attr.defaultSize = desc.d;
+    attr.longMode = desc.l;
+    attr.avl = desc.avl;
+    attr.granularity = desc.g;
+    attr.present = desc.p;
+    attr.system = desc.s;
+    attr.type = desc.type;
+    if (desc.s) {
+        if (desc.type.codeOrData) {
+            // Code segment
+            attr.expandDown = 0;
+            attr.readable = desc.type.r;
+            attr.writable = 0;
+        } else {
+            // Data segment
+            attr.expandDown = desc.type.e;
+            attr.readable = 1;
+            attr.writable = desc.type.w;
+        }
+    } else {
+        attr.readable = 1;
+        attr.writable = 1;
+        attr.expandDown = 0;
+    }
+
+    tc->setMiscReg(MISCREG_SEG_BASE(seg), base);
+    tc->setMiscReg(MISCREG_SEG_EFF_BASE(seg), honorBase ? base : 0);
+    tc->setMiscReg(MISCREG_SEG_LIMIT(seg), limit);
+    tc->setMiscReg(MISCREG_SEG_ATTR(seg), (RegVal)attr);
+}
+
+
+bool
+hostIsIntelCPU()
+{
+    static bool checked = false;
+    static bool isIntel = false;
+
+    if (checked) {
+        return isIntel;
+    } else {
+        checked = true;
+
+        ifstream inFile("/proc/cpuinfo");
+        string line;
+        while (getline(inFile, line)) {
+            stringstream stream(line);
+            string label, colon, value;
+            stream >> label >> colon >> value;
+            if (label == "vendor_id") {
+                isIntel = (value == "GenuineIntel");
+                inform("Running on %s\n", value);
+                return isIntel;
+            }
+        }
+        warn("Unable to determine host CPU vendor, assuming AMD.\n");
+    }
+    return isIntel;
+}
+
+
 
 } // namespace X86_ISA
