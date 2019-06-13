@@ -48,6 +48,7 @@
 // iew.  There's a clear delay between issue and execute, yet backwards
 // communication happens simultaneously.
 
+#include <ctime>
 #include <queue>
 #include <vector>
 
@@ -134,6 +135,9 @@ DefaultIEW<Impl>::DefaultIEW(O3CPU *_cpu, DerivO3CPUParams *params)
     updateLSQNextCycle = false;
 
     skidBufferMax = (renameToIEWDelay + 1) * params->renameWidth;
+    //smurthy: for random number
+    //generation
+    srand(time(NULL));
 }
 
 template <class Impl>
@@ -1331,8 +1335,13 @@ DefaultIEW<Impl>::executeInsts()
                 //if branch is not resolved, wait for the
                 //branch to resolve before scheduling this
                 //instruction.
+                //smurthy:
+                //A random number between 0 and 4
+                //Stall when 0.
+                int random_number = rand()%3;
                 if ((!(inst->isPrevBrsResolved())) &&
-                                (inst->isLoadAddressFromAnotherLoad()))
+                                (inst->isLoadAddressFromAnotherLoad())&&
+                                (random_number==0))
 //		if ((!(inst->isPrevBrsResolved())))
                 {
                   //smurthy: increment of new statistic to measure the
