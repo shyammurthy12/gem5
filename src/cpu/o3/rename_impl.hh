@@ -753,8 +753,10 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
         }
 
         renameSrcRegs(inst, inst->threadNumber);
+        //check if any of the source registers come from a load
+        bool srcFromLoad = checkIfSrcRegsAreFromLoad(inst, inst->threadNumber);
 
-        renameDestRegs(inst, inst->threadNumber);
+        renameDestRegs(inst, inst->threadNumber, srcFromLoad);
 
         if (inst->isAtomic() || inst->isStore()) {
             storesInProgress[tid]++;
@@ -1126,18 +1128,87 @@ DefaultRename<Impl>::renameSrcRegs(const DynInstPtr &inst, ThreadID tid)
     }
 }
 
+//smurthy: added function.
+template <class Impl>
+inline bool
+DefaultRename<Impl>::checkIfSrcRegsAreFromLoad(const DynInstPtr &inst, ThreadID
+                tid)
+{
+    inst->setEligibilityToPropagateLoadBit(1);
+    //by default instructions are eligible to propagate.
+    //If the load has the stack pointer as its address,
+    //then we disable propagation.
+
+    ThreadContext *tc = inst->tcBase();
+    RenameMap *map = renameMap[tid];
+    unsigned num_src_regs = inst->numSrcRegs();
+    bool isSourceFromLoad = false;
+    // Get the architectual register numbers from the source and
+    // operands, and redirect them to the right physical register.
+
+    for (int src_idx = 0; src_idx < num_src_regs; src_idx++) {
+        const RegId& src_reg = inst->srcRegIdx(src_idx);
+
+        isSourceFromLoad |=
+                map->getIfArchRegDestOfLoad(tc->flattenRegId(src_reg));
+        if (inst->isLoad())
+        {
+           //source register is RSP
+           if (src_reg.index() ==  4){
+               DPRINTF(Rename,
+                      "The input register for load is RSP for [sn:%lu]",
+                      inst->seqNum);
+               //instruction is ineligible to propagate the bit.
+               inst->setEligibilityToPropagateLoadBit(0);
+           }
+//          else if (src_reg.index() == 5)
+//	   DPRINTF(Rename,
+//		  "The input register is RBP for [sn:%lu]",
+//		  inst->seqNum);
+//
+        }
+//	if (inst->isLoad())
+//	{
+//	}
+    }
+    return isSourceFromLoad;
+}
+
+
+
 template <class Impl>
 inline void
-DefaultRename<Impl>::renameDestRegs(const DynInstPtr &inst, ThreadID tid)
+DefaultRename<Impl>::renameDestRegs(const DynInstPtr &inst, ThreadID tid, bool
+                isSrcFromLoad)
 {
     ThreadContext *tc = inst->tcBase();
     RenameMap *map = renameMap[tid];
     unsigned num_dest_regs = inst->numDestRegs();
 
+    //smurthy: Set Pointer chased load status to false.
+    inst->setLoadAddressFromAnotherLoad(false);
+    //suitably add pointer chasing status for load instructions.
+    if (inst->isLoad() &&(isSrcFromLoad)
+                    &&(inst->isEligibleToPropagateLoadBit())){
+          DPRINTF(Rename,
+                "Load: [sn:%lu]: Pointer-chasing detected\n",
+                inst->seqNum);
+          //smurthy:
+          //pointer chased load detected, and the status set
+          //for the instruction
+          inst->setLoadAddressFromAnotherLoad(true);
+    }
+    else if (inst->isLoad())
+         DPRINTF(Rename,
+             "Load: [sn:%lu]: No Pointer-chasing detected\n",
+             inst->seqNum);
+
     // Rename the destination registers.
     for (int dest_idx = 0; dest_idx < num_dest_regs; dest_idx++) {
         const RegId& dest_reg = inst->destRegIdx(dest_idx);
         typename RenameMap::RenameInfo rename_result;
+
+
 
         RegId flat_dest_regid = tc->flattenRegId(dest_reg);
 
@@ -1147,6 +1218,31 @@ DefaultRename<Impl>::renameDestRegs(const DynInstPtr &inst, ThreadID tid)
 
         // Mark Scoreboard entry as not ready
         scoreboard->unsetReg(rename_result.first);
+
+        //smurthy
+        //default set to 0
+        map->setIfArchRegDestOfLoad(flat_dest_regid,0);
+
+        //smurthy:
+        //Need to flag the destination registers as the result
+        //of a load or not, for all instructions.
+        //Conditions vary based on whether the instruction is
+        //a load or not.
+        //if the instruction is a load, flag the destination
+        //register as dest of load, if the load is not from stack
+        if (inst->isLoad()&&inst->isEligibleToPropagateLoadBit()){
+
+                map->setIfArchRegDestOfLoad(flat_dest_regid,1);
+        }
+        //if the instruction is not a load, then the destination
+        //is flagged as coming from a load, if any of the source
+        //operands are from a load (data flow)
+        else if ((!(inst->isLoad()))&&(isSrcFromLoad)){
+                map->setIfArchRegDestOfLoad(flat_dest_regid,1);
+        }
+        //else even if one of my
+        //source operands indicate I come from
+        //a load, I turn this bit on.
 
         DPRINTF(Rename,
                 "[tid:%i] "

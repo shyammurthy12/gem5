@@ -55,7 +55,15 @@ PhysRegFile::PhysRegFile(unsigned _numPhysicalIntRegs,
                          unsigned _numPhysicalVecPredRegs,
                          unsigned _numPhysicalCCRegs,
                          VecMode vmode)
-    : intRegFile(_numPhysicalIntRegs),
+    : //smurthy: vector of booleans to hold
+      //if the phys register is the output
+      //of a load
+      //not using this, because I decided to use
+      //the register map for tracking.
+      _isDestOfLoad(_numPhysicalIntRegs,0),
+      //initialize the value to zero for all
+      //physical registers in the beginning
+      intRegFile(_numPhysicalIntRegs),
       floatRegFile(_numPhysicalFloatRegs),
       vectorRegFile(_numPhysicalVecRegs),
       vecPredRegFile(_numPhysicalVecPredRegs),

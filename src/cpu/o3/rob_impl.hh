@@ -397,6 +397,67 @@ ROB<Impl>::doSquash(ThreadID tid)
 
 template <class Impl>
 void
+ROB<Impl>::updateSpeculativeState()
+{
+    list<ThreadID>::iterator threads = activeThreads->begin();
+    list<ThreadID>::iterator end = activeThreads->end();
+
+    while (threads!=end){
+        ThreadID tid = *threads++;
+
+        if (instList[tid].empty())
+            continue;
+
+        InstIt inst_it = instList[tid].begin();
+        InstIt tail_inst_it = instList[tid].end();
+
+        //state that we update as we
+        //parse instructions in the queue.
+        bool prevBrsResolved=true;
+        bool prevBrsCommitted=true;
+
+        while (inst_it != tail_inst_it) {
+            DynInstPtr inst = *inst_it++;
+
+            assert(inst!=0);
+
+            if (!prevBrsResolved) {
+                break;
+            }
+
+            //flag any instruction that is
+            //non-control flow as non-speculative based
+            //on the checks below.
+            if (!(inst->isControl())) {
+                if (prevBrsResolved){
+                    inst->setPrevBrsResolved();
+                }
+                if (prevBrsCommitted) {
+                    inst->setPrevBrsCommitted();
+                }
+            }
+
+            // Update prev control insts state
+            if (inst->isControl()){
+                //we have control flow instructions that are yet to commit.
+                prevBrsCommitted = false;
+                //we have control flow instructions that are not yet ready to
+                //commit, or faulted or were squashed, which means lack of
+                //prior braches having been resolved.
+                if (!inst->readyToCommit() || inst->getFault()!=NoFault
+                        || inst->isSquashed()){
+                    prevBrsResolved = false;
+                }
+            }
+        }
+    }
+
+}
+
+
+
+template <class Impl>
+void
 ROB<Impl>::updateHead()
 {
     InstSeqNum lowest_num = 0;

@@ -67,8 +67,17 @@ class SimpleRenameMap
 {
   private:
     using Arch2PhysMap = std::vector<PhysRegIdPtr>;
+
+    //smurthy:adding this to indicate if the
+    //architectural register to which we have just
+    //written to is dest of a load.
+    using Arch2IsLoadMap = std::vector<bool>;
+
     /** The acutal arch-to-phys register map */
     Arch2PhysMap map;
+
+    Arch2IsLoadMap map_toIndicateIfLoadDest;
+
   public:
     using iterator = Arch2PhysMap::iterator;
     using const_iterator = Arch2PhysMap::const_iterator;
@@ -118,6 +127,13 @@ class SimpleRenameMap
      * physical registers.
      */
     RenameInfo rename(const RegId& arch_reg);
+
+    //smurthy: set the bit if the architecture register
+    //is the output of a load operation.
+    void setIfArchRegDestOfLoad(const RegId& arch_reg, bool val);
+
+
+    bool getIfArchRegDestOfLoad(const RegId& arch_reg);
 
     /**
      * Look up the physical register mapped to an architectural register.
@@ -226,6 +242,7 @@ class UnifiedRenameMap
      * @return A RenameInfo pair indicating both the new and previous
      * physical registers.
      */
+
     RenameInfo rename(const RegId& arch_reg)
     {
         switch (arch_reg.classValue()) {
@@ -256,6 +273,62 @@ class UnifiedRenameMap
             panic("rename rename(): unknown reg class %s\n",
                   arch_reg.className());
         }
+    }
+
+    void setIfArchRegDestOfLoad(const RegId& arch_reg, bool val)
+    {
+       switch (arch_reg.classValue()) {
+         case IntRegClass:
+           return intMap.setIfArchRegDestOfLoad(arch_reg,val);
+
+         case FloatRegClass:
+           return  floatMap.setIfArchRegDestOfLoad(arch_reg,val);
+
+         case VecRegClass:
+           assert(vecMode == Enums::Full);
+           return  vecMap.setIfArchRegDestOfLoad(arch_reg,val);
+
+         case VecElemClass:
+           assert(vecMode == Enums::Elem);
+           return  vecElemMap.setIfArchRegDestOfLoad(arch_reg,val);
+
+         case VecPredRegClass:
+           return predMap.setIfArchRegDestOfLoad(arch_reg,val);
+
+         case CCRegClass:
+           return ccMap.setIfArchRegDestOfLoad(arch_reg,val);
+
+         default:
+           return;
+       }
+    }
+    bool getIfArchRegDestOfLoad(const RegId& arch_reg)
+    {
+       switch (arch_reg.classValue()) {
+         case IntRegClass:
+           return intMap.getIfArchRegDestOfLoad(arch_reg);
+
+         case FloatRegClass:
+           return  floatMap.getIfArchRegDestOfLoad(arch_reg);
+
+         case VecRegClass:
+           assert(vecMode == Enums::Full);
+           return  vecMap.getIfArchRegDestOfLoad(arch_reg);
+
+         case VecElemClass:
+           assert(vecMode == Enums::Elem);
+           return  vecElemMap.getIfArchRegDestOfLoad(arch_reg);
+
+         case VecPredRegClass:
+           return predMap.getIfArchRegDestOfLoad(arch_reg);
+
+         case CCRegClass:
+           return ccMap.getIfArchRegDestOfLoad(arch_reg);
+
+         default:
+           return false;
+           //conservatively return false, for other register types.
+       }
     }
 
     /**

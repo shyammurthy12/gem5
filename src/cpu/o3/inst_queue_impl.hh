@@ -350,6 +350,7 @@ InstructionQueue<Impl>::regStats()
         .desc("Number of floating instruction queue reads")
         .flags(total);
 
+
     fpInstQueueWrites
         .name(name() + ".fp_inst_queue_writes")
         .desc("Number of floating instruction queue writes")
@@ -373,6 +374,12 @@ InstructionQueue<Impl>::regStats()
     vecInstQueueWakeupAccesses
         .name(name() + ".vec_inst_queue_wakeup_accesses")
         .desc("Number of vector instruction queue wakeup accesses")
+        .flags(total);
+
+
+    stalledAndsquashedLoads
+        .name(name() + ".stalledAndsquashedLoads")
+        .desc("Number of stalled and squashed loads")
         .flags(total);
 
     intAluAccesses
@@ -1161,8 +1168,15 @@ InstructionQueue<Impl>::getDeferredMemInstToExecute()
 {
     for (ListIt it = deferredMemInsts.begin(); it != deferredMemInsts.end();
          ++it) {
-        if ((*it)->translationCompleted() || (*it)->isSquashed()) {
+        //as soon as the load is non-speculative, it can run.
+        if ((*it)->translationCompleted()
+             || (*it)->isSquashed()
+             ||
+             ((*it)->onlyWaitForBranchResolution()
+              &&(*it)->isPrevBrsResolved()))
+        {
             DynInstPtr mem_inst = std::move(*it);
+            mem_inst->onlyWaitForBranchResolution(false);
             deferredMemInsts.erase(it);
             return mem_inst;
         }
@@ -1249,6 +1263,8 @@ InstructionQueue<Impl>::doSquash(ThreadID tid)
             DPRINTF(IQ, "[tid:%i] Instruction [sn:%llu] PC %s squashed.\n",
                     tid, squashed_inst->seqNum, squashed_inst->pcState());
 
+            if (squashed_inst->isLoad() && squashed_inst->isStalledLoad())
+                 stalledAndsquashedLoads++;
             bool is_acq_rel = squashed_inst->isMemBarrier() &&
                          (squashed_inst->isLoad() ||
                           squashed_inst->isAtomic() ||
@@ -1321,6 +1337,8 @@ InstructionQueue<Impl>::doSquash(ThreadID tid)
             // inst will flow through the rest of the pipeline.
             squashed_inst->setIssued();
             squashed_inst->setCanCommit();
+
+            //smurthy
             squashed_inst->clearInIQ();
 
             //Update Thread IQ Count

@@ -49,12 +49,14 @@
 // communication happens simultaneously.
 
 #include <queue>
+#include <vector>
 
 #include "arch/utility.hh"
 #include "config/the_isa.hh"
 #include "cpu/checker/cpu.hh"
 #include "cpu/o3/fu_pool.hh"
 #include "cpu/o3/iew.hh"
+#include "cpu/o3/isa_specific.hh"
 #include "cpu/timebuf.hh"
 #include "debug/Activity.hh"
 #include "debug/Drain.hh"
@@ -63,6 +65,26 @@
 #include "params/DerivO3CPU.hh"
 
 using namespace std;
+
+
+//Last branch to be resolved
+
+static RefCountingPtr<BaseO3DynInst<O3CPUImpl>> lastControlFlowInstruction_enc1
+= NULL ;
+//static InstSeqNum lastControlFlowInstruction_encountered = -1;
+struct controlFlowInst_and_dependent
+{
+  RefCountingPtr<BaseO3DynInst<O3CPUImpl>> inst;
+  bool operator<(const controlFlowInst_and_dependent &rhs) const
+  {
+    return inst->seqNum < (rhs.inst)->seqNum;
+  }
+};
+
+vector<controlFlowInst_and_dependent> listOfResolvedBranchesAndDependents_1;
+
+vector<pair<InstSeqNum,InstSeqNum> > listOfResolvedBranchesAndDependents;
+
 
 template<class Impl>
 DefaultIEW<Impl>::DefaultIEW(O3CPU *_cpu, DerivO3CPUParams *params)
@@ -221,6 +243,19 @@ DefaultIEW<Impl>::regStats()
         .name(name() + ".iewExecLoadInsts")
         .desc("Number of load instructions executed")
         .flags(total);
+
+    //smurthy: new added statistic
+    iewStalledLoadInsts
+        .init(cpu->numThreads)
+        .name(name() + ".iewStalledLoadInsts")
+        .desc("Number of load instructions speculatively executed and stalled")
+        .flags(total);
+    iewStalledAndSquashedInsts
+         .init(cpu->numThreads)
+         .name(name() + ".iewStalledAndSquashedInsts")
+         .desc("Number of load instructions, stalled and squashed")
+         .flags(total);
+
 
     iewExecSquashedInsts
         .name(name() + ".iewExecSquashedInsts")
@@ -1202,6 +1237,9 @@ DefaultIEW<Impl>::printAvailableInsts()
     std::cout << "\n";
 }
 
+
+
+
 template <class Impl>
 void
 DefaultIEW<Impl>::executeInsts()
@@ -1234,9 +1272,9 @@ DefaultIEW<Impl>::executeInsts()
         DPRINTF(IEW, "Execute: Processing PC %s, [tid:%i] [sn:%llu].\n",
                 inst->pcState(), inst->threadNumber,inst->seqNum);
 
-        DPRINTF(IEW, "Execute: Processing PC %s whose last control flow
-                        sequence number is, [tid:%i] [sn:%llu], last control
-                        flow sequence number [sn:%llu]\n",
+        DPRINTF(IEW, "Execute: Processing PC %s whose last control flow"
+                        "sequence number is, [tid:%i] [sn:%llu], last control"
+                        "flow sequence number [sn:%llu]\n",
                 inst->pcState(),
                 inst->threadNumber,
                 inst->seqNum,inst->lastControlFlowInstruction);
@@ -1249,9 +1287,10 @@ DefaultIEW<Impl>::executeInsts()
             DPRINTF(IEW, "Execute: Instruction was squashed. PC: %s, [tid:%i]"
                          " [sn:%llu]\n", inst->pcState(), inst->threadNumber,
                          inst->seqNum);
-
             // Consider this instruction executed so that commit can go
             // ahead and retire the instruction.
+            if (inst->isLoad())
+                iewStalledAndSquashedInsts[inst->threadNumber]++;
             inst->setExecuted();
 
             // Not sure if I should set this here or just let commit try to
@@ -1289,7 +1328,35 @@ DefaultIEW<Impl>::executeInsts()
             } else if (inst->isLoad()) {
                 // Loads will mark themselves as executed, and their writeback
                 // event adds the instruction to the queue to commit
-                fault = ldstQueue.executeLoad(inst);
+                //if branch is not resolved, wait for the
+                //branch to resolve before scheduling this
+                //instruction.
+                if ((!(inst->isPrevBrsResolved())) &&
+                                (inst->isLoadAddressFromAnotherLoad()))
+//		if ((!(inst->isPrevBrsResolved())))
+                {
+                  //smurthy: increment of new statistic to measure the
+                  //number of stalled loads
+                  iewStalledLoadInsts[inst->threadNumber]++;
+                  inst->setStalledLoad();
+                  DPRINTF(IEW,
+                        "Can't execute because load is speculativev[sn:%lu]\n"
+                                  ,inst->seqNum);
+                  inst->onlyWaitForBranchResolution(true);
+                  instQueue.deferMemInst(inst);
+                  continue;
+                }
+                else
+                {
+                  DPRINTF(IEW,
+                         "Executing load non-speculatively [sn:%lu]\n"
+                          ,inst->seqNum);
+                  if (inst->isLoadAddressFromAnotherLoad())
+                   DPRINTF(IEW,
+                "Load with seqNum [sn:%lu] has address from another load\n"
+                  ,inst->seqNum);
+                  fault = ldstQueue.executeLoad(inst);
+                }
 
                 if (inst->isTranslationDelayed() &&
                     fault == NoFault) {
@@ -1305,6 +1372,10 @@ DefaultIEW<Impl>::executeInsts()
                     inst->fault = NoFault;
                 }
             } else if (inst->isStore()) {
+                if (!(inst->isPrevBrsResolved()))
+                  DPRINTF(IEW, "Executing store speculatively\n");
+                else
+                  DPRINTF(IEW, "Executing store non-speculatively\n");
                 fault = ldstQueue.executeStore(inst);
 
                 if (inst->isTranslationDelayed() &&
@@ -1342,11 +1413,11 @@ DefaultIEW<Impl>::executeInsts()
             // If we execute the instruction (even if it's a nop) the fault
             // will be replaced and we will lose it.
             if (inst->getFault() == NoFault) {
+                if (!(inst->isPrevBrsResolved()))
+                  DPRINTF(IEW, "Executing store speculatively\n");
+                else
+                  DPRINTF(IEW, "Executing store non-speculatively\n");
                 inst->execute();
-                if (inst->isControl())
-                    DPRINTF(IEW,"Finished resolving control flow instruction
-                                    with sequence number
-                                    [sn:%llu]\n",inst->seqNum);
                 if (!inst->readPredicate())
                     inst->forwardOldRegs();
             }
@@ -1381,10 +1452,10 @@ DefaultIEW<Impl>::executeInsts()
             if (inst->mispredicted() && !loadNotExecuted) {
                 fetchRedirect[tid] = true;
                 if ((inst->isControl())||(inst->notAnInst()))
-                   DPRINTF(IEW, "HELLO before Branch mispredict and the value
-                                   of toCommit->sqaush[tid] is %d and
-                                   toCommit->squashedSeqNum[tid] are
-                                   %d\n",toCommit->squash[tid],
+                   DPRINTF(IEW, "HELLO before Branch mispredict and the value"
+                                   "of toCommit->sqaush[tid] is %d and"
+                                   "toCommit->squashedSeqNum[tid] are"
+                                   "%d\n",toCommit->squash[tid],
                                    toCommit->squashedSeqNum[tid]);
                 DPRINTF(IEW, "[tid:%i] [sn:%llu] Execute: "
                         "Branch mispredict detected.\n",

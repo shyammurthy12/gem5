@@ -123,6 +123,13 @@ class BaseDynInst : public ExecContext, public RefCounted
                                  /// instructions ahead of it
         SerializeAfter,          /// Needs to serialize instructions behind it
         SerializeHandled,        /// Serialization has been handled
+        //smurthy: added status to indicate that instr is non CFL speculative
+        PrevBrsResolved,
+        PrevBrsCommitted,
+        //smurthy: status to indicate that we stalled the load.
+        //use this in the generation of a statistic
+        StalledLoad,
+        //smurthy: end of additions
         NumStatus
     };
 
@@ -139,6 +146,13 @@ class BaseDynInst : public ExecContext, public RefCounted
         IsStrictlyOrdered,
         ReqMade,
         MemOpDone,
+        //smurthy: added status to indciate that instr only waits
+        //for branch resolution
+        OnlyWaitForBranchResolution,
+        //to indicate that load gets its address from another load
+        LoadAddressFromAnotherLoad,
+        LoadEligibleToPropagateBit,
+        //smurthy: end of additions
         MaxFlags
     };
 
@@ -147,6 +161,9 @@ class BaseDynInst : public ExecContext, public RefCounted
     InstSeqNum seqNum;
 
     InstSeqNum lastControlFlowInstruction;
+
+    //speculative if there are prior unresolved branches
+    bool isInstructionSpeculative;
 
     /** The StaticInst used by this BaseDynInst. */
     const StaticInstPtr staticInst;
@@ -279,6 +296,27 @@ class BaseDynInst : public ExecContext, public RefCounted
     bool notAnInst() const { return instFlags[NotAnInst]; }
     void setNotAnInst() { instFlags[NotAnInst] = true; }
 
+
+    //smurthy, added a flag to indicate that this instruction only needs
+    //to wait for the resolution of prior branches.
+    bool onlyWaitForBranchResolution() const { return
+            instFlags[OnlyWaitForBranchResolution]; }
+    void onlyWaitForBranchResolution(bool f) {
+            instFlags[OnlyWaitForBranchResolution] = f; }
+
+    //added a flag to indicate that this instruction gets its address
+    //from another load.
+    bool isLoadAddressFromAnotherLoad() const { return
+            instFlags[LoadAddressFromAnotherLoad]; }
+    void setLoadAddressFromAnotherLoad(bool f) {
+            instFlags[LoadAddressFromAnotherLoad] = f; }
+
+    //some loads are uninteresting, those coming from the stack
+    //so we want to prevent them from propagating the extra bit.
+    bool isEligibleToPropagateLoadBit() const { return
+            instFlags[LoadEligibleToPropagateBit]; }
+    void setEligibilityToPropagateLoadBit(bool f) {
+            instFlags[LoadEligibleToPropagateBit] = f; }
 
     ////////////////////////////////////////////
     //
@@ -715,6 +753,20 @@ class BaseDynInst : public ExecContext, public RefCounted
 
     /** Returns whether or not this instruction is completed. */
     bool isCompleted() const { return status[Completed]; }
+
+    //smurthy (new additions to track whether all branches prior
+    //to an instruction are resolved
+    void setPrevBrsResolved() { status.set(PrevBrsResolved); }
+    bool isPrevBrsResolved() const { return status[PrevBrsResolved]; }
+
+    void setPrevBrsCommitted() { status.set(PrevBrsCommitted); }
+    bool isPrevBrsCommitted() const { return status[PrevBrsCommitted]; }
+
+
+    void setStalledLoad() { status.set(StalledLoad); }
+    bool isStalledLoad() const { return status[StalledLoad]; }
+
+
 
     /** Marks the result as ready. */
     void setResultReady() { status.set(ResultReady); }

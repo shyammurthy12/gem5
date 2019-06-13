@@ -76,6 +76,10 @@ class PhysRegFile
     static constexpr auto NumVecElemPerVecReg = TheISA::NumVecElemPerVecReg;
 
     /** Integer register file. */
+    //smurthy: to flag this destination
+    //register as the output of a load
+    std::vector<bool> _isDestOfLoad;
+    //end of addition
     std::vector<RegVal> intRegFile;
     std::vector<PhysRegId> intRegIds;
 
@@ -190,6 +194,18 @@ class PhysRegFile
                 "%#x\n", phys_reg->index(), intRegFile[phys_reg->index()]);
         return intRegFile[phys_reg->index()];
     }
+
+    //smurthy: addition to check if the dest
+    //comes from a prior load
+    bool
+    read_isIntRegOutputofLoad(PhysRegIdPtr phys_reg) const
+    {
+        assert(phys_reg->isIntPhysReg());
+        DPRINTF(IEW, "RegFile: Access to int register %i, has data "
+                "d\n", phys_reg->index(), _isDestOfLoad[phys_reg->index()]);
+        return _isDestOfLoad[phys_reg->index()];
+    }
+    //end of function addition
 
     RegVal
     readFloatReg(PhysRegIdPtr phys_reg) const
@@ -313,6 +329,19 @@ class PhysRegFile
             intRegFile[phys_reg->index()] = val;
     }
 
+    //smurthy: set boolean for a physical register
+    //to indicate that it is the output of a load
+    //or derives from the input from a load
+    void
+    set_isIntRegOutputofLoad(PhysRegIdPtr phys_reg, bool val)
+    {
+        assert(phys_reg->isIntPhysReg());
+        DPRINTF(IEW, "RegFile: Setting int register %i to %d\n",
+                phys_reg->index(), val);
+
+        if (!phys_reg->isZeroReg())
+           _isDestOfLoad[phys_reg->index()] = val;
+    }
     void
     setFloatReg(PhysRegIdPtr phys_reg, RegVal val)
     {

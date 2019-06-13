@@ -206,6 +206,12 @@ class ROB
     /** Updates the tail instruction with the new youngest instruction. */
     void updateTail();
 
+    //smurthy (function to update speculative status for instructions)
+    void updateSpeculativeState();
+
+
+
+
     /** Reads the PC of the oldest head instruction. */
 //    uint64_t readHeadPC();
 

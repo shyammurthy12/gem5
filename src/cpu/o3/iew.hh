@@ -453,6 +453,15 @@ class DefaultIEW
     Stats::Scalar iewExecutedInsts;
     /** Stat for total number of executed load instructions. */
     Stats::Vector iewExecLoadInsts;
+
+    //smurthy->Number of load instructions we stalled until
+    //branch resolution.
+    Stats::Vector iewStalledLoadInsts;
+
+    //smurthy->Number of load instructions we stalled and
+    //that got squashed
+    Stats::Vector iewStalledAndSquashedInsts;
+
     /** Stat for total number of executed store instructions. */
 //    Stats::Scalar iewExecStoreInsts;
     /** Stat for total number of squashed instructions skipped at execute. */

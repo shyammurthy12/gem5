@@ -257,8 +257,18 @@ class DefaultRename
     /** Renames the source registers of an instruction. */
     inline void renameSrcRegs(const DynInstPtr &inst, ThreadID tid);
 
+    //checks if source registers come from a load
+    inline bool checkIfSrcRegsAreFromLoad(const DynInstPtr &inst, ThreadID
+                    tid);
+
+
     /** Renames the destination registers of an instruction. */
-    inline void renameDestRegs(const DynInstPtr &inst, ThreadID tid);
+   // inline void renameDestRegs(const DynInstPtr &inst, ThreadID tid);
+  //smurthy: add another param to indicate if the sources are from load
+     inline void renameDestRegs(const DynInstPtr &inst, ThreadID tid, bool
+                     isSrcFromLoad);
+
+
 
     /** Calculates the number of free ROB entries for a specific thread. */
     inline int calcFreeROBEntries(ThreadID tid);

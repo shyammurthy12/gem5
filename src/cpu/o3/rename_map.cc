@@ -64,8 +64,13 @@ SimpleRenameMap::init(unsigned size, SimpleFreeList *_freeList,
 {
     assert(freeList == NULL);
     assert(map.empty());
+    //initialize our newly introduced map for
+    //producers (destinations)
+    assert(map_toIndicateIfLoadDest.empty());
 
     map.resize(size);
+    map_toIndicateIfLoadDest.resize(size,0);
+
     freeList = _freeList;
     zeroReg = RegId(IntRegClass, _zeroReg);
 }
@@ -84,6 +89,11 @@ SimpleRenameMap::rename(const RegId& arch_reg)
         renamed_reg = freeList->getReg();
 
         map[arch_reg.flatIndex()] = renamed_reg;
+        //smurthy (default, set to false.
+        //If condition is true, instruction will do
+        //an explicit set
+        map_toIndicateIfLoadDest[arch_reg.flatIndex()] = false;
+
     } else {
         // Otherwise return the zero register so nothing bad happens.
         assert(prev_reg->isZeroReg());
@@ -97,6 +107,32 @@ SimpleRenameMap::rename(const RegId& arch_reg)
 
     return RenameInfo(renamed_reg, prev_reg);
 }
+
+
+//will always set to true, because whenever same
+//architectural destination is used by another
+//instruction, it gets reset to zero by default.
+void
+SimpleRenameMap::setIfArchRegDestOfLoad(const RegId& arch_reg, bool val)
+{
+
+    // If it's not referencing the zero register, then rename the
+    // register.
+    if (arch_reg != zeroReg) {
+        map_toIndicateIfLoadDest[arch_reg.flatIndex()] = val;
+    }
+}
+
+bool
+SimpleRenameMap::getIfArchRegDestOfLoad(const RegId& arch_reg)
+{
+    if (arch_reg != zeroReg) {
+        return map_toIndicateIfLoadDest[arch_reg.flatIndex()];
+    }
+    else
+        return false;
+}
+
 
 
 /**** UnifiedRenameMap methods ****/

@@ -542,6 +542,10 @@ class InstructionQueue
     Stats::Scalar vecInstQueueWrites;
     Stats::Scalar vecInstQueueWakeupAccesses;
 
+    //smurthy
+    //track how many loads which we stalled, we sqaushed
+    Stats::Scalar stalledAndsquashedLoads;
+
     Stats::Scalar intAluAccesses;
     Stats::Scalar fpAluAccesses;
     Stats::Scalar vecAluAccesses;

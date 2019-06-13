@@ -1388,6 +1388,11 @@ DefaultCommit<Impl>::markCompletedInsts()
             fromIEW->insts[inst_num]->setCanCommit();
         }
     }
+    //smurthy
+    //updating speculative state
+    //for non-CFL instructions
+    //isPrevBrsResolved, isPrevInstsCommitted
+    rob->updateSpeculativeState();
 }
 
 template <class Impl>

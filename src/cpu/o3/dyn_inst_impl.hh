@@ -109,7 +109,8 @@ BaseO3DynInst<Impl>::initVars()
     this->_readySrcRegIdx.reset();
 
     _numDestMiscRegs = 0;
-
+    this->prevControlFlowInst = NULL;
+    this->RefCountPtrRemoved = false;
 #if TRACING_ON
     // Value -1 indicates that particular phase
     // hasn't happened (yet).
