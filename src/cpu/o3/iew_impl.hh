@@ -1331,23 +1331,23 @@ DefaultIEW<Impl>::executeInsts()
                 //if branch is not resolved, wait for the
                 //branch to resolve before scheduling this
                 //instruction.
-                if ((!(inst->isPrevBrsResolved())) &&
-                                (inst->isLoadAddressFromAnotherLoad()))
+//                if ((!(inst->isPrevBrsResolved())) &&
+//                                (inst->isLoadAddressFromAnotherLoad()))
 //		if ((!(inst->isPrevBrsResolved())))
-                {
-                  //smurthy: increment of new statistic to measure the
-                  //number of stalled loads
-                  iewStalledLoadInsts[inst->threadNumber]++;
-                  inst->setStalledLoad();
-                  DPRINTF(IEW,
-                        "Can't execute because load is speculativev[sn:%lu]\n"
-                                  ,inst->seqNum);
-                  inst->onlyWaitForBranchResolution(true);
-                  instQueue.deferMemInst(inst);
-                  continue;
-                }
-                else
-                {
+//                {
+//                //smurthy: increment of new statistic to measure the
+//                //number of stalled loads
+//                  iewStalledLoadInsts[inst->threadNumber]++;
+//                  inst->setStalledLoad();
+//                  DPRINTF(IEW,
+//                   "Can't execute because load is speculativev[sn:%lu]\n"
+//                                  ,inst->seqNum);
+//                  inst->onlyWaitForBranchResolution(true);
+//                  instQueue.deferMemInst(inst);
+//                  continue;
+//                }
+//                else
+//                {
                   DPRINTF(IEW,
                          "Executing load non-speculatively [sn:%lu]\n"
                           ,inst->seqNum);
@@ -1356,7 +1356,7 @@ DefaultIEW<Impl>::executeInsts()
                 "Load with seqNum [sn:%lu] has address from another load\n"
                   ,inst->seqNum);
                   fault = ldstQueue.executeLoad(inst);
-                }
+//                }
 
                 if (inst->isTranslationDelayed() &&
                     fault == NoFault) {
