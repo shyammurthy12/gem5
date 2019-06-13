@@ -1331,9 +1331,9 @@ DefaultIEW<Impl>::executeInsts()
                 //if branch is not resolved, wait for the
                 //branch to resolve before scheduling this
                 //instruction.
-                if ((!(inst->isPrevBrsResolved())) &&
-                                (inst->isLoadAddressFromAnotherLoad()))
-//		if ((!(inst->isPrevBrsResolved())))
+//                if ((!(inst->isPrevBrsResolved())) &&
+//                                (inst->isLoadAddressFromAnotherLoad()))
+                if ((!(inst->isPrevBrsResolved())))
                 {
                   //smurthy: increment of new statistic to measure the
                   //number of stalled loads
