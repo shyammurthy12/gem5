@@ -36,6 +36,28 @@
 # Authors: Gabe Black
 
 microcode = '''
+
+#def macroop FCMOVNBE_R_R
+#{
+#    movfp reg, reg, reg, flags=(CCvZF,)
+#    movfp reg, reg, regm, flags=(nCCvZF,)
+#};
+#
+#def macroop FCMOVNBE_R_M
+#{
+#    ldfp ufp1, seg, sib, disp
+#    movfp reg, reg, reg, flags=(CCvZF,)
+#    movfp reg, reg, ufp1, flags=(nCCvZF,)
+#};
+#
+#def macroop FCMOVNBE_R_P
+#{
+#    rdip t7
+#    ld ufp1, seg, riprel, disp
+#    movfp reg, reg, reg, flags=(CCvZF,)
+#    movfp reg, reg, ufp1, flags=(nCCvZF,)
+#};
+
 # FCMOVB
 # FCMOVBE
 # FCMOVE

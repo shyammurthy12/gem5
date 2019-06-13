@@ -58,12 +58,23 @@ format WarnUnimpl {
                 0x3: Inst::FSUB1(Eq);
                 default: Inst::FSUB1(Md);
             }
-            0x5: fsubr();
+            //0x5: fsubr();
+            //smurthy
+
+            0x5: decode MODRM_MOD {
+                0x3: Inst::FSUBR1(Eq);
+                default: Inst::FSUBR1(Md);
+            }
             0x6: decode MODRM_MOD {
                 0x3: Inst::FDIV1(Eq);
                 default: Inst::FDIV1(Md);
             }
-            0x7: fdivr();
+            //0x7: fdivr();
+            //smurthy
+            0x7: decode MODRM_MOD {
+                0x3: Inst::FDIVR1(Eq);
+                default: Inst::FDIVR1(Md);
+            }
         }
         0x1: decode MODRM_REG {
             0x0: decode MODRM_MOD {
@@ -125,9 +136,15 @@ format WarnUnimpl {
                 0x3: decode MODRM_RM {
                     0x0: Inst::FPREM();
                     0x1: fyl2xp1();
-                    0x2: fsqrt();
+                   // 0x2: fsqrt();
+                   //smurthy
+                    0x2: Inst::FSQRT();
+
                     0x3: Inst::FSINCOS();
-                    0x4: frndint();
+                    //smurthy
+                    // 0x4: frndint();
+                    0x4: Inst::FRNDINT();
+
                     0x5: fscale();
                     0x6: Inst::FSIN();
                     0x7: Inst::FCOS();
@@ -184,12 +201,15 @@ format WarnUnimpl {
                 default: fisttp();
             }
             0x2: decode MODRM_MOD {
+                //0x3: Inst::FCMOVNBE();
                 0x3: fcmovnbe();
                 default: fist();
             }
             0x3: decode MODRM_MOD {
                 0x3: fcmovnu();
-                default: fistp();
+                //smurthy
+               // default: fistp();
+                default: Inst::FISTP(Ed);
             }
             0x4: decode MODRM_MOD {
                 0x3: decode MODRM_RM {
@@ -235,6 +255,8 @@ format WarnUnimpl {
             }
             0x4: decode MODRM_MOD {
                 0x3: fsubr();
+                //smurthy
+                //0x3: Inst::FSUBR1();
                 default: Inst::FSUB2(Mq);
             }
             0x5: decode MODRM_MOD {
@@ -243,11 +265,14 @@ format WarnUnimpl {
             }
             0x6: decode MODRM_MOD {
                 0x3: fdivr();
+                //smurthy
                 default: Inst::FDIV2(Mq);
             }
             0x7: decode MODRM_MOD {
                 0x3: Inst::FDIV2(Eq);
+                //smurthy
                 default: fdivr();
+                //default: Inst::FDIVR2(mq);
             }
         }
         //0x5: esc5();
@@ -322,7 +347,9 @@ format WarnUnimpl {
                 default: fisubr();
             }
             0x6: decode MODRM_MOD {
-                0x3: fdivrp();
+                //smurthy
+                //  0x3: fdivrp();
+                0x3: Inst::FDIVRP(Eq);
                 default: fidiv();
             }
             0x7: decode MODRM_MOD {
@@ -348,7 +375,9 @@ format WarnUnimpl {
             }
             0x3: decode MODRM_MOD {
                 0x3: Inst::UD2();
-                default: fistp();
+                //smurthy
+              //  default: fistp();
+                default: Inst::FISTP(Eq);
             }
             0x4: decode MODRM_MOD {
                 0x3: decode MODRM_RM {
@@ -369,7 +398,9 @@ format WarnUnimpl {
             }
             0x7: decode MODRM_MOD {
                 0x3: Inst::UD2();
-                default: fistp();
+                //smurthy
+                default: Inst::FISTP(Mq);
+           //     default: fistp();
             }
         }
     }

@@ -52,6 +52,27 @@ def macroop FILD_P {
     movfp st(-1), ufp1, spm=-1
 };
 
+
+def macroop FISTP_R {
+    cvtf_d2i t1, st(0)
+    cvtf_i2d sti, t1, spm=1
+    pop87
+};
+
+def macroop FISTP_M{
+    cvtf_d2i t1, st(0)
+    st t1, seg, sib, disp
+    pop87
+};
+
+def macroop FISTP_P {
+    cvtf_d2i t1, st(0)
+    rdip t7
+    st t1, seg, riprel, disp
+    pop87
+};
+
+
 # FIST
 # FISTP
 # FISTTP

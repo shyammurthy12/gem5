@@ -78,6 +78,67 @@ def macroop FDIVP
     divfp st(1), st(1), st(0), spm=1
 };
 
+
+def macroop FDIVR1_R
+{
+    divfp st(0), sti, st(0)
+};
+
+
+def macroop FDIVR1_M
+{
+    ldfp87 ufp1, seg, sib, disp
+    divfp st(0), ufp1, st(0)
+};
+
+def macroop FDIVR1_P
+{
+    rdip t7
+    ldfp87 ufp1, seg, riprel, disp
+    divfp st(0), ufp1, st(0)
+};
+
+
+
+def macroop FDIVR2_R
+{
+    divfp sti, st(0), sti
+};
+
+def macroop FDIVR2_M
+{
+    ldfp87 ufp1, seg, sib, disp
+    divfp st(0), ufp1, st(0)
+};
+
+def macroop FDIVR2_P
+{
+    rdip t7
+    ldfp87 ufp1, seg, riprel, disp
+    divfp st(0), ufp1, st(0)
+};
+
+
+def macroop FDIVRP
+{
+    divfp st(1), st(0), st(1), spm=1
+};
+
+def macroop FDIVRP_R
+{
+    divfp sti, st(0), sti, spm=1
+};
+
+def macroop FDIVRP_M
+{
+    fault "std::make_shared<UnimpInstFault>()"
+};
+
+def macroop FDIVRP_P
+{
+   fault "std::make_shared<UnimpInstFault>()"
+};
+
 def macroop FDIVP_R
 {
     divfp sti, sti, st(0), spm=1

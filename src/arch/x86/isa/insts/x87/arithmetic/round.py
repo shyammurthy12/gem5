@@ -36,5 +36,12 @@
 # Authors: Gabe Black
 
 microcode = '''
+
+def macroop FRNDINT {
+    cvtf_d2i t1, st(0)
+    cvtf_i2d st(0), t1
+};
+
+
 # FRNDINT
 '''

@@ -36,5 +36,11 @@
 # Authors: Gabe Black
 
 microcode = '''
+
+def macroop FSQRT {
+    sqrtfp st(0), st(0), st(0)
+};
+
+
 # FSQRT
 '''
