@@ -1372,10 +1372,6 @@ DefaultIEW<Impl>::executeInsts()
                     inst->fault = NoFault;
                 }
             } else if (inst->isStore()) {
-                if (!(inst->isPrevBrsResolved()))
-                  DPRINTF(IEW, "Executing store speculatively\n");
-                else
-                  DPRINTF(IEW, "Executing store non-speculatively\n");
                 fault = ldstQueue.executeStore(inst);
 
                 if (inst->isTranslationDelayed() &&
