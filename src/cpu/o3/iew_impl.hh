@@ -1331,9 +1331,34 @@ DefaultIEW<Impl>::executeInsts()
                 //if branch is not resolved, wait for the
                 //branch to resolve before scheduling this
                 //instruction.
-                if ((!(inst->isPrevBrsResolved())) &&
-                                (inst->isLoadAddressFromAnotherLoad()))
+//                if ((!(inst->isPrevBrsResolved())) &&
+//                                (inst->isLoadAddressFromAnotherLoad()))
 //		if ((!(inst->isPrevBrsResolved())))
+//                {
+//                  //smurthy: increment of new statistic to measure the
+//                  //number of stalled loads
+//                  iewStalledLoadInsts[inst->threadNumber]++;
+//                  inst->setStalledLoad();
+//                  inst->onlyWaitForBranchResolution(true);
+//                  instQueue.deferMemInst(inst);
+//                  continue;
+//                }
+//                else
+//                {
+//                  DPRINTF(IEW,
+//                         "Executing load non-speculatively [sn:%lu]\n"
+//                          ,inst->seqNum);
+//                  if (inst->isLoadAddressFromAnotherLoad())
+//                   DPRINTF(IEW,
+//                "Load with seqNum [sn:%lu] has address from another load\n"
+//                  ,inst->seqNum);
+//                  fault = ldstQueue.executeLoad(inst);
+//                }
+
+
+                if ((!(inst->isPrevStoresResolved())) &&
+                                (inst->isLoadAddressFromAnotherLoad()))
+//		if ((!(inst->isPrevStoresResolved())))
                 {
                   //smurthy: increment of new statistic to measure the
                   //number of stalled loads
@@ -1342,7 +1367,7 @@ DefaultIEW<Impl>::executeInsts()
                   DPRINTF(IEW,
                         "Can't execute because load is speculativev[sn:%lu]\n"
                                   ,inst->seqNum);
-                  inst->onlyWaitForBranchResolution(true);
+                  inst->onlyWaitForStoreResolution(true);
                   instQueue.deferMemInst(inst);
                   continue;
                 }
@@ -1357,6 +1382,7 @@ DefaultIEW<Impl>::executeInsts()
                   ,inst->seqNum);
                   fault = ldstQueue.executeLoad(inst);
                 }
+
 
                 if (inst->isTranslationDelayed() &&
                     fault == NoFault) {

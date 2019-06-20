@@ -1172,11 +1172,11 @@ InstructionQueue<Impl>::getDeferredMemInstToExecute()
         if ((*it)->translationCompleted()
              || (*it)->isSquashed()
              ||
-             ((*it)->onlyWaitForBranchResolution()
-              &&(*it)->isPrevBrsResolved()))
+             ((*it)->onlyWaitForStoreResolution()
+              &&(*it)->isPrevStoresResolved()))
         {
             DynInstPtr mem_inst = std::move(*it);
-            mem_inst->onlyWaitForBranchResolution(false);
+            mem_inst->onlyWaitForStoreResolution(false);
             deferredMemInsts.erase(it);
             return mem_inst;
         }

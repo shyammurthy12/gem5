@@ -126,6 +126,9 @@ class BaseDynInst : public ExecContext, public RefCounted
         //smurthy: added status to indicate that instr is non CFL speculative
         PrevBrsResolved,
         PrevBrsCommitted,
+        //smurthy: added status to indicate that instr is data speculative
+        PrevStoresResolved,
+        PrevStoresCommitted,
         //smurthy: status to indicate that we stalled the load.
         //use this in the generation of a statistic
         StalledLoad,
@@ -149,6 +152,8 @@ class BaseDynInst : public ExecContext, public RefCounted
         //smurthy: added status to indciate that instr only waits
         //for branch resolution
         OnlyWaitForBranchResolution,
+        //for store resolution
+        OnlyWaitForStoreResolution,
         //to indicate that load gets its address from another load
         LoadAddressFromAnotherLoad,
         LoadEligibleToPropagateBit,
@@ -303,6 +308,14 @@ class BaseDynInst : public ExecContext, public RefCounted
             instFlags[OnlyWaitForBranchResolution]; }
     void onlyWaitForBranchResolution(bool f) {
             instFlags[OnlyWaitForBranchResolution] = f; }
+
+
+    //smurthy, added a flag to indicate that this instruction only needs
+    //to wait for the resolution of prior stores.
+    bool onlyWaitForStoreResolution() const { return
+            instFlags[OnlyWaitForStoreResolution]; }
+    void onlyWaitForStoreResolution(bool f) {
+            instFlags[OnlyWaitForStoreResolution] = f; }
 
     //added a flag to indicate that this instruction gets its address
     //from another load.
@@ -761,6 +774,14 @@ class BaseDynInst : public ExecContext, public RefCounted
 
     void setPrevBrsCommitted() { status.set(PrevBrsCommitted); }
     bool isPrevBrsCommitted() const { return status[PrevBrsCommitted]; }
+
+    //smurthy (new additions to track whether all stores prior
+    //to an instruction have completed
+    void setPrevStoresResolved() { status.set(PrevStoresResolved); }
+    bool isPrevStoresResolved() const { return status[PrevStoresResolved]; }
+
+    void setPrevStoresCommitted() { status.set(PrevStoresCommitted); }
+    bool isPrevStoresCommitted() const { return status[PrevStoresCommitted]; }
 
 
     void setStalledLoad() { status.set(StalledLoad); }

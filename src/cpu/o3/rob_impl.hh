@@ -416,6 +416,7 @@ ROB<Impl>::updateSpeculativeState()
         bool prevBrsResolved=true;
         bool prevBrsCommitted=true;
 
+
         while (inst_it != tail_inst_it) {
             DynInstPtr inst = *inst_it++;
 
@@ -450,6 +451,51 @@ ROB<Impl>::updateSpeculativeState()
                 }
             }
         }
+
+
+        inst_it = instList[tid].begin();
+        tail_inst_it = instList[tid].end();
+        //state for data speculative status as we
+        //parse instructions in the queue
+        bool prevStoresResolved=true;
+        bool prevStoresCommitted=true;
+
+        while (inst_it != tail_inst_it) {
+            DynInstPtr inst = *inst_it++;
+
+            assert(inst!=0);
+
+            if (!prevStoresResolved) {
+                break;
+            }
+
+            //flag any instruction that is
+            //non-control flow as non-speculative based
+            //on the checks below.
+            if (!(inst->isStore())) {
+                if (prevStoresResolved){
+                    inst->setPrevStoresResolved();
+                }
+                if (prevStoresCommitted) {
+                    inst->setPrevStoresCommitted();
+                }
+            }
+
+            // Update prev control insts state
+            if (inst->isStore()){
+                //we have store instructions that are yet to commit.
+                prevStoresCommitted = false;
+                //we have store instructions that are not yet ready to
+                //commit, or faulted or were squashed, which means lack of
+                //stores having been resolved.
+                if (!inst->readyToCommit() || inst->getFault()!=NoFault
+                        || inst->isSquashed()){
+                    prevStoresResolved = false;
+                }
+            }
+        }
+
+
     }
 
 }
