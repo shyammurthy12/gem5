@@ -368,6 +368,11 @@ class DefaultIEW
      */
     bool updateLSQNextCycle;
 
+    //smurthy:
+    //This is used to decide the length of burst for which
+    //we have no speculation.
+    int burst_length;
+    int random_number;
   private:
     /** Records if there is a fetch redirect on this cycle for each thread. */
     bool fetchRedirect[Impl::MaxThreads];

@@ -67,6 +67,8 @@
 
 using namespace std;
 
+//smurthy:define the fixed size burst length here.
+#define MAX_BURST_LENGTH 100
 
 //Last branch to be resolved
 
@@ -138,6 +140,7 @@ DefaultIEW<Impl>::DefaultIEW(O3CPU *_cpu, DerivO3CPUParams *params)
     //smurthy: for random number
     //generation
     srand(time(NULL));
+    burst_length = MAX_BURST_LENGTH;
 }
 
 template <class Impl>
@@ -1336,14 +1339,24 @@ DefaultIEW<Impl>::executeInsts()
                 //branch to resolve before scheduling this
                 //instruction.
                 //smurthy:
-                //A random number between 0 and 4
-                //Stall when 0.
-                int random_number = rand()%3;
+                //only when a burst is complete, do we
+                //compute a new random number.
+                //pick a larger number (not a small
+                //number say 2) to perform
+                //a modulo operation, so that we
+                //don't have frequent bursts of no
+                //speculation.
+                if (burst_length == MAX_BURST_LENGTH)
+                   random_number = rand()%2;
+
                 if ((!(inst->isPrevBrsResolved())) &&
                                 (inst->isLoadAddressFromAnotherLoad())&&
                                 (random_number==0))
 //		if ((!(inst->isPrevBrsResolved())))
                 {
+                  burst_length--;
+                  if (burst_length == 0)
+                     burst_length = MAX_BURST_LENGTH;
                   //smurthy: increment of new statistic to measure the
                   //number of stalled loads
                   iewStalledLoadInsts[inst->threadNumber]++;
