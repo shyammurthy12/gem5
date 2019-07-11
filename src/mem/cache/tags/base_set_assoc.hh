@@ -125,6 +125,66 @@ class BaseSetAssoc : public BaseTags
      */
     CacheBlk* accessBlock(Addr addr, bool is_secure, Cycles &lat) override
     {
+#ifdef Ongal_VC
+#ifdef VIVT
+        BlkType *blk = NULL;
+
+        if (get_VC_structure() != NULL){
+
+          // No Corresponding ASDT entry?
+          uint64_t Region_Size = get_VC_structure()->get_region_size();
+          uint64_t PPN = addr/Region_Size;
+          ASDT_entry * ASDT_entry =
+                  get_VC_structure()->access_matching_ASDT_map(PPN);
+
+          if ( ASDT_entry == NULL){
+            blk = NULL;
+            /*
+            if (blkAlign(addr) == 0xbd43c000 || blkAlign(addr) == 0xbd439000){
+              std::cout<<"AccessBlock  Miss without ASDT "<<std::endl;
+            }
+            */
+          }else{
+
+            Addr CPA_VPN = ASDT_entry->get_virtual_page_number();
+            Addr CPA_Vaddr = (CPA_VPN * Region_Size) + (addr % Region_Size);
+            uint64 CPA_CR3 = ASDT_entry->get_cr3();
+
+            unsigned set = extractSet_Vaddr(CPA_Vaddr);
+            blk = sets[set].findBlk_with_blkAlign(blkAlign(addr),
+                                                  CPA_CR3,
+                                                  extractTag(CPA_Vaddr),
+                                                  is_secure);
+           /*
+            if (blkAlign(addr) == 0xbd43c000 || blkAlign(addr) == 0xbd439000){
+              std::cout<<"AccessBlock ";
+              if ( blk == NULL )
+                std::cout<<" Miss with ASDT"<<std::endl;
+              else
+                std::cout<<" Hit set index "<<blk->set<<std::endl;
+
+              unsigned set = extractSet_Vaddr(CPA_Vaddr);
+              sets[set].print();
+              std::cout<<std::endl;
+              }
+            */
+          }
+        }else{
+          Addr tag = extractTag(addr);
+          int set = extractSet(addr);
+          blk = sets[set].findBlk(tag, is_secure);
+        }
+#else
+        Addr tag = extractTag(addr);
+        int set = extractSet(addr);
+        BlkType *blk = sets[set].findBlk(tag, is_secure);
+#endif
+#else
+        Addr tag = extractTag(addr);
+        int set = extractSet(addr);
+        BlkType *blk = sets[set].findBlk(tag, is_secure);
+#endif
+
         CacheBlk *blk = findBlock(addr, is_secure);
 
         // Access all tags in parallel, hence one in each way.  The data side
@@ -153,6 +213,43 @@ class BaseSetAssoc : public BaseTags
 
         return blk;
     }
+
+#ifdef smurthy_VC
+#ifdef LateMemTrap
+    CacheBlk* access_VC_Block(PacketPtr pkt,
+                              bool is_secure, Cycles &lat,
+                              int context_src)
+    {
+      // Lookup L1 VCs with only virtual addresses
+      BlkType *blk = NULL;
+
+      uint64 vaddr = pkt->req->getVaddr();
+      uint64 cr3   = pkt->req->getCR3();
+
+      Addr vtag = extractTag((Addr)vaddr);
+      int set = extractSet_Vaddr(vaddr);
+
+      blk = sets[set].findBlk_with_vaddr(vtag, cr3, is_secure);
+
+      // when a valid block is found,
+      if (blk != NULL){
+        // a trick, a leading virtual address can be used actually,
+        // rather than using a physical address.
+        Addr lineaddr_paddr = blk->paddr/getBlockSize();
+        lineaddr_paddr *= getBlockSize();
+        lineaddr_paddr += vaddr%getBlockSize();
+
+        pkt->req->setPaddr(lineaddr_paddr);
+        pkt->setAddr(lineaddr_paddr);
+
+      }
+
+      return blk;
+    }
+#endif
+#endif
+
+
 
     /**
      * Find replacement victim based on address. The list of evicted blocks
@@ -188,7 +285,36 @@ class BaseSetAssoc : public BaseTags
      */
     void insertBlock(const PacketPtr pkt, CacheBlk *blk) override
     {
-        // Insert block
+       #ifdef smurthy_VC
+       if (get_VC_structure() != NULL){
+
+         // only for the first level cache
+         // replacement
+         if (blk->isValid()){
+           Addr repl_addr = blk->paddr;
+
+           // update ASDT
+           get_VC_structure()->update_ASDT( 0, repl_addr, 0,
+                                            false, &cache->num_CPA_change,
+                                            &cache->num_CPA_change_check,
+                                            pkt->req->get_is_writable_page());
+         }
+
+         /*
+         std::cout<<"insertBlock Vaddr Vaddr "<<std::hex<<pkt->req->getVaddr()
+                  <<" Paddr "<<pkt->req->getPaddr()
+                  <<" CR3 "<<pkt->req->getCR3()<<endl;
+         */
+         // allocation
+         get_VC_structure()->update_ASDT( pkt->req->getVaddr(),
+                                          pkt->req->getPaddr(),
+                                          pkt->req->getCR3(),
+                                          true, &cache->num_CPA_change,
+                                          &cache->num_CPA_change_check,
+                                          pkt->req->get_is_writable_page());
+       }
+       #endif
+         // Insert block
         BaseTags::insertBlock(pkt, blk);
 
         // Increment tag counter

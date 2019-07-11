@@ -368,6 +368,24 @@ class Request
         uint64_t _asid;
     };
 
+    #ifdef smurthy_VC
+        /** for split request */
+        bool second_req;
+        /** The CR3 value as ASID for virtual cache */
+        uint64_t _cr3;
+        bool     _store;
+        std::set<uint64_t> DemapPages;
+        // O3 model
+        uint64_t _cr3_after_art_lookup;
+        uint64_t _vaddr_after_art_lookup;
+        int      _request_type;
+
+    #ifdef LateMemTrap
+        void *tlb_ptr;
+        void *tc_ptr;
+        bool is_writable_page; // this is set after TLB hits
+    #endif
+    #endif
     /** The virtual address of the request. */
     Addr _vaddr;
 
@@ -401,7 +419,20 @@ class Request
           _extraData(0), _contextId(0), _pc(0),
           _reqInstSeqNum(0), atomicOpFunctor(nullptr), translateDelta(0),
           accessDelta(0), depth(0)
-    {}
+    {
+     #ifdef smurthy_VC
+           set_second_req(false);
+           setCR3(Null_CR3);
+           set_store(false);
+           set_cr3_after_art_lookup(Null_CR3);
+           set_vaddr_after_art_lookup(0);
+           set_request_type(OTHERS);
+     #ifdef LateMemTrap
+           set_tlb_ptr(NULL);
+           set_tc_ptr(NULL);
+     #endif
+     #endif
+    }
 
     Request(Addr paddr, unsigned size, Flags flags, MasterID mid,
             InstSeqNum seq_num, ContextID cid)
@@ -412,6 +443,18 @@ class Request
           accessDelta(0), depth(0)
     {
         setPhys(paddr, size, flags, mid, curTick());
+        #ifdef smurthy_VC
+         set_second_req(false);
+         setCR3(Null_CR3);
+         set_store(false);
+         set_cr3_after_art_lookup(Null_CR3);
+         set_vaddr_after_art_lookup(0);
+         set_request_type(OTHERS);
+        #ifdef LateMemTrap
+         set_tlb_ptr(NULL);
+         set_tc_ptr(NULL);
+        #endif
+        #endif
         setContext(cid);
         privateFlags.set(VALID_INST_SEQ_NUM);
     }
@@ -429,6 +472,19 @@ class Request
           accessDelta(0), depth(0)
     {
         setPhys(paddr, size, flags, mid, curTick());
+        #ifdef smurthy_VC
+         set_second_req(false);
+         setCR3(Null_CR3);
+         set_store(false);
+         set_cr3_after_art_lookup(Null_CR3);
+         set_vaddr_after_art_lookup(0);
+         set_request_type(OTHERS);
+        #ifdef LateMemTrap
+          set_tlb_ptr(NULL);
+          set_tc_ptr(NULL);
+        #endif
+        #endif
+
     }
 
     Request(Addr paddr, unsigned size, Flags flags, MasterID mid, Tick time)
@@ -439,6 +495,19 @@ class Request
           accessDelta(0), depth(0)
     {
         setPhys(paddr, size, flags, mid, time);
+        #ifdef smurthy_VC
+         set_second_req(false);
+         setCR3(Null_CR3);
+         set_store(false);
+         set_cr3_after_art_lookup(Null_CR3);
+         set_vaddr_after_art_lookup(0);
+         set_request_type(OTHERS);
+        #ifdef LateMemTrap
+          set_tlb_ptr(NULL);
+          set_tc_ptr(NULL);
+        #endif
+        #endif
+
     }
 
     Request(Addr paddr, unsigned size, Flags flags, MasterID mid, Tick time,
@@ -451,6 +520,18 @@ class Request
     {
         setPhys(paddr, size, flags, mid, time);
         privateFlags.set(VALID_PC);
+        #ifdef smurthy_VC
+         setCR3(Null_CR3);
+         set_store(false);
+         set_cr3_after_art_lookup(Null_CR3);
+         set_vaddr_after_art_lookup(0);
+         set_request_type(OTHERS);
+        #ifdef LateMemTrap
+          set_tlb_ptr(NULL);
+          set_tc_ptr(NULL);
+        #endif
+        #endif
+
     }
 
     Request(uint64_t asid, Addr vaddr, unsigned size, Flags flags,
@@ -463,6 +544,19 @@ class Request
     {
         setVirt(asid, vaddr, size, flags, mid, pc);
         setContext(cid);
+        #ifdef smurthy_VC
+         set_second_req(false);
+         setCR3(Null_CR3);
+         set_store(false);
+         set_cr3_after_art_lookup(Null_CR3);
+         set_vaddr_after_art_lookup(0);
+         set_request_type(OTHERS);
+        #ifdef LateMemTrap
+         set_tlb_ptr(NULL);
+         set_tc_ptr(NULL);
+        #endif
+        #endif
+
     }
 
     Request(uint64_t asid, Addr vaddr, unsigned size, Flags flags,
@@ -471,6 +565,19 @@ class Request
     {
         setVirt(asid, vaddr, size, flags, mid, pc, atomic_op);
         setContext(cid);
+        #ifdef smurthy_VC
+         set_second_req(false);
+         setCR3(Null_CR3);
+         set_store(false);
+         set_cr3_after_art_lookup(Null_CR3);
+         set_vaddr_after_art_lookup(0);
+         set_request_type(OTHERS);
+        #ifdef LateMemTrap
+         set_tlb_ptr(NULL);
+         set_tc_ptr(NULL);
+        #endif
+        #endif
+
     }
 
     Request(const Request& other)
@@ -490,6 +597,18 @@ class Request
             atomicOpFunctor = (other.atomicOpFunctor)->clone();
         else
             atomicOpFunctor = nullptr;
+        #ifdef smurthy_VC
+         set_second_req(false);
+         setCR3(Null_CR3);
+         set_store(false);
+         set_cr3_after_art_lookup(Null_CR3);
+         set_vaddr_after_art_lookup(0);
+         set_request_type(OTHERS);
+        #ifdef LateMemTrap
+         set_tlb_ptr(NULL);
+         set_tc_ptr(NULL);
+        #endif
+        #endif
     }
 
     ~Request()
@@ -577,6 +696,9 @@ class Request
         req1->_size = split_addr - _vaddr;
         req2->_vaddr = split_addr;
         req2->_size = _size - req1->_size;
+        #ifdef smurthy_VC
+          req2->set_second_req(true);
+        #endif
     }
 
     /**
@@ -724,6 +846,58 @@ class Request
     {
         _asid = asid;
     }
+
+#ifdef smurthy_VC
+    /* Accessor function for cr3.*/
+  uint64_t
+  getCR3() const
+  {
+    return _cr3;
+  }
+
+  /** Accessor function for cr3.*/
+  void
+  setCR3(uint64_t cr3)
+  {
+    _cr3 = cr3;
+  }
+
+  void
+  setVaddr(Addr v)
+  {
+    _vaddr = v;
+  }
+
+  void set_store(bool store){ _store = store; }
+  bool get_store(){ return _store; }
+
+  void set_cr3_after_art_lookup(uint64_t a){ _cr3_after_art_lookup = a; }
+  uint64_t get_cr3_after_art_lookup(){ return _cr3_after_art_lookup; }
+
+  void set_vaddr_after_art_lookup(uint64_t a){ _vaddr_after_art_lookup = a; }
+  uint64_t get_vaddr_after_art_lookup(){ return _vaddr_after_art_lookup; }
+  int get_request_type(){ return _request_type; }
+  void set_request_type(int type){ _request_type = type; }
+
+  void set_second_req(bool a){ second_req = a; }
+  bool get_second_req(){ return second_req; }
+
+  void set_demap_pages(std::set<uint64_t> a){ DemapPages = a; }
+  std::set<uint64_t> get_demap_pages(){ return DemapPages; }
+
+  void set_is_writable_page(bool a){ is_writable_page = a; }
+  bool get_is_writable_page(){ return is_writable_page; }
+
+  #ifdef LateMemTrap
+  void set_tlb_ptr(void *ptr){ tlb_ptr = ptr; }
+  void* get_tlb_ptr(){ return tlb_ptr; }
+  void set_tc_ptr(void *ptr){ tc_ptr = ptr; }
+  void* get_tc_ptr(){ return tc_ptr; }
+  #endif
+#endif
+
+
+
 
     /** Accessor function for architecture-specific flags.*/
     ArchFlagsType

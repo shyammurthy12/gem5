@@ -84,7 +84,21 @@ BaseSetAssoc::tagsInit()
 void
 BaseSetAssoc::invalidate(CacheBlk *blk)
 {
-    BaseTags::invalidate(blk);
+     #ifdef smurthy_VC
+     if (get_VC_structure() != NULL){
+
+       // only for the first level virtual cache
+       // replacement or invalidations
+       if (blk->isValid()){
+         Addr repl_addr = blk->paddr;
+         get_VC_structure()->update_ASDT( 0, repl_addr, 0,
+                                          false, &cache->num_CPA_change,
+                                          &cache->num_CPA_change_check,
+                                          false);
+       }
+     }
+     #endif
+     BaseTags::invalidate(blk);
 
     // Decrease the number of tags in use
     tagsInUse--;

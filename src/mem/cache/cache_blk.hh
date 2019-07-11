@@ -90,6 +90,14 @@ class CacheBlk : public ReplaceableEntry
 
     /** Data block tag value. */
     Addr tag;
+
+    #ifdef smurthy_VC
+       Addr vtag;
+       uint64_t cr3;
+       Addr paddr;
+       bool is_writable_page; // write permission of a leading virtual page
+    #endif
+
     /**
      * Contains a copy of the data in this block for easy access. This is used
      * for efficient execution when the data could be actually stored in
@@ -169,6 +177,11 @@ class CacheBlk : public ReplaceableEntry
     CacheBlk() : data(nullptr), tickInserted(0)
     {
         invalidate();
+        #ifdef smurthy_VC
+        vtag = 0;
+        cr3  = 0;
+        paddr = 0;
+        #endif
     }
 
     CacheBlk(const CacheBlk&) = delete;
