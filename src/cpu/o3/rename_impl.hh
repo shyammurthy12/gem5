@@ -1145,7 +1145,7 @@ DefaultRename<Impl>::checkIfSrcRegsAreFromLoad(const DynInstPtr &inst, ThreadID
     bool isSourceFromLoad = false;
     // Get the architectual register numbers from the source and
     // operands, and redirect them to the right physical register.
-
+    printf("The value if cr3 set is %lu\n",tc->readMiscReg(3));
     for (int src_idx = 0; src_idx < num_src_regs; src_idx++) {
         const RegId& src_reg = inst->srcRegIdx(src_idx);
 

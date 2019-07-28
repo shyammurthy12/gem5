@@ -27,8 +27,140 @@
  */
 
 #include "mem/ruby/common/Address.hh"
-
 #include "mem/ruby/system/RubySystem.hh"
+
+physical_address_t
+Address::getLineAddress() const
+{
+    return bitSelect(RubySystem::getBlockSizeBits(), ADDRESS_WIDTH);
+}
+
+physical_address_t
+Address::getOffset() const
+{
+    return bitSelect(0, RubySystem::getBlockSizeBits() - 1);
+}
+
+void
+Address::makeLineAddress()
+{
+    m_address = maskLowOrderBits(RubySystem::getBlockSizeBits());
+#ifdef Ongal_VC
+    m_phy_addr = maskLowOrderBits(m_phy_addr, RubySystem::getBlockSizeBits());
+    m_vir_addr = maskLowOrderBits(m_vir_addr, RubySystem::getBlockSizeBits());
+#endif
+}
+
+// returns the next stride address based on line address
+void
+Address::makeNextStrideAddress(int stride)
+{
+    m_address = maskLowOrderBits(RubySystem::getBlockSizeBits())
+        + RubySystem::getBlockSizeBytes()*stride;
+}
+
+int64
+Address::memoryModuleIndex() const
+{
+    int64 index =
+        bitSelect(RubySystem::getBlockSizeBits() +
+                  RubySystem::getMemorySizeBits(), ADDRESS_WIDTH);
+    assert (index >= 0);
+    return index;
+
+    // int64 indexHighPortion =
+    //     address.bitSelect(MEMORY_SIZE_BITS - 1,
+    //                       PAGE_SIZE_BITS + NUMBER_OF_MEMORY_MODULE_BITS);
+    // int64 indexLowPortion =
+    //     address.bitSelect(DATA_BLOCK_BITS, PAGE_SIZE_BITS - 1);
+    //
+    // int64 index = indexLowPortion |
+    //     (indexHighPortion << (PAGE_SIZE_BITS - DATA_BLOCK_BITS));
+
+    /*
+      Round-robin mapping of addresses, at page size granularity
+
+ADDRESS_WIDTH    MEMORY_SIZE_BITS        PAGE_SIZE_BITS  DATA_BLOCK_BITS
+  |                    |                       |               |
+ \ /                  \ /                     \ /             \ /       0
+  -----------------------------------------------------------------------
+  |       unused        |xxxxxxxxxxxxxxx|       |xxxxxxxxxxxxxxx|       |
+  |                     |xxxxxxxxxxxxxxx|       |xxxxxxxxxxxxxxx|       |
+  -----------------------------------------------------------------------
+                        indexHighPortion         indexLowPortion
+                                        <------->
+                               NUMBER_OF_MEMORY_MODULE_BITS
+    */
+}
+
+void
+Address::print(std::ostream& out) const
+{
+    using namespace std;
+    out << "[" << hex << "0x" << m_address << "," << " line 0x"
+        << maskLowOrderBits(RubySystem::getBlockSizeBits()) << dec << "]"
+#ifdef Ongal_VC
+        << " Vaddr 0x"<< hex << m_vir_addr
+        << " Paddr 0x"<< hex << m_phy_addr
+        << " CR3 0x"<<hex<< m_CR3
+#endif
+        << flush;
+}
+
+void
+Address::output(std::ostream& out) const
+{
+    // Note: this outputs addresses in the form "ffff", not "0xffff".
+    // This code should always be able to write out addresses in a
+    // format that can be read in by the below input() method.  Please
+    // don't change this without talking to Milo first.
+    out << std::hex << m_address << std::dec;
+}
+
+void
+Address::input(std::istream& in)
+{
+    // Note: this only works with addresses in the form "ffff", not
+    // "0xffff".  This code should always be able to read in addresses
+    // written out by the above output() method.  Please don't change
+    // this without talking to Milo first.
+    in >> std::hex >> m_address >> std::dec;
+}
+
+Address::Address(const Address& obj)
+{
+    m_address = obj.m_address;
+#ifdef Ongal_VC
+    m_phy_addr = obj.m_phy_addr;
+    m_vir_addr = obj.m_vir_addr;
+    m_CR3 = obj.m_CR3;
+#endif
+}
+
+Address&
+Address::operator=(const Address& obj)
+{
+    if (this == &obj) {
+        // assert(false);
+    } else {
+        m_address = obj.m_address;
+#ifdef Ongal_VC
+        m_phy_addr = obj.m_phy_addr;
+        m_vir_addr = obj.m_vir_addr;
+        m_CR3 = obj.m_CR3;
+#endif
+    }
+    return *this;
+}
+
+Address
+next_stride_address(const Address& addr, int stride)
+{
+    Address temp = addr;
+    temp.makeNextStrideAddress(stride);
+    return temp;
+}
+
 
 Addr
 bitSelect(Addr addr, unsigned int small, unsigned int big)

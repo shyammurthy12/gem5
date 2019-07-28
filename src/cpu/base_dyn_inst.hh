@@ -64,6 +64,7 @@
 #include "cpu/op_class.hh"
 #include "cpu/static_inst.hh"
 #include "cpu/translation.hh"
+#include "mem/ongal_VC.hh"
 #include "mem/packet.hh"
 #include "mem/request.hh"
 #include "sim/byteswap.hh"
@@ -239,6 +240,20 @@ class BaseDynInst : public ExecContext, public RefCounted
     /** Pointer to the data for the memory access. */
     uint8_t *memData;
 
+#ifdef Ongal_VC
+    // CLA after ART lookup
+    Addr CLA_fst_cr3;
+    Addr CLA_fst_vaddr;
+    Addr CLA_snd_cr3;
+    Addr CLA_snd_vaddr;
+    // leading address
+    Addr leading_cr3;
+    Addr leading_vaddr;
+    Addr leading_snd_cr3;
+    Addr leading_snd_vaddr;
+    // access is done?
+    bool completeDataAccess;
+#endif
     /** Load queue index. */
     int16_t lqIdx;
     LQIterator lqIt;

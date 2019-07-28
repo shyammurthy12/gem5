@@ -360,6 +360,44 @@ class Packet : public Printable
 
   public:
 
+//need to define VC structures.
+  #ifdef Ongal_VC
+    bool is_load_inst;
+    void set_is_load_inst(bool a){ is_load_inst = a; }
+    bool get_is_load_inst(){ return is_load_inst; }
+
+    uint64_t m_leading_vaddr;
+    void set_leading_vaddr(uint64_t leading_vaddr){ m_leading_vaddr =
+            leading_vaddr; }
+    uint64_t get_leading_vaddr(){ return m_leading_vaddr; }
+
+    uint64_t m_leading_cr3;
+    void set_leading_cr3(uint64_t leading_cr3){ m_leading_cr3 = leading_cr3; }
+    uint64_t get_leading_cr3(){ return m_leading_cr3; }
+
+    void *m_vc_structure_Dcache;
+    void set_VC_structure_ptr(void *a){ m_vc_structure_Dcache = a; }
+    void *get_VC_structure_ptr(){ return m_vc_structure_Dcache; }
+
+  #ifdef LateMemTrap
+
+    void packet_update_latetrap(const RequestPtr _req){
+      if (req->hasPaddr()) {
+        addr = req->getPaddr();
+        flags.set(VALID_ADDR);
+        _isSecure = req->isSecure();
+      }
+      if (req->hasSize()) {
+        size = req->getSize();
+        flags.set(VALID_SIZE);
+      }
+    }
+
+    Fault latetrap_fault; // fault information from cache by looking up TLBs
+    void set_Fault_latetrap( Fault _fault ){ latetrap_fault = _fault; }
+    Fault get_latetrap_Fault(){ return latetrap_fault; }
+  #endif
+  #endif
     /**
      * The extra delay from seeing the packet until the header is
      * transmitted. This delay is used to communicate the crossbar
@@ -803,6 +841,12 @@ class Packet : public Printable
            _qosValue(0), headerDelay(0), snoopDelay(0),
            payloadDelay(0), senderState(NULL)
     {
+#ifdef Ongal_VC
+      set_is_load_inst(false);
+      set_leading_vaddr(0);
+      set_leading_cr3(0);
+      set_VC_structure_ptr(NULL);
+#endif
         if (req->hasPaddr()) {
             addr = req->getPaddr();
             flags.set(VALID_ADDR);
@@ -825,6 +869,12 @@ class Packet : public Printable
            _qosValue(0), headerDelay(0),
            snoopDelay(0), payloadDelay(0), senderState(NULL)
     {
+#ifdef Ongal_VC
+      set_is_load_inst(false);
+      set_leading_vaddr(0);
+      set_leading_cr3(0);
+      set_VC_structure_ptr(NULL);
+#endif
         if (req->hasPaddr()) {
             addr = req->getPaddr() & ~(_blkSize - 1);
             flags.set(VALID_ADDR);
@@ -852,6 +902,12 @@ class Packet : public Printable
            payloadDelay(pkt->payloadDelay),
            senderState(pkt->senderState)
     {
+#ifdef Ongal_VC
+      set_is_load_inst(pkt->get_is_load_inst());
+      set_leading_vaddr(pkt->get_leading_vaddr());
+      set_leading_cr3(pkt->get_leading_cr3());
+      set_VC_structure_ptr(pkt->get_VC_structure_ptr());
+#endif
         if (!clear_flags)
             flags.set(pkt->flags & COPY_FLAGS);
 

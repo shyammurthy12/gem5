@@ -92,6 +92,15 @@ template <class Impl>
 void
 BaseDynInst<Impl>::initVars()
 {
+#ifdef Ongal_VC
+  CLA_fst_cr3        = 0;
+  CLA_fst_vaddr      = 0;
+  CLA_snd_cr3        = 0;
+  CLA_snd_vaddr      = 0;
+  leading_cr3        = 0;
+  leading_vaddr      = 0;
+  completeDataAccess = false;
+#endif
     memData = NULL;
     effAddr = 0;
     physEffAddr = 0;

@@ -53,6 +53,7 @@
 #include "cpu/timebuf.hh"
 #include "cpu/translation.hh"
 #include "enums/FetchPolicy.hh"
+#include "mem/ongal_VC.hh"
 #include "mem/packet.hh"
 #include "mem/port.hh"
 #include "sim/eventq.hh"
@@ -379,6 +380,18 @@ class DefaultFetch
 
     /** Profile the reasons of fetch stall. */
     void profileStall(ThreadID tid);
+    #ifdef Ongal_VC
+        bool is_kernel_space(const uint64_t addr ){
+
+          uint64_t target_bit = (1UL << 47);
+          uint64_t comparison = target_bit & addr;
+
+          if (comparison > 0)
+            return true; // kernel part
+          else
+            return false; // non-kernel part
+        }
+    #endif
 
   private:
     /** Pointer to the O3CPU. */

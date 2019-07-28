@@ -48,10 +48,14 @@
 #include <queue>
 
 #include "arch/generic/tlb.hh"
+#include "arch/x86/regs/misc.hh"
 #include "cpu/inst_seq.hh"
 #include "cpu/o3/lsq_unit.hh"
 #include "enums/SMTQueuePolicy.hh"
+#include "mem/ongal_VC.hh"
 #include "mem/port.hh"
+#include "mem/request.hh"
+#include "mem/ruby/common/ASDT_entry.hh"
 #include "sim/sim_object.hh"
 
 struct DerivO3CPUParams;
@@ -60,7 +64,9 @@ template <class Impl>
 class LSQ
 
 {
-  public:
+
+   public:
+
     typedef typename Impl::O3CPU O3CPU;
     typedef typename Impl::DynInstPtr DynInstPtr;
     typedef typename Impl::CPUPol::IEW IEW;
@@ -246,6 +252,9 @@ class LSQ
         PacketDataPtr _data;
         std::vector<PacketPtr> _packets;
         std::vector<RequestPtr> _requests;
+        #ifdef Ongal_VC
+          VC_structure * vc_structure_Dcache;
+        #endif
         std::vector<Fault> _fault;
         uint64_t* _res;
         const Addr _addr;
@@ -398,7 +407,7 @@ class LSQ
         {
             _taskId = v;
             for (auto& r: _requests)
-                r->taskId(v);
+               r->taskId(v);
         }
 
         uint32_t taskId() const { return _taskId; }
@@ -438,7 +447,6 @@ class LSQ
                     pkt->senderState = st;
             }
         }
-
         const LSQSenderState*
         senderState() const
         {
@@ -612,6 +620,9 @@ class LSQ
         using LSQRequest::_fault;
         using LSQRequest::_inst;
         using LSQRequest::_packets;
+        #ifdef Ongal_VC
+          using LSQRequest::vc_structure_Dcache;
+        #endif
         using LSQRequest::_port;
         using LSQRequest::_res;
         using LSQRequest::_senderState;
@@ -668,6 +679,9 @@ class LSQ
         using LSQRequest::_flags;
         using LSQRequest::_inst;
         using LSQRequest::_packets;
+        #ifdef Ongal_VC
+          using LSQRequest::vc_structure_Dcache;
+        #endif
         using LSQRequest::_port;
         using LSQRequest::_requests;
         using LSQRequest::_res;
@@ -947,6 +961,16 @@ class LSQ
 
     void recvTimingSnoopReq(PacketPtr pkt);
 
+    #ifdef Ongal_VC
+    bool is_kernel_space(const uint64_t addr ){
+      uint64_t target_bit = (1UL << 47);
+      uint64_t comparison = target_bit & addr;
+      if (comparison > 0)
+        return true; // kernel part
+      else
+        return false; // non-kernel part
+    }
+    #endif
     Fault pushRequest(const DynInstPtr& inst, bool isLoad, uint8_t *data,
                       unsigned int size, Addr addr, Request::Flags flags,
                       uint64_t *res, AtomicOpFunctor *amo_op);
@@ -1031,7 +1055,14 @@ Fault
 LSQ<Impl>::read(LSQRequest* req, int load_idx)
 {
     ThreadID tid = cpu->contextToThread(req->request()->contextId());
-
+#ifdef Ongal_VC
+    uint64_t current_cr3 = cpu->readMiscRegNoEffect(X86ISA::MISCREG_CR3,tid);
+    // kernel space(Kernel_Space_CR3, this is a macro Hongil
+    // defines in one of the custom header files)
+    if (is_kernel_space(req->getVaddr()))
+      current_cr3 = Kernel_Space_CR3;
+    req->request()->setCR3(current_cr3); // keep CR3 value
+#endif
     return thread.at(tid).read(req, load_idx);
 }
 
@@ -1040,7 +1071,14 @@ Fault
 LSQ<Impl>::write(LSQRequest* req, uint8_t *data, int store_idx)
 {
     ThreadID tid = cpu->contextToThread(req->request()->contextId());
-
+#ifdef Ongal_VC
+    uint64_t current_cr3 = cpu->readMiscRegNoEffect(X86ISA::MISCREG_CR3,tid);
+    // kernel space(Kernel_Space_CR3, this is a macro Hongil
+    // defines in one of the custom header files)
+    if (is_kernel_space(req->getVaddr()))
+      current_cr3 = Kernel_Space_CR3;
+    req->request()->setCR3(current_cr3); // keep CR3 value
+#endif
     return thread.at(tid).write(req, data, store_idx);
 }
 

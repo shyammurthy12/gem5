@@ -44,6 +44,7 @@
 
 #include "arch/x86/process.hh"
 
+#include <cstdio>
 #include <string>
 #include <vector>
 
@@ -584,7 +585,6 @@ X86_64Process::initState()
 
 //            CR3 cr3 = dynamic_cast<ArchPageTable *>(pTable)->basePtr();
             tc->setMiscReg(MISCREG_CR3, cr3);
-
 //            CR4 cr4 = 0;
 //            //Turn on pae.
 //            cr4.osxsave = 1; // Enable XSAVE and Proc Extended States

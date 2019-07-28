@@ -58,8 +58,10 @@
 #include "cpu/inst_seq.hh"
 #include "cpu/timebuf.hh"
 #include "debug/LSQUnit.hh"
+#include "mem/ongal_VC.hh"
 #include "mem/packet.hh"
 #include "mem/port.hh"
+#include "mem/ruby/common/ASDT_entry.hh"
 
 struct DerivO3CPUParams;
 #include "base/circular_queue.hh"
@@ -260,6 +262,9 @@ class LSQUnit
      * of the intermediate invalidate.
      */
     void checkSnoop(PacketPtr pkt);
+#ifdef Ongal_VC
+    void checkSnoop_active_synonym(PacketPtr pkt);
+#endif
 
     /** Executes a load instruction. */
     Fault executeLoad(const DynInstPtr &inst);
@@ -393,6 +398,9 @@ class LSQUnit
     /** Pointer to the dcache port.  Used only for sending. */
     MasterPort *dcachePort;
 
+    #ifdef Ongal_VC
+      VC_structure * vc_structure_Dcache;
+    #endif
     /** Particularisation of the LSQSenderState to the LQ. */
     class LQSenderState : public LSQSenderState
     {
@@ -565,6 +573,24 @@ class LSQUnit
 
     /** Number of times the LSQ is blocked due to the cache. */
     Stats::Scalar lsqCacheBlocked;
+
+    #ifdef Ongal_VC
+    /** Number of checkSnoop_calls */
+    Stats::Scalar checkSnoop_call;
+
+    /** Number of replayed lines for checkSnoop_call */
+    Stats::Scalar replayed_lines_checkSnoop;
+
+    /** Number of checkSnoop_active_synonym calls */
+    Stats::Scalar checkSnoop_active_synonym_call;
+
+    /** Number of lines marked for checkSnoop_active_synonym */
+    Stats::Scalar marked_lines_with_potential_synonym;
+
+    /** Number of loads to be replayed due to load requests with non-leading
+     * vaddr */
+    Stats::Scalar replayed_load_with_non_leading_vaddr_access;
+    #endif
 
   public:
     /** Executes the load at the given index. */
@@ -841,6 +867,14 @@ LSQUnit<Impl>::read(LSQRequest *req, int load_idx)
         req->senderState(state);
     }
     req->buildPackets();
+
+#ifdef Ongal_VC
+     req->senderState()->inst->CLA_snd_vaddr =
+         req->request()->get_vaddr_after_art_lookup();
+     req->senderState()->inst->CLA_snd_cr3 =
+         req->request()->get_cr3_after_art_lookup();
+#endif
+
     if (load_inst->isNonSpeculative())
        DPRINTF(LSQUnit, "In LSQ, the load is non-speculative\n");
     else

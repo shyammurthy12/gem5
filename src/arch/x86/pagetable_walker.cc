@@ -73,12 +73,22 @@ Walker::start(ThreadContext * _tc, BaseTLB::Translation *_translation,
     // TODO: in timing mode, instead of blocking when there are other
     // outstanding requests, see if this request can be coalesced with
     // another one (i.e. either coalesce or start walk)
+    #ifdef Ongal_debug
+      std::cout<<"[TLB miss Walker::start] Paddr 0x"
+              <<std::hex<<_req->getPaddr()
+               <<" Vaddr 0x"<<_req->getVaddr()
+               <<" CR3 0x"<<_req->getCR3()
+               <<std::endl;
+    #endif
     WalkerState * newState = new WalkerState(this, _translation, _req);
     newState->initState(_tc, _mode, sys->isTimingMode());
     if (currStates.size()) {
         assert(newState->isTiming());
         DPRINTF(PageTableWalker, "Walks in progress: %d\n", currStates.size());
         currStates.push_back(newState);
+        #ifdef Ongal_debug
+          std::cout<<"[TLB miss Walker::end 1]"<<std::endl;
+        #endif
         return NoFault;
     } else {
         currStates.push_back(newState);
@@ -87,6 +97,9 @@ Walker::start(ThreadContext * _tc, BaseTLB::Translation *_translation,
             currStates.pop_front();
             delete newState;
         }
+        #ifdef Ongal_debug
+          std::cout<<"[TLB miss Walker::end 2]"<<std::endl;
+        #endif
         return fault;
     }
 }
@@ -153,6 +166,22 @@ Walker::recvReqRetry()
 
 bool Walker::sendTiming(WalkerState* sendingState, PacketPtr pkt)
 {
+#ifdef Ongal_VC
+#ifdef Ongal_debug
+  std::cout<<"[Walker::sendTiming] Paddr 0x"<<std::hex
+           <<pkt->req->getPaddr()
+           <<" Vaddr 0x"<<pkt->req->getVaddr()
+           <<" CR3 0x"<<pkt->req->getCR3()
+           <<std::endl;
+#endif
+
+#ifdef O3CPU_Ongal_VC
+    pkt->req->setCR3(Pagetable_Walk_CR3); // keep CR3 value
+    pkt->req->setVaddr(pkt->req->getPaddr());
+    pkt->req->set_cr3_after_art_lookup(Pagetable_Walk_CR3);
+    pkt->req->set_vaddr_after_art_lookup(pkt->req->getPaddr());
+#endif
+#endif
     WalkerSenderState* walker_state = new WalkerSenderState(sendingState);
     pkt->pushSenderState(walker_state);
     if (port.sendTimingReq(pkt)) {
@@ -190,6 +219,9 @@ Walker::WalkerState::initState(ThreadContext * _tc,
 void
 Walker::startWalkWrapper()
 {
+#ifdef Ongal_debug
+  std::cout<<"Walker::startWalkWrapper start"<<std::endl;
+#endif
     unsigned num_squashed = 0;
     WalkerState *currState = currStates.front();
     while ((num_squashed < numSquashable) && currState &&
@@ -216,6 +248,9 @@ Walker::startWalkWrapper()
     }
     if (currState && !currState->wasStarted())
         currState->startWalk();
+    #ifdef Ongal_debug
+        std::cout<<"Walker::startWalkWrapper end"<<std::endl;
+    #endif
 }
 
 Fault
@@ -516,6 +551,15 @@ Walker::WalkerState::stepWalk(PacketPtr &write)
         flags.set(Request::UNCACHEABLE, uncacheable);
         RequestPtr request = std::make_shared<Request>(
             nextRead, oldRead->getSize(), flags, walker->masterId);
+        #ifdef Ongal_VC
+        #ifdef O3CPU_Ongal_VC
+
+                request->setCR3(Pagetable_Walk_CR3); // keep CR3 value
+                request->setVaddr(nextRead);
+                request->set_cr3_after_art_lookup(Pagetable_Walk_CR3);
+                request->set_vaddr_after_art_lookup(nextRead);
+        #endif
+        #endif
         read = new Packet(request, MemCmd::ReadReq);
         read->allocate();
         // If we need to write, adjust the read packet to write the modified
@@ -586,6 +630,16 @@ Walker::WalkerState::setupWalk(Addr vaddr)
     RequestPtr request = std::make_shared<Request>(
         topAddr, dataSize, flags, walker->masterId);
 
+    #ifdef Ongal_VC
+    #ifdef O3CPU_Ongal_VC
+
+
+        request->setCR3(Pagetable_Walk_CR3); // keep CR3 value
+        request->setVaddr(topAddr);
+        request->set_cr3_after_art_lookup(Pagetable_Walk_CR3);
+        request->set_vaddr_after_art_lookup(topAddr);
+    #endif
+    #endif
     read = new Packet(request, MemCmd::ReadReq);
     read->allocate();
 }
