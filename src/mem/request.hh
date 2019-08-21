@@ -380,10 +380,11 @@ class Request
     uint64_t _cr3_after_art_lookup;
     uint64_t _vaddr_after_art_lookup;
     int      _request_type;
+
+    bool is_writable_page; // this is set after TLB hits
     #ifdef LateMemTrap
         void *tlb_ptr;
         void *tc_ptr;
-        bool is_writable_page; // this is set after TLB hits
     #endif
 
     #endif

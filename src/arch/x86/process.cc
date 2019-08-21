@@ -618,7 +618,7 @@ X86_64Process::initState()
 
 //            /* enabling syscall and sysret */
 //            RegVal star = ((RegVal)sret << 48) | ((RegVal)scall << 32);
-            RegVal star;
+            RegVal star = 0;
             // Configure syscall and sysret.
             if (!hostIsIntel) {
                 star = ((RegVal)sret << 48) | ((RegVal)scall << 32);

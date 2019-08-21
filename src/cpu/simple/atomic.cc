@@ -41,6 +41,7 @@
  * Authors: Steve Reinhardt
  */
 
+
 #include "cpu/simple/atomic.hh"
 
 #include "arch/locked_mem.hh"
@@ -52,6 +53,7 @@
 #include "debug/Drain.hh"
 #include "debug/ExecFaulting.hh"
 #include "debug/SimpleCPU.hh"
+#include "mem/ongal_VC.hh"
 #include "mem/packet.hh"
 #include "mem/packet_access.hh"
 #include "mem/physical.hh"
@@ -358,24 +360,34 @@ AtomicSimpleCPU::readMem(Addr addr, uint8_t * data, unsigned size,
 
     dcache_latency = 0;
 
+#ifdef Ongal_VC
+    req->setCR3(t_info.tcBase()->readMiscRegNoEffect(MISCREG_CR3));
+    //keep cr3 value
+    req->set_demap_pages(t_info.Data_DemapPages);
+    t_info.Data_DemapPages.clear();
+#endif
+
+
     req->taskId(taskId());
     while (1) {
         req->setVirt(0, addr, size, flags, dataMasterId(), thread->pcState().instAddr());
 
+#ifndef LateMemTrapDataRead
         // translate to physical address
-        Fault fault = thread->dtb->translateAtomic(req, thread->getTC(),
-                                                          BaseTLB::Read);
+        Fault fault = thread->dtb->translateAtomic(req, t_info.tcBase(),
+                        BaseTLB::Read);
 
         // Now do the access.
         if (fault == NoFault && !req->getFlags().isSet(Request::NO_ACCESS)) {
             Packet pkt(req, Packet::makeReadCmd(req));
             pkt.dataStatic(data);
 
-            if (req->isMmappedIpr()) {
+            if (req->isMmappedIpr())
                 dcache_latency += TheISA::handleIprRead(thread->getTC(), &pkt);
-            } else {
-                dcache_latency += sendPacket(dcachePort, &pkt);
+            else {
+                    dcache_latency += dcachePort.sendAtomic(&pkt);
             }
+
             dcache_access = true;
 
             assert(!pkt.isError());
@@ -384,6 +396,39 @@ AtomicSimpleCPU::readMem(Addr addr, uint8_t * data, unsigned size,
                 TheISA::handleLockedRead(thread, req);
             }
         }
+
+#else
+        Fault fault = NoFault;         // bypass TLB lookups
+        req->set_tlb_ptr((void *)thread->dtb);
+        // pass the tlb pointer to caches
+        req->set_tc_ptr((void *)t_info.tcBase());
+        // pass the tlb pointer to the caches
+
+        // Now do the access.
+        Packet pkt(req, Packet::makeReadCmd(req));
+        pkt.dataStatic(data);
+
+        uint64_t additional_latency = dcachePort.sendAtomic(&pkt);
+        // access cache without TLB lookup
+
+        fault = pkt.get_latetrap_Fault();
+
+        if (fault == NoFault && !req->getFlags().isSet(Request::NO_ACCESS)) {
+
+          if (req->isMmappedIpr()){
+            dcache_latency += TheISA::handleIprRead(thread->getTC(), &pkt);
+          }else {
+              dcache_latency += additional_latency;
+          }
+
+          dcache_access = true;
+          assert(!pkt.isError());
+
+          if (req->isLLSC()) {
+            TheISA::handleLockedRead(thread, req);
+          }
+        }
+#endif
 
         //If there's a fault, return it
         if (fault != NoFault) {
@@ -451,20 +496,35 @@ AtomicSimpleCPU::writeMem(uint8_t *data, unsigned size, Addr addr,
 
     dcache_latency = 0;
 
+#ifdef Ongal_VC
+    req->setCR3(t_info.tcBase()->readMiscRegNoEffect(MISCREG_CR3));
+    // keep CR3 value
+    req->set_store(true);
+    req->set_demap_pages(t_info.Data_DemapPages);
+    t_info.Data_DemapPages.clear();
+#endif
+
     req->taskId(taskId());
     while (1) {
         req->setVirt(0, addr, size, flags, dataMasterId(), thread->pcState().instAddr());
 
+#ifndef LateMemTrapDataWrite
+
         // translate to physical address
-        Fault fault = thread->dtb->translateAtomic(req, thread->getTC(), BaseTLB::Write);
+        Fault fault = thread->dtb->translateAtomic(req, t_info.tcBase(),
+                        BaseTLB::Write);
 
         // Now do the access.
         if (fault == NoFault) {
+            MemCmd cmd = MemCmd::WriteReq; // default
             bool do_access = true;  // flag to suppress cache access
 
             if (req->isLLSC()) {
-                do_access = TheISA::handleLockedWrite(thread, req, dcachePort.cacheBlockMask);
+                cmd = MemCmd::StoreCondReq;
+                do_access = TheISA::handleLockedWrite(thread, req,
+                                dcachePort.cacheBlockMask);
             } else if (req->isSwap()) {
+                cmd = MemCmd::SwapReq;
                 if (req->isCondSwap()) {
                     assert(res);
                     req->setExtraData(*res);
@@ -472,17 +532,14 @@ AtomicSimpleCPU::writeMem(uint8_t *data, unsigned size, Addr addr,
             }
 
             if (do_access && !req->getFlags().isSet(Request::NO_ACCESS)) {
-                Packet pkt(req, Packet::makeWriteCmd(req));
+                Packet pkt = Packet(req, cmd);
                 pkt.dataStatic(data);
 
                 if (req->isMmappedIpr()) {
                     dcache_latency +=
                         TheISA::handleIprWrite(thread->getTC(), &pkt);
                 } else {
-                    dcache_latency += sendPacket(dcachePort, &pkt);
-
-                    // Notify other threads on this CPU of write
-                    threadSnoop(&pkt, curThread);
+                        dcache_latency += dcachePort.sendAtomic(&pkt);
                 }
                 dcache_access = true;
                 assert(!pkt.isError());
@@ -497,6 +554,60 @@ AtomicSimpleCPU::writeMem(uint8_t *data, unsigned size, Addr addr,
                 *res = req->getExtraData();
             }
         }
+
+#else
+        // Late memory trap
+        req->set_tlb_ptr((void *)thread->dtb);
+        // pass the tlb pointer to caches
+        req->set_tc_ptr((void *)t_info.tcBase());
+        // pass the tlb pointer to caches
+
+        MemCmd cmd = MemCmd::WriteReq; // default
+        bool do_access = true;  // flag to suppress cache access
+
+        if (req->isLLSC()) {
+          cmd = MemCmd::StoreCondReq;
+          do_access = TheISA::handleLockedWrite(thread, req,
+                          dcachePort.cacheBlockMask);
+        } else if (req->isSwap()) {
+          cmd = MemCmd::SwapReq;
+          if (req->isCondSwap()) {
+            assert(res);
+            req->setExtraData(*res);
+          }
+        }
+
+        // access a cache with a virtual address
+        Packet pkt = Packet(req, cmd);
+        pkt.dataStatic(data);
+        uint64_t additional_latency = dcachePort.sendAtomic(&pkt);
+        Fault fault = pkt.get_latetrap_Fault(); // update the fault variable
+
+        // Now do the access.
+        if (fault == NoFault) {
+
+          if (do_access && !req->getFlags().isSet(Request::NO_ACCESS)) {
+
+            if (req->isMmappedIpr()) {
+              dcache_latency +=
+                TheISA::handleIprWrite(thread->getTC(), &pkt);
+            } else {
+                dcache_latency += additional_latency;
+            }
+            dcache_access = true;
+            assert(!pkt.isError());
+
+            if (req->isSwap()) {
+              assert(res);
+              memcpy(res, pkt.getConstPtr<uint8_t>(), fullSize);
+            }
+          }
+
+          if (res && !req->isSwap()) {
+            *res = req->getExtraData();
+          }
+        }
+#endif
 
         //If there's a fault or we don't need to access a second cache line,
         //stop now.
@@ -640,10 +751,25 @@ AtomicSimpleCPU::tick()
         if (needToFetch) {
             ifetch_req->taskId(taskId());
             setupFetchRequest(ifetch_req);
-            fault = thread->itb->translateAtomic(ifetch_req, thread->getTC(),
-                                                 BaseTLB::Execute);
-        }
+#ifdef Ongal_VC
+        ifetch_req->setCR3(t_info.tcBase()->readMiscRegNoEffect(MISCREG_CR3));
+            // keep CR3 value
+            ifetch_req->set_demap_pages(t_info.Inst_DemapPages);
+            t_info.Inst_DemapPages.clear();
+#ifdef LateMemTrapInst
+            ifetch_req->set_tlb_ptr((void *)thread->itb);
+            // pass the tlb pointer to caches
+            ifetch_req->set_tc_ptr((void *)t_info.tcBase());
+            // pass the tlb pointer to caches
+#endif
+#endif
 
+#ifndef LateMemTrapInst
+            fault = thread->itb->translateAtomic(ifetch_req, t_info.tcBase(),
+                                                 BaseTLB::Execute);
+#endif
+        }
+#ifndef LateMemTrapInst
         if (fault == NoFault) {
             Tick icache_latency = 0;
             bool icache_access = false;
@@ -661,7 +787,7 @@ AtomicSimpleCPU::tick()
                     Packet ifetch_pkt = Packet(ifetch_req, MemCmd::ReadReq);
                     ifetch_pkt.dataStatic(&inst);
 
-                    icache_latency = sendPacket(icachePort, &ifetch_pkt);
+                    icache_latency = icachePort.sendAtomic(&ifetch_pkt);
 
                     assert(!ifetch_pkt.isError());
 
@@ -672,7 +798,6 @@ AtomicSimpleCPU::tick()
 
             preExecute();
 
-            Tick stall_ticks = 0;
             if (curStaticInst) {
                 fault = curStaticInst->execute(&t_info, traceData);
 
@@ -686,14 +811,6 @@ AtomicSimpleCPU::tick()
                     traceData = NULL;
                 }
 
-                if (fault != NoFault &&
-                    dynamic_pointer_cast<SyscallRetryFault>(fault)) {
-                    // Retry execution of system calls after a delay.
-                    // Prevents immediate re-execution since conditions which
-                    // caused the retry are unlikely to change every tick.
-                    stall_ticks += clockEdge(syscallRetryLatency) - curTick();
-                }
-
                 postExecute();
             }
 
@@ -702,6 +819,7 @@ AtomicSimpleCPU::tick()
                         curStaticInst->isFirstMicroop()))
                 instCnt++;
 
+            Tick stall_ticks = 0;
             if (simulate_inst_stalls && icache_access)
                 stall_ticks += icache_latency;
 
@@ -717,6 +835,77 @@ AtomicSimpleCPU::tick()
             }
 
         }
+#else
+
+        Tick icache_latency = 0;
+        bool icache_access = false;
+        dcache_access = false; // assume no dcache access
+
+        if (needToFetch) {
+          // This is commented out because the decoder would act like
+          // a tiny cache otherwise. It wouldn't be flushed when needed
+          // like the I cache. It should be flushed, and when that works
+          // this code should be uncommented.
+          //Fetch more instruction memory if necessary
+          //if (decoder.needMoreBytes())
+          //{
+          icache_access = true;
+          Packet ifetch_pkt = Packet(ifetch_req, MemCmd::ReadReq);
+          ifetch_pkt.dataStatic(&inst);
+
+          uint64_t additional_latency = icachePort.sendAtomic(&ifetch_pkt);
+          fault = ifetch_pkt.get_latetrap_Fault();
+
+           icache_latency = additional_latency;
+
+          assert(!ifetch_pkt.isError());
+        }
+
+        // process instruction
+        if (fault == NoFault) {
+
+          preExecute();
+
+          if (curStaticInst) {
+            fault = curStaticInst->execute(&t_info, traceData);
+
+            // keep an instruction count
+            if (fault == NoFault) {
+              countInst();
+              ppCommit->notify(std::make_pair(thread, curStaticInst));
+            }
+            else if (traceData && !DTRACE(ExecFaulting)) {
+              delete traceData;
+              traceData = NULL;
+            }
+
+            postExecute();
+          }
+
+          // @todo remove me after debugging with legion done
+          if (curStaticInst && (!curStaticInst->isMicroop() ||
+                                curStaticInst->isFirstMicroop()))
+            instCnt++;
+
+          Tick stall_ticks = 0;
+          if (simulate_inst_stalls && icache_access)
+            stall_ticks += icache_latency;
+
+          if (simulate_data_stalls && dcache_access)
+            stall_ticks += dcache_latency;
+
+          if (stall_ticks) {
+            // the atomic cpu does its accounting in ticks, so
+            // keep counting in ticks but round to the clock
+            // period
+            latency += divCeil(stall_ticks, clockPeriod()) *
+              clockPeriod();
+          }
+
+        }
+
+#endif
+
         if (fault != NoFault || !t_info.stayAtPC)
             advancePC(fault);
     }

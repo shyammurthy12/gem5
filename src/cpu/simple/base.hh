@@ -46,6 +46,8 @@
 #ifndef __CPU_SIMPLE_BASE_HH__
 #define __CPU_SIMPLE_BASE_HH__
 
+#include <set>
+
 #include "base/statistics.hh"
 #include "config/the_isa.hh"
 #include "cpu/base.hh"
@@ -54,6 +56,7 @@
 #include "cpu/pc_event.hh"
 #include "cpu/simple_thread.hh"
 #include "cpu/static_inst.hh"
+#include "mem/ongal_VC.hh"
 #include "mem/packet.hh"
 #include "mem/port.hh"
 #include "mem/request.hh"

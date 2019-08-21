@@ -435,6 +435,18 @@ TimingSimpleCPU::initiateMemRead(Addr addr, unsigned size,
         asid, addr, size, flags, dataMasterId(), pc,
         thread->contextId());
 
+#ifdef Ongal_VC
+    req->setCR3(t_info.tcBase()->readMiscRegNoEffect(MISCREG_CR3));
+    // keep CR3 value
+
+#ifdef Ongal_debug
+    std::cout<<std::endl<<"TimingSimpleCPU::readMem Paddr 0x"<<std::hex
+             <<req->getPaddr()
+             <<" Vaddr 0x"<<req->getVaddr()
+             <<" CR3 0x"<<req->getCR3()
+             <<std::endl;
+#endif
+#endif
     req->taskId(taskId());
 
     Addr split_addr = roundDown(addr + size - 1, block_size);
@@ -516,6 +528,19 @@ TimingSimpleCPU::writeMem(uint8_t *data, unsigned size,
     RequestPtr req = std::make_shared<Request>(
         asid, addr, size, flags, dataMasterId(), pc,
         thread->contextId());
+
+#ifdef Ongal_VC
+    req->setCR3(t_info.tcBase()->readMiscRegNoEffect(MISCREG_CR3));
+    // keep CR3 value
+    req->set_store(true);
+#ifdef Ongal_debug
+    std::cout<<std::endl<<"TimingSimpleCPU::writeMem Paddr 0x"<<std::hex
+             <<req->getPaddr()
+             <<" Vaddr 0x"<<req->getVaddr()
+             <<" CR3 0x"<<req->getCR3()
+             <<std::endl;
+#endif
+#endif
 
     req->taskId(taskId());
 
@@ -667,7 +692,18 @@ TimingSimpleCPU::fetch()
         ifetch_req->taskId(taskId());
         ifetch_req->setContext(thread->contextId());
         setupFetchRequest(ifetch_req);
-        DPRINTF(SimpleCPU, "Translating address %#x\n", ifetch_req->getVaddr());
+#ifdef Ongal_VC
+        ifetch_req->setCR3(t_info.tcBase()->readMiscRegNoEffect(MISCREG_CR3));
+        // keep CR3 value
+#ifdef Ongal_debug
+        std::cout<<std::endl<<"TimingSimpleCPU::fetch Paddr 0x"<<std::hex
+             <<ifetch_req->getPaddr()
+             <<" Vaddr 0x"<<ifetch_req->getVaddr()
+             <<" CR3 0x"<<ifetch_req->getCR3()
+             <<std::endl;
+#endif
+#endif
+      DPRINTF(SimpleCPU, "Translating address %#x\n", ifetch_req->getVaddr());
         thread->itb->translateTiming(ifetch_req, thread->getTC(),
                 &fetchTranslation, BaseTLB::Execute);
     } else {

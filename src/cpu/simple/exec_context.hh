@@ -73,6 +73,10 @@ class SimpleExecContext : public ExecContext {
     // instructions which go beyond MachInst boundaries.
     bool stayAtPC;
 
+   #ifdef Ongal_VC
+     std::set<uint64_t> Inst_DemapPages;
+     std::set<uint64_t> Data_DemapPages;
+   #endif
     // Branch prediction
     TheISA::PCState predPC;
 
@@ -525,6 +529,12 @@ class SimpleExecContext : public ExecContext {
     demapPage(Addr vaddr, uint64_t asn) override
     {
         thread->demapPage(vaddr, asn);
+#ifdef Ongal_VC
+        //std::cout<<"dmapPage "<<std::hex<<vaddr<<" 0x"<<vaddr<<std::endl;
+        Inst_DemapPages.insert(vaddr);
+        Data_DemapPages.insert(vaddr);
+#endif
+
     }
 
     void
