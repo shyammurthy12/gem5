@@ -230,10 +230,16 @@ let {{
                         flags.append("IsReturn")
                 else:
                     flags.append("IsDelayedCommit")
-
-                allocMicroops += \
-                    "microops[%d] = %s;\n" % \
-                    (micropc, op.getAllocator(flags))
+                if self.name == "MOVZX_B_R_M" or self.name == "MOVSX_B_R_M":
+                    print(op.getAllocator_modified(flags))
+                if self.name == "MOVZX_B_R_M" or self.name == "MOVSX_B_R_M":
+                    allocMicroops += \
+                        "microops[%d] = %s;\n" % \
+                        (micropc, op.getAllocator_modified(flags))
+                else:
+                    allocMicroops += \
+                        "microops[%d] = %s;\n" % \
+                        (micropc, op.getAllocator(flags))
                 micropc += 1
             if env.useStackSize:
                 useStackSize = "true"

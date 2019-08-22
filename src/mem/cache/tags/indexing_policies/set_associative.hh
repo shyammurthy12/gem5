@@ -55,6 +55,7 @@
 #include "mem/cache/tags/indexing_policies/base.hh"
 #include "params/SetAssociative.hh"
 
+
 class ReplaceableEntry;
 
 /**
@@ -90,6 +91,8 @@ class SetAssociative : public BaseIndexingPolicy
      */
     uint32_t extractSet(const Addr addr) const;
 
+    //Ongal
+    uint32_t extractSet_Vaddr(Addr addr) const;
   public:
     /**
      * Convenience typedef.
@@ -118,6 +121,10 @@ class SetAssociative : public BaseIndexingPolicy
     std::vector<ReplaceableEntry*> getPossibleEntries(const Addr addr) const
                                                                      override;
 
+    //Ongal
+
+    std::vector<ReplaceableEntry*> getPossibleEntries_with_Vaddr(const Addr
+                    addr) const;
     /**
      * Regenerate an entry's address from its tag and assigned set and way.
      *

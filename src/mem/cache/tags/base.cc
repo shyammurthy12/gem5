@@ -53,7 +53,9 @@
 #include "base/types.hh"
 #include "mem/cache/replacement_policies/replaceable_entry.hh"
 #include "mem/cache/tags/indexing_policies/base.hh"
+#include "mem/ongal_VC.hh"
 #include "mem/request.hh"
+#include "mem/ruby/common/ASDT_entry.hh"
 #include "sim/core.hh"
 #include "sim/sim_exit.hh"
 #include "sim/system.hh"
@@ -77,8 +79,48 @@ BaseTags::findBlockBySetAndWay(int set, int way) const
 CacheBlk*
 BaseTags::findBlock(Addr addr, bool is_secure) const
 {
+#ifdef Ongal_VC
+#ifdef VIVT
+     if (get_VC_structure() != NULL){
+
+       // No Corresponding ASDT entry?
+       uint64_t Region_Size = get_VC_structure()->get_region_size();
+       uint64_t PPN = addr/Region_Size;
+       ASDT_entry * ASDT_entry =
+               get_VC_structure()->access_matching_ASDT_map(PPN);
+
+       if (ASDT_entry == NULL){
+         return NULL;
+       }else{
+         Addr CPA_VPN   = ASDT_entry->get_virtual_page_number();
+         Addr CPA_Vaddr = (CPA_VPN * Region_Size) + (addr % Region_Size);
+         uint64 CPA_CR3 = ASDT_entry->get_cr3();
+
+
+        const std::vector<ReplaceableEntry*> entries =
+                indexingPolicy->getPossibleEntries_with_Vaddr(addr);
+      // only leading virtual address
+      CacheBlk* target_block = NULL;
+     // Search for block
+     for (const auto& location : entries) {
+         CacheBlk* blk = static_cast<CacheBlk*>(location);
+         if ((blk->vtag == extractTag(CPA_Vaddr))&& (CPA_CR3 == blk->cr3) &&
+                         (blk->isValid()) &&
+             (blk->isSecure() == is_secure)) {
+             target_block =  blk;
+         }
+     }
+     return target_block;
+
+      }
+    }
+#endif
+#endif
+
+
     // Extract block tag
     Addr tag = extractTag(addr);
+  //the updated address is sent as a parameter to getPossibleEntries.
 
     // Find possible entries that may contain the given address
     const std::vector<ReplaceableEntry*> entries =
@@ -97,10 +139,62 @@ BaseTags::findBlock(Addr addr, bool is_secure) const
     return nullptr;
 }
 
+#ifdef Ongal_VC
+CacheBlk*
+BaseTags::findBlock_vaddr(Addr addr, Addr cr3) const
+{
+
+    // Extract block tag
+    Addr tag = extractTag(addr);
+    // Find possible entries that may contain the given address
+    const std::vector<ReplaceableEntry*> entries =
+        indexingPolicy->getPossibleEntries_with_Vaddr(addr);
+
+    // Search for block
+    for (const auto& location : entries) {
+        CacheBlk* blk = static_cast<CacheBlk*>(location);
+        if ((blk->tag == tag) && blk->isValid() && (blk->cr3 == cr3)) {
+            return blk;
+        }
+    }
+
+    // Did not find block
+    return nullptr;
+
+}
+
+
+CacheBlk*
+BaseTags::findBlock_with_vaddr(Addr addr, Addr cr3, bool is_secure) const
+{
+
+    // Extract block tag
+    Addr tag = extractTag(addr);
+    // Find possible entries that may contain the given address
+    const std::vector<ReplaceableEntry*> entries =
+        indexingPolicy->getPossibleEntries_with_Vaddr(addr);
+
+    // Search for block
+    for (const auto& location : entries) {
+        CacheBlk* blk = static_cast<CacheBlk*>(location);
+        if ((blk->tag == tag) && blk->isValid() && (blk->cr3 == cr3)
+                        &&(blk->isSecure() == is_secure)) {
+            return blk;
+        }
+    }
+
+    // Did not find block
+    return nullptr;
+
+}
+#endif
+
+
 void
 BaseTags::insertBlock(const PacketPtr pkt, CacheBlk *blk)
 {
     assert(!blk->isValid());
+
 
     // Previous block, if existed, has been removed, and now we have
     // to insert the new one
@@ -113,6 +207,44 @@ BaseTags::insertBlock(const PacketPtr pkt, CacheBlk *blk)
     // Insert block with tag, src master id and task id
     blk->insert(extractTag(pkt->getAddr()), pkt->isSecure(), master_id,
                 pkt->req->taskId());
+
+#ifdef Ongal_VC
+         Addr addr = pkt->getAddr();
+         blk->paddr = blkAlign(addr); // keep physical address for the line.
+
+         if (get_VC_structure() != NULL){
+
+           // Access ASDT and get correct ASDT and CR3
+           uint64_t Region_Size = get_VC_structure()->get_region_size();
+           uint64_t PPN = pkt->req->getPaddr()/Region_Size;
+           uint64_t CPA_VPN = 0;
+           uint64_t CPA_CR3 = 0;
+           bool is_writable_page = false;
+           ASDT_entry * ASDT_entry =
+                   get_VC_structure()->access_matching_ASDT_map(PPN);
+
+           if (ASDT_entry != NULL){
+             CPA_VPN = ASDT_entry->get_virtual_page_number();
+             CPA_CR3 = ASDT_entry->get_cr3();
+             // obtain the current permission of the leading virtual page
+             is_writable_page = ASDT_entry->get_is_writable_page();
+           }else{
+             std::cout<<"tags->insertblock(), should find a corresponding ASDT"
+                     "entry in a map";
+             abort();
+           }
+           // update blk->vtag
+           uint64_t CPA_Vaddr = (CPA_VPN * Region_Size) + (pkt->req->getPaddr()
+                           % Region_Size);
+           blk->vtag = extractTag(CPA_Vaddr);
+           // update blk->cr3
+           blk->cr3 = CPA_CR3;
+           // store the write permission information
+           blk->is_writable_page = is_writable_page;
+         }
+#endif
+
+
 
     // Check if cache warm up is done
     if (!warmedUp && tagsInUse.value() >= warmupBound) {

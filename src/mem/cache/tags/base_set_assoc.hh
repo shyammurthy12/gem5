@@ -112,6 +112,8 @@ class BaseSetAssoc : public BaseTags
      */
     void invalidate(CacheBlk *blk) override;
 
+    //Ongal
+    void invalidate_block(CacheBlk *blk);
     /**
      * Access block and update replacement data. May not succeed, in which case
      * nullptr is returned. This has all the implications of a cache access and
@@ -125,6 +127,7 @@ class BaseSetAssoc : public BaseTags
      */
     CacheBlk* accessBlock(Addr addr, bool is_secure, Cycles &lat) override
     {
+
         CacheBlk *blk = findBlock(addr, is_secure);
 
         // Access all tags in parallel, hence one in each way.  The data side
@@ -154,6 +157,43 @@ class BaseSetAssoc : public BaseTags
         return blk;
     }
 
+
+
+
+#ifdef Ongal_VC
+#ifdef LateMemTrap
+    CacheBlk* access_VC_Block(PacketPtr pkt,
+                              bool is_secure, Cycles &lat,
+                              int context_src)
+    {
+      // Lookup L1 VCs with only virtual addresses
+      CacheBlk* blk = NULL;
+
+      uint64_t vaddr = pkt->req->getVaddr();
+      uint64_t cr3   = pkt->req->getCR3();
+
+      blk = findBlock_with_vaddr( (Addr)vaddr, cr3, is_secure);
+
+
+      // when a valid block is found,
+      if (blk != nullptr){
+        // a trick, a leading virtual address can be used actually,
+        // rather than using a physical address.
+        Addr lineaddr_paddr = blk->paddr/getBlockSize();
+        lineaddr_paddr *= getBlockSize();
+        lineaddr_paddr += vaddr%getBlockSize();
+
+        pkt->req->setPaddr(lineaddr_paddr);
+        pkt->setAddr(lineaddr_paddr);
+
+      }
+
+      return blk;
+    }
+#endif
+#endif
+
+
     /**
      * Find replacement victim based on address. The list of evicted blocks
      * only contains the victim.
@@ -166,6 +206,37 @@ class BaseSetAssoc : public BaseTags
     CacheBlk* findVictim(Addr addr, const bool is_secure,
                          std::vector<CacheBlk*>& evict_blks) const override
     {
+#ifdef Ongal_VC
+#ifdef VIVT
+     if (get_VC_structure() != NULL){
+
+       // No Corresponding ASDT entry?
+       uint64_t Region_Size = get_VC_structure()->get_region_size();
+       uint64_t PPN = addr/Region_Size;
+       ASDT_entry * ASDT_entry =
+               get_VC_structure()->access_matching_ASDT_map(PPN);
+
+       if (ASDT_entry == NULL){
+         return NULL;
+       }else{
+         Addr CPA_VPN   = ASDT_entry->get_virtual_page_number();
+         Addr CPA_Vaddr = (CPA_VPN * Region_Size) + (addr % Region_Size);
+
+        const std::vector<ReplaceableEntry*> entries =
+                indexingPolicy->getPossibleEntries_with_Vaddr(CPA_Vaddr);
+
+        // Choose replacement victim from replacement candidates
+        CacheBlk* victim = static_cast<CacheBlk*>(replacementPolicy->getVictim(
+                                entries));
+
+        // There is only one eviction for this replacement
+        evict_blks.push_back(victim);
+
+        return victim;
+      }
+    }
+#endif
+#endif
         // Get possible entries to be victimized
         const std::vector<ReplaceableEntry*> entries =
             indexingPolicy->getPossibleEntries(addr);

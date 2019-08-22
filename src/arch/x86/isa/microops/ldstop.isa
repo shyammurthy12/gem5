@@ -383,7 +383,28 @@ let {{
                 "dataSize" : self.dataSize, "addressSize" : self.addressSize,
                 "memFlags" : self.memFlags}
             return allocator
-
+        def getAllocator_modified(self, microFlags):
+            allocString = '''
+                (4 >= 4) ?
+                    (StaticInstPtr)(new %(class_name)sBig(machInst,
+                        macrocodeBlock, %(flags)s, %(scale)s, %(index)s,
+                        %(base)s, %(disp)s, %(segment)s, %(data)s,
+                        %(dataSize)s, %(addressSize)s, %(memFlags)s)) :
+                    (StaticInstPtr)(new %(class_name)s(machInst,
+                        macrocodeBlock, %(flags)s, %(scale)s, %(index)s,
+                        %(base)s, %(disp)s, %(segment)s, %(data)s,
+                        %(dataSize)s, %(addressSize)s, %(memFlags)s))
+            '''
+            allocator = allocString % {
+                "class_name" : self.className,
+                "flags" : self.microFlagsText(microFlags) + self.instFlags,
+                "scale" : self.scale, "index" : self.index,
+                "base" : self.base,
+                "disp" : self.disp,
+                "segment" : self.segment, "data" : self.data,
+                "dataSize" : self.dataSize, "addressSize" : self.addressSize,
+                "memFlags" : self.memFlags}
+            return allocator
     class LdStSplitOp(LdStOp):
         def __init__(self, data, segment, addr, disp,
                 dataSize, addressSize, baseFlags, atCPL0, prefetch, nonSpec,
@@ -691,7 +712,7 @@ let {{
                             mem_flags='Request::LOCKED_RMW')
 
     iop = InstObjParams("lea", "Lea", 'X86ISA::LdStOp',
-                        { "code": "Data = merge(Data, EA, dataSize);",
+                        { "code": "Data = lea_merge_modified(EA, dataSize);",
                           "ea_code": "EA = " + segmentEAExpr,
                           "memDataSize": "dataSize" })
     header_output += MicroLeaDeclare.subst(iop)
@@ -706,7 +727,7 @@ let {{
                     False, False, False, False, False)
             self.className = "Lea"
             self.mnemonic = "lea"
-
+            self.instFlags += " | (1ULL << StaticInst::IsLea)"
     microopClasses["lea"] = LeaOp
 
 
@@ -724,7 +745,7 @@ let {{
                 addressSize="env.addressSize"):
             super(TiaOp, self).__init__("InstRegIndex(NUM_INTREGS)", segment,
                     addr, disp, dataSize, addressSize, "0", False, False,
-                    False, False, False)
+                    False, False,False)
             self.className = "Tia"
             self.mnemonic = "tia"
 

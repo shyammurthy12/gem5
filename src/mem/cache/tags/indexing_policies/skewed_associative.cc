@@ -219,6 +219,21 @@ SkewedAssociative::getPossibleEntries(const Addr addr) const
     return entries;
 }
 
+//Ongal
+std::vector<ReplaceableEntry*>
+SkewedAssociative::getPossibleEntries_with_Vaddr(const Addr addr) const
+{
+    std::vector<ReplaceableEntry*> entries;
+
+    // Parse all ways
+    for (uint32_t way = 0; way < assoc; ++way) {
+        // Apply hash to get set, and get way entry in it
+        entries.push_back(sets[extractSet(addr, way)][way]);
+    }
+
+    return entries;
+}
+
 SkewedAssociative *
 SkewedAssociativeParams::create()
 {

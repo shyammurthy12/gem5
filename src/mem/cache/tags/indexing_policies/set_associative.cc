@@ -51,6 +51,9 @@
 
 #include "mem/cache/replacement_policies/replaceable_entry.hh"
 
+#include "mem/ongal_VC.hh"
+#include "mem/ruby/common/ASDT_entry.hh"
+
 SetAssociative::SetAssociative(const Params *p)
     : BaseIndexingPolicy(p)
 {
@@ -59,8 +62,18 @@ SetAssociative::SetAssociative(const Params *p)
 uint32_t
 SetAssociative::extractSet(const Addr addr) const
 {
+
     return (addr >> setShift) & setMask;
 }
+
+
+uint32_t
+SetAssociative::extractSet_Vaddr(Addr addr) const
+{
+      // addr should be a virtual address
+      return ((addr >> setShift) & setMask);
+}
+
 
 Addr
 SetAssociative::regenerateAddr(const Addr tag, const ReplaceableEntry* entry)
@@ -73,6 +86,13 @@ std::vector<ReplaceableEntry*>
 SetAssociative::getPossibleEntries(const Addr addr) const
 {
     return sets[extractSet(addr)];
+}
+
+//Ongal
+std::vector<ReplaceableEntry*>
+SetAssociative::getPossibleEntries_with_Vaddr(const Addr addr) const
+{
+    return sets[extractSet_Vaddr(addr)];
 }
 
 SetAssociative*

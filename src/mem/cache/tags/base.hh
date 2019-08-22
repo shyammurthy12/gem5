@@ -58,7 +58,9 @@
 #include "base/statistics.hh"
 #include "base/types.hh"
 #include "mem/cache/cache_blk.hh"
+#include "mem/ongal_VC.hh"
 #include "mem/packet.hh"
+#include "mem/ruby/common/ASDT_entry.hh"
 #include "params/BaseTags.hh"
 #include "sim/clocked_object.hh"
 
@@ -158,6 +160,20 @@ class BaseTags : public ClockedObject
     typedef BaseTagsParams Params;
     BaseTags(const Params *p);
 
+#ifdef Ongal_VC
+    VC_structure *m_vc_structure; // virtual cache structures
+    void set_VC_structure( VC_structure * pointer ){
+            m_vc_structure = pointer;
+    }
+    VC_structure * get_VC_structure() const {
+            return m_vc_structure;
+    }
+    unsigned getBlockSize() const
+    {
+        return blkSize;
+    }
+#endif
+
     /**
      * Destructor.
      */
@@ -200,6 +216,11 @@ class BaseTags : public ClockedObject
      */
     virtual CacheBlk *findBlock(Addr addr, bool is_secure) const;
 
+    //Ongal
+    virtual CacheBlk * findBlock_vaddr(Addr addr, Addr cr3) const;
+
+    virtual CacheBlk * findBlock_with_vaddr(Addr addr, Addr cr3, bool
+                    is_secure) const;
     /**
      * Find a block given set and way.
      *
@@ -264,7 +285,17 @@ class BaseTags : public ClockedObject
 
         blk->invalidate();
     }
+    virtual void invalidate_block(CacheBlk *blk)
+    {
+        assert(blk);
+        assert(blk->isValid());
 
+        occupancies[blk->srcMasterId]--;
+        totalRefs += blk->refCount;
+        sampledRefs++;
+
+        blk->invalidate();
+    }
     /**
      * Find replacement victim based on address. If the address requires
      * blocks to be evicted, their locations are listed for eviction. If a
@@ -294,6 +325,13 @@ class BaseTags : public ClockedObject
      * @return Pointer to the cache block if found.
      */
     virtual CacheBlk* accessBlock(Addr addr, bool is_secure, Cycles &lat) = 0;
+
+#ifdef Ongal_VC
+#ifdef LateMemTrap
+    virtual CacheBlk* access_VC_Block(PacketPtr pkt, bool is_secure,
+                    Cycles &lat, int context_src);
+#endif
+#endif
 
     /**
      * Generate the tag from the given address.

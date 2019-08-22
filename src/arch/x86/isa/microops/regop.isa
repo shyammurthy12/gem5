@@ -439,6 +439,43 @@ let {{
                     "ext" : self.ext}
                 return allocator
 
+
+        def getAllocator_modified(self, microFlags):
+            if self.big_code != "":
+                className = self.className
+                if self.mnemonic == self.base_mnemonic + 'i':
+                    className += "Imm"
+                allocString = '''
+                    (4 >= 4) ?
+                        (StaticInstPtr)(new %(class_name)sBig(machInst,
+                            macrocodeBlock, %(flags)s, %(src1)s, %(op2)s,
+                            %(dest)s, %(dataSize)s, %(ext)s)) :
+                        (StaticInstPtr)(new %(class_name)s(machInst,
+                            macrocodeBlock, %(flags)s, %(src1)s, %(op2)s,
+                            %(dest)s, %(dataSize)s, %(ext)s))
+                    '''
+                allocator = allocString % {
+                    "class_name" : className,
+                    "flags" : self.microFlagsText(microFlags),
+                    "src1" : self.src1, "op2" : self.op2,
+                    "dest" : self.dest,
+                    "dataSize" : self.dataSize,
+                    "ext" : self.ext}
+                return allocator
+            else:
+                className = self.className
+                if self.mnemonic == self.base_mnemonic + 'i':
+                    className += "Imm"
+                allocator = '''new %(class_name)s(machInst, macrocodeBlock,
+                        %(flags)s, %(src1)s, %(op2)s, %(dest)s,
+                        %(dataSize)s, %(ext)s)''' % {
+                    "class_name" : className,
+                    "flags" : self.microFlagsText(microFlags),
+                    "src1" : self.src1, "op2" : self.op2,
+                    "dest" : self.dest,
+                    "dataSize" : self.dataSize,
+                    "ext" : self.ext}
+                return allocator
     class LogicRegOp(RegOp):
         abstract = True
         flag_code = '''

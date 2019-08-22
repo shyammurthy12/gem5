@@ -68,10 +68,12 @@
 #include "mem/cache/tags/base.hh"
 #include "mem/cache/write_queue.hh"
 #include "mem/cache/write_queue_entry.hh"
+#include "mem/ongal_VC.hh"
 #include "mem/packet.hh"
 #include "mem/packet_queue.hh"
 #include "mem/qport.hh"
 #include "mem/request.hh"
+#include "mem/ruby/common/ASDT_entry.hh"
 #include "params/WriteAllocator.hh"
 #include "sim/clocked_object.hh"
 #include "sim/eventq.hh"
@@ -1011,6 +1013,65 @@ class BaseCache : public ClockedObject
 
     /** Number of replacements of valid blocks. */
     Stats::Scalar replacements;
+
+    #ifdef Ongal_VC
+
+    Stats::Scalar num_active_synonym_access;
+    Stats::Scalar num_active_synonym_access_with_non_CPA;
+
+    Stats::Scalar num_active_synonym_access_store;
+    Stats::Scalar num_active_synonym_access_with_non_CPA_store;
+    Stats::Scalar num_active_synonym_access_with_non_CPA_store_ART_miss;
+
+    Stats::Scalar
+            num_invalidation_from_lower_level_to_region_with_active_synonym;
+
+    Stats::Scalar num_LCPA_saving_consecutive_active_synonym_access_in_a_page;
+    Stats::Scalar num_LCPA_saving_ART_hits;
+
+    Stats::Scalar num_ss_hits;
+    Stats::Scalar num_ss_64KB_hits;
+    Stats::Scalar num_ss_1MB_hits;
+
+
+    Stats::Scalar num_art_hits;
+
+    Stats::Scalar num_kernel_space_access;
+    Stats::Scalar num_kernel_space_access_with_active_synonym;
+
+    Stats::Scalar num_samples;
+    Stats::Scalar num_valid_asdt_entry;
+    Stats::Scalar num_max_num_valid_asdt_entry;
+
+    Stats::Scalar num_valid_asdt_entry_with_active_synonym;
+    Stats::Scalar num_virtual_pages_with_active_synonym;
+
+    Stats::Scalar num_valid_asdt_entry_one_line;
+    Stats::Scalar num_valid_asdt_entry_two_lines;
+
+    Stats::Scalar num_asdt_entry_conflict_miss;
+    Stats::Scalar num_evicted_lines_per_asdt_conflict_miss;
+
+
+    Stats::Scalar num_other_approach_access;
+
+    // physical memory management
+    Stats::Scalar num_CPA_change;
+    Stats::Scalar num_CPA_change_check;
+
+    Stats::Scalar num_OVC_hits;
+    Stats::Scalar num_TVC_hits;
+
+    Stats::Scalar num_SLB_traps_8;
+    Stats::Scalar num_SLB_traps_16;
+    Stats::Scalar num_SLB_traps_32;
+    Stats::Scalar num_SLB_traps_48;
+
+    Stats::Scalar num_SLB_Lookup;
+
+    Stats::Scalar num_page_info_change;
+
+#endif
 
     /**
      * @}

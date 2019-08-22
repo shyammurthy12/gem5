@@ -166,6 +166,8 @@ SectorTags::accessBlock(Addr addr, bool is_secure, Cycles &lat)
     return blk;
 }
 
+
+
 void
 SectorTags::insertBlock(const PacketPtr pkt, CacheBlk *blk)
 {

@@ -134,6 +134,37 @@ namespace X86ISA
             return reg;
         }
 
+
+        inline uint64_t lea_merge_modified(uint64_t val, int size) const
+        {
+            X86IntReg reg = 0;
+            if (_destRegIdx[0].index() & IntFoldBit)
+            {
+                reg.H = val;
+                return reg;
+            }
+            switch(size)
+            {
+              case 1:
+                reg.L = val;
+                break;
+              case 2:
+                reg.X = val;
+                break;
+              case 4:
+                //XXX Check if this should be zeroed or sign extended
+                reg = 0;
+                reg.E = val;
+                break;
+              case 8:
+                reg.R = val;
+                break;
+              default:
+                panic("Tried to merge with unrecognized size %d.\n", size);
+            }
+            return reg;
+        }
+
         inline uint64_t pick(uint64_t from, int idx, int size) const
         {
             X86IntReg reg = from;

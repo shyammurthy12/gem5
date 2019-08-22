@@ -120,8 +120,11 @@ BaseCache::BaseCache(const BaseCacheParams *p, unsigned blk_size)
     tempBlock = new TempCacheBlk(blkSize);
 
     tags->tagsInit();
+
+
     if (prefetcher)
         prefetcher->setCache(this);
+
 }
 
 BaseCache::~BaseCache()
@@ -1026,9 +1029,13 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
         }
 
         if (!blk) {
+
+
             // need to do a replacement
             blk = allocateBlock(pkt, writebacks);
             if (!blk) {
+
+
                 // no replaceable block available: give up, fwd to next level.
                 incMissCount(pkt);
 
@@ -1216,6 +1223,9 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
 
         // need to do a replacement if allocating, otherwise we stick
         // with the temporary storage
+
+
+
         blk = allocate ? allocateBlock(pkt, writebacks) : nullptr;
 
         if (!blk) {
@@ -1226,6 +1236,8 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
             tempBlock->insert(addr, is_secure);
             DPRINTF(Cache, "using temp block for %#llx (%s)\n", addr,
                     is_secure ? "s" : "ns");
+        }
+        else {
         }
     } else {
         // existing block... probably an upgrade
@@ -1317,8 +1329,11 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
     for (const auto& blk : evict_blks) {
         if (blk->isValid()) {
             replacement = true;
-
-            Addr repl_addr = regenerateBlkAddr(blk);
+            #ifdef Ongal_VC
+                Addr repl_addr = blk->paddr;
+            #else
+                 Addr repl_addr = regenerateBlkAddr(blk);
+            #endif
             MSHR *repl_mshr = mshrQueue.findMatch(repl_addr, blk->isSecure());
             if (repl_mshr) {
                 // must be an outstanding upgrade or clean request
@@ -1354,8 +1369,42 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
         replacements++;
     }
 
-    // Insert new block at victimized entry
-    tags->insertBlock(pkt, victim);
+       //Ongal
+       //In Hongil's code base, the below code was within insertBlock
+       //within tag class, now tag has no access to cache class object.
+       assert(!victim->isValid());
+       #ifdef Ongal_VC
+       if (tags->get_VC_structure() != NULL){
+
+         // only for the first level cache
+         // replacement
+         if (victim->isValid()){
+           Addr repl_addr = victim->paddr;
+
+           // update ASDT
+           tags->get_VC_structure()->update_ASDT( 0, repl_addr, 0,
+                               false, &num_CPA_change, &num_CPA_change_check,
+                                            pkt->req->get_is_writable_page());
+         }
+
+         /*
+         std::cout<<"insertBlock Vaddr Vaddr "<<std::hex<<pkt->req->getVaddr()
+                  <<" Paddr "<<pkt->req->getPaddr()
+                  <<" CR3 "<<pkt->req->getCR3()<<endl;
+         */
+         // allocation
+         tags->get_VC_structure()->update_ASDT(pkt->req->getVaddr(),
+                                          pkt->req->getPaddr(),
+                                          pkt->req->getCR3(),
+                                          true, &num_CPA_change,
+                                          &num_CPA_change_check,
+                                          pkt->req->get_is_writable_page());
+       }
+       #endif
+       // Insert new block at victimized entry
+
+       tags->insertBlock(pkt, victim);
+
 
     return victim;
 }
@@ -1366,6 +1415,23 @@ BaseCache::invalidateBlock(CacheBlk *blk)
     // If handling a block present in the Tags, let it do its invalidation
     // process, which will update stats and invalidate the block itself
     if (blk != tempBlock) {
+       //Ongal
+       //moving this code to invocation of invalidate instead
+       //of within invalidate because of code restructuring.
+       #ifdef Ongal_VC
+       if (tags->get_VC_structure() != NULL){
+
+         // only for the first level virtual cache
+         // replacement or invalidations
+         if (blk->isValid()){
+           Addr repl_addr = blk->paddr;
+           tags->get_VC_structure()->update_ASDT( 0, repl_addr, 0,
+                              false, &num_CPA_change, &num_CPA_change_check,
+                                            false);
+         }
+       }
+       #endif
+
         tags->invalidate(blk);
     } else {
         tempBlock->invalidate();
@@ -1390,10 +1456,16 @@ BaseCache::writebackBlk(CacheBlk *blk)
 
     writebacks[Request::wbMasterId]++;
 
-    RequestPtr req = std::make_shared<Request>(
+    RequestPtr req;
+     #ifdef Ongal_VC
+     req = std::make_shared<Request>(
+        blk->paddr, blkSize, 0,
+        Request::wbMasterId);
+     #else
+     req = std::make_shared<Request>(
         regenerateBlkAddr(blk), blkSize, 0, Request::wbMasterId);
-
-    if (blk->isSecure())
+     #endif
+     if (blk->isSecure())
         req->setFlags(Request::SECURE);
 
     req->taskId(blk->task_id);
@@ -1493,9 +1565,14 @@ BaseCache::writebackVisitor(CacheBlk &blk)
     if (blk.isDirty()) {
         assert(blk.isValid());
 
-        RequestPtr request = std::make_shared<Request>(
+        RequestPtr request;
+        #ifdef Ongal_VC
+         request = std::make_shared<Request>(
             regenerateBlkAddr(&blk), blkSize, 0, Request::funcMasterId);
-
+        #else
+          request = std::make_shared<Request>(
+            regenerateBlkAddr(&blk), blkSize, 0, Request::funcMasterId);
+        #endif
         request->taskId(blk.task_id);
         if (blk.isSecure()) {
             request->setFlags(Request::SECURE);
@@ -2288,6 +2365,179 @@ BaseCache::regStats()
         .name(name() + ".replacements")
         .desc("number of replacements")
         ;
+    #ifdef Ongal_VC
+
+    num_active_synonym_access
+      .name(name() + ".num_active_synonym_access")
+      .desc("number of active synonym detection from an ASDT")
+      ;
+
+    num_active_synonym_access_with_non_CPA
+      .name(name() + ".num_active_synonym_access_with_non_CPA")
+      .desc("number of active synonym access with non_CPA from an ASDT")
+      ;
+
+    num_active_synonym_access_store
+      .name(name() + ".num_active_synonym_access_store")
+      .desc("number of active synonym detection from an ASDT_store")
+      ;
+
+    num_active_synonym_access_with_non_CPA_store
+      .name(name() + ".num_active_synonym_access_with_non_CPA_store")
+      .desc("number of active synonym access with non_CPA from an ASDT_store")
+      ;
+
+    num_active_synonym_access_with_non_CPA_store_ART_miss
+      .name(name() + ".num_active_synonym_access_with_non_CPA_store_ART_miss")
+      .desc("number of active synonym access with"
+                     " non_CPA (ART Miss) from an ASDT_store")
+      ;
+
+    num_invalidation_from_lower_level_to_region_with_active_synonym
+      .name(name() + ".num_invalidation_from_lower_level_to_"
+                      "region_with_active_synonym")
+      .desc("number of invalidations from lower levels (including other cores)"
+                      "for regions with active synonyms in L1 VC")
+      ;
+
+    num_LCPA_saving_consecutive_active_synonym_access_in_a_page
+      .name(name() + ".num_LCPA_saving_consecutive_active"
+                      "_synonym_access_in_a_page")
+      .desc("LCPA benefits bypassing ART access")
+      ;
+
+    num_LCPA_saving_ART_hits
+      .name(name() + ".num_LCPA_saving_ART_hits")
+      .desc("LCPA benefits bypassing ART hits")
+      ;
+
+    num_ss_hits
+        .name(name() + ".num_ss_hits")
+        .desc("number of SS 4KB hits")
+        ;
+
+    num_ss_64KB_hits
+        .name(name() + ".num_ss_64KB_hits")
+        .desc("number of SS 64KB hits")
+        ;
+    num_ss_1MB_hits
+        .name(name() + ".num_ss_1MB_hits")
+        .desc("number of SS 1MB hits")
+        ;
+
+    num_art_hits
+        .name(name() + ".num_art_hits")
+        .desc("number of ART hits")
+        ;
+
+    num_kernel_space_access
+        .name(name() + ".num_kernel_space_access")
+        .desc("number of kernel space access")
+        ;
+
+    num_kernel_space_access_with_active_synonym
+        .name(name() + ".num_kernel_space_access_with_active_synonym")
+        .desc("number of kernel space access with active synonym")
+        ;
+  num_samples
+        .name(name() + ".num_samples")
+        .desc("number of sampling")
+        ;
+
+    num_valid_asdt_entry
+        .name(name() + ".num_valid_asdt_entry")
+        .desc("number of valid ASDT entries")
+        ;
+
+    num_max_num_valid_asdt_entry
+        .name(name() + ".num_max_num_valid_asdt_entry")
+        .desc("max number of valid ASDT entries")
+        ;
+
+    num_valid_asdt_entry_with_active_synonym
+        .name(name() + ".num_valid_asdt_entry_with_active_synonym")
+        .desc("number of valid ASDT entries detecting active synonym")
+        ;
+
+    num_virtual_pages_with_active_synonym
+        .name(name() + ".num_virtual_pages_with_active_synonym")
+        .desc("number of virtual pages in EPSs")
+        ;
+
+    num_valid_asdt_entry_one_line
+        .name(name() + ".num_valid_asdt_entry_one_line")
+        .desc("number of valid ASDT entries")
+        ;
+    num_valid_asdt_entry_two_lines
+        .name(name() + ".num_valid_asdt_entry_two_lines")
+        .desc("number of valid ASDT entries")
+        ;
+
+    num_asdt_entry_conflict_miss
+        .name(name() + ".num_asdt_entry_conflict_miss")
+        .desc("number of asdt conflict miss events")
+        ;
+    num_evicted_lines_per_asdt_conflict_miss
+        .name(name() + ".num_evicted_lines_per_asdt_conflict_miss")
+        .desc("number of invalidated lines for all asdt conflict misses")
+        ;
+
+    num_other_approach_access
+        .name(name() + ".num_other_approach_access")
+        .desc("number of other virtual caches accesses")
+        ;
+
+    num_CPA_change
+        .name(name() + ".num_CPA_change")
+        .desc("number of CPA changes for PPN with active synonyms")
+        ;
+    num_CPA_change_check
+        .name(name() + ".num_CPA_change_check")
+        .desc("how many times CPA change checking is done")
+        ;
+
+    num_OVC_hits
+        .name(name() + ".num_OVC_hits")
+        .desc("num of cache hits OVC")
+        ;
+
+    num_TVC_hits
+        .name(name() + ".num_TVC_hits")
+        .desc("num of cache hits TVC")
+        ;
+
+    num_SLB_traps_8
+        .name(name() + ".num_SLB_traps_8")
+        .desc("num of SLB_traps 8 entries")
+        ;
+
+    num_SLB_traps_16
+        .name(name() + ".num_SLB_traps_16")
+        .desc("num of SLB_traps 16 entries")
+        ;
+
+    num_SLB_traps_32
+        .name(name() + ".num_SLB_traps_32")
+        .desc("num of SLB_traps 32 entries")
+        ;
+
+    num_SLB_traps_48
+        .name(name() + ".num_SLB_traps_48")
+        .desc("num of SLB_traps 48 entries")
+        ;
+
+    num_SLB_Lookup
+        .name(name() + ".num_SLB_traps_Lookup")
+        .desc("num of SLB_lookups for non-primary virtual address")
+        ;
+
+    num_page_info_change
+        .name(name() + ".num_page_info_change")
+        .desc("num of demap handling due to page info change")
+        ;
+
+#endif
+
 }
 
 void

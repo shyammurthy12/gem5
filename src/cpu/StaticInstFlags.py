@@ -92,6 +92,7 @@ class StaticInstFlags(Enum):
         'IsReadBarrier',    # Is a read barrier
         'IsERET',           # <- Causes the IFU to stall (MIPS ISA)
 
+        'IsLea',  #is a load effective address
         'IsNonSpeculative', # Should not be executed speculatively
         'IsQuiesce',        # Is a quiesce instruction
 

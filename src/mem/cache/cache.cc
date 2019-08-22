@@ -75,6 +75,95 @@ Cache::Cache(const CacheParams *p)
     : BaseCache(p, p->system->cacheLineSize()),
       doFastWrites(true)
 {
+    //Ongal
+    unsigned numSets = p->size / (p->assoc * system->cacheLineSize());
+#ifdef Ongal_VC
+
+    m_cache_num_sets = numSets;
+    m_cache_assoc = p->assoc;
+
+    if ( p->name.find("dcache") != string::npos || p->name.find("icache") !=
+                    string::npos ){
+
+      set_is_l1cache(true);
+      std::cout<<" L1Cache is found ";
+
+      prev_cr3 = 0;
+      m_region_size = REGION_SIZE;
+      m_num_accesses = 0;
+      m_vc_structure = 	new VC_structure(p->name,
+                                         m_region_size,
+                                         system->cacheLineSize(),
+                                         32,
+                                         256,
+                                         numSets,
+                                         p->assoc);
+
+      // after creating VC structure
+      tags->set_VC_structure(m_vc_structure);
+
+      // profiling variables
+      num_active_synonym_access = 0;
+      num_active_synonym_access_with_non_CPA = 0;
+
+      num_active_synonym_access_store = 0;
+      num_active_synonym_access_with_non_CPA_store = 0;
+      num_active_synonym_access_with_non_CPA_store_ART_miss = 0;
+
+      num_invalidation_from_lower_level_to_region_with_active_synonym = 0;
+
+      num_LCPA_saving_consecutive_active_synonym_access_in_a_page = 0;
+      num_LCPA_saving_ART_hits = 0;
+
+      num_ss_hits = 0;
+      num_ss_64KB_hits = 0;
+      num_ss_1MB_hits = 0;
+
+      num_art_hits = 0;
+      num_kernel_space_access = 0;
+      num_kernel_space_access_with_active_synonym = 0;
+
+      num_samples = 0;
+      num_valid_asdt_entry = 0;
+      num_max_num_valid_asdt_entry = 0;
+      num_valid_asdt_entry_with_active_synonym = 0;
+      num_virtual_pages_with_active_synonym    = 0;
+
+      num_valid_asdt_entry_one_line = 0;
+      num_valid_asdt_entry_two_lines = 0;
+
+      num_asdt_entry_conflict_miss = 0;
+      num_evicted_lines_per_asdt_conflict_miss = 0;
+
+      num_other_approach_access = 0;
+      num_CPA_change = 0;
+      num_CPA_change_check = 0;
+
+      num_OVC_hits = 0;
+      num_TVC_hits = 0;
+
+      num_SLB_traps_8 = 0;
+      num_SLB_traps_16 = 0;
+      num_SLB_traps_32 = 0;
+      num_SLB_traps_48 = 0;
+
+      num_SLB_Lookup = 0;
+
+      num_page_info_change = 0;
+
+    } else {
+      set_is_l1cache(false);
+      std::cout<<" This cache is NOT L1Cache ";
+
+      m_vc_structure = NULL;
+      tags->set_VC_structure(m_vc_structure);
+
+    }
+
+    std::cout<<std::endl;
+
+#endif
+
 }
 
 void
@@ -154,11 +243,387 @@ Cache::satisfyRequest(PacketPtr pkt, CacheBlk *blk,
     }
 }
 
+
+#ifdef Ongal_VC
+#ifdef LateMemTrap
+bool
+Cache::satisfyCpuSideRequest_VC_Store(PacketPtr pkt, CacheBlk *blk,
+                           bool deferred_response, bool pending_downgrade)
+{
+    assert(pkt->isRequest());
+    assert(blk && blk->isValid());
+    assert(pkt->getOffset(blkSize) + pkt->getSize() <= blkSize);
+
+    // Check RMW operations first since both isRead() and
+    // isWrite() will be true for them
+    if (pkt->cmd == MemCmd::SwapReq) {
+
+        cmpAndSwap(blk, pkt);
+        return true; // L1 VC Hit
+    } else if (pkt->isWrite() && (!pkt->isWriteInvalidate() || isTopLevel)) {
+
+        assert(blk->isWritable());
+        // Write or WriteInvalidate at the first cache with block in Exclusive
+        if (blk->checkWrite(pkt)) {
+            pkt->writeDataToBlock(blk->data, blkSize);
+        }
+
+        // Always mark the line as dirty even if we are a failed
+        // StoreCond so we supply data to any snoops that have
+        // appended themselves to this cache before knowing the store
+        // will fail.
+        blk->status |= BlkDirty;
+        return true; // L1 VC Hit
+    }
+    return false; // L1 VC Miss
+}
+#endif
+#endif
+
+
+
+
 /////////////////////////////////////////////////////
 //
 // Access path: requests coming in from the CPU side
 //
 /////////////////////////////////////////////////////
+
+
+#ifdef Ongal_VC
+#ifdef LateMemTrap
+bool
+Cache::access_virtual_cache(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
+                            PacketList &writebacks)
+{
+    // sanity check
+    assert(pkt->isRequest());
+
+    if (pkt->req->isUncacheable()) {
+        DPRINTF(Cache, "%s%s addr %#llx uncacheable\n", pkt->cmdString(),
+                pkt->req->isInstFetch() ? " (ifetch)" : "",
+                pkt->getAddr());
+
+        return false;
+    }
+
+    int id = pkt->req->hasContextId() ? pkt->req->contextId() : -1;
+    blk = tags->access_VC_Block(pkt, pkt->isSecure(), lat, id);
+
+    // Writeback handling is special case.  We can write the block into
+    // the cache without having a writeable copy (or any copy at all).
+    if (pkt->cmd == MemCmd::Writeback) {
+        assert(blkSize == pkt->getSize());
+        // need to considered as a miss for L1 VC access
+        return false;
+    } else if ((blk != NULL) &&
+               (pkt->needsExclusive() ? blk->isWritable(): blk->isReadable()))
+    {
+        // OK to satisfy access
+        if (!pkt->isWrite()){
+          // ifetch and load
+          satisfyCpuSideRequest(pkt, blk);
+          return true;
+        }else if (blk->is_writable_page){
+          // store
+          return satisfyCpuSideRequest_VC_Store(pkt, blk);
+        }
+    }
+
+    // Can't satisfy access normally... either no block (blk == NULL)
+    // or have block but need exclusive & only have shared.
+    if (blk == NULL && pkt->isLLSC() && pkt->isWrite()) {
+      // complete miss on store conditional... just give up now
+
+      pkt->req->setExtraData(0);
+      return true;
+    }
+    return false;
+}
+#endif
+#endif
+
+
+bool Cache::BaseCache_access_dup(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
+                  PacketList &writebacks)
+{
+    // sanity check
+    assert(pkt->isRequest());
+
+    chatty_assert(!(isReadOnly && pkt->isWrite()),
+                  "Should never see a write in a read-only cache %s\n",
+                  name());
+
+    // Access block in the tags
+    Cycles tag_latency(0);
+    blk = tags->accessBlock(pkt->getAddr(), pkt->isSecure(), tag_latency);
+
+    //smurthy
+    if (pkt->isPacketFromLSQ)
+        DPRINTF(Cache,"Packet come from LSQ\n");
+
+    DPRINTF(Cache, "%s for %s %s\n", __func__, pkt->print(),
+            blk ? "hit " + blk->print() : "miss");
+
+    if (pkt->req->isCacheMaintenance()) {
+        // A cache maintenance operation is always forwarded to the
+        // memory below even if the block is found in dirty state.
+
+        // We defer any changes to the state of the block until we
+        // create and mark as in service the mshr for the downstream
+        // packet.
+
+        // Calculate access latency on top of when the packet arrives. This
+        // takes into account the bus delay.
+        lat = calculateTagOnlyLatency(pkt->headerDelay, tag_latency);
+
+        return false;
+    }
+
+    if (pkt->isEviction()) {
+        // We check for presence of block in above caches before issuing
+        // Writeback or CleanEvict to write buffer. Therefore the only
+        // possible cases can be of a CleanEvict packet coming from above
+        // encountering a Writeback generated in this cache peer cache and
+        // waiting in the write buffer. Cases of upper level peer caches
+        // generating CleanEvict and Writeback or simply CleanEvict and
+        // CleanEvict almost simultaneously will be caught by snoops sent out
+        // by crossbar.
+        WriteQueueEntry *wb_entry = writeBuffer.findMatch(pkt->getAddr(),
+                                                          pkt->isSecure());
+        if (wb_entry) {
+            assert(wb_entry->getNumTargets() == 1);
+            PacketPtr wbPkt = wb_entry->getTarget()->pkt;
+            assert(wbPkt->isWriteback());
+
+            if (pkt->isCleanEviction()) {
+                // The CleanEvict and WritebackClean snoops into other
+                // peer caches of the same level while traversing the
+                // crossbar. If a copy of the block is found, the
+                // packet is deleted in the crossbar. Hence, none of
+                // the other upper level caches connected to this
+                // cache have the block, so we can clear the
+                // BLOCK_CACHED flag in the Writeback if set and
+                // discard the CleanEvict by returning true.
+                wbPkt->clearBlockCached();
+
+                // A clean evict does not need to access the data array
+                lat = calculateTagOnlyLatency(pkt->headerDelay, tag_latency);
+
+                return true;
+            } else {
+                assert(pkt->cmd == MemCmd::WritebackDirty);
+                // Dirty writeback from above trumps our clean
+                // writeback... discard here
+                // Note: markInService will remove entry from writeback buffer.
+                markInService(wb_entry);
+                delete wbPkt;
+            }
+        }
+    }
+
+    // Writeback handling is special case.  We can write the block into
+    // the cache without having a writeable copy (or any copy at all).
+    if (pkt->isWriteback()) {
+        assert(blkSize == pkt->getSize());
+
+        // we could get a clean writeback while we are having
+        // outstanding accesses to a block, do the simple thing for
+        // now and drop the clean writeback so that we do not upset
+        // any ordering/decisions about ownership already taken
+        if (pkt->cmd == MemCmd::WritebackClean &&
+            mshrQueue.findMatch(pkt->getAddr(), pkt->isSecure())) {
+            DPRINTF(Cache, "Clean writeback %#llx to block with MSHR, "
+                    "dropping\n", pkt->getAddr());
+
+            // A writeback searches for the block, then writes the data.
+            // As the writeback is being dropped, the data is not touched,
+            // and we just had to wait for the time to find a match in the
+            // MSHR. As of now assume a mshr queue search takes as long as
+            // a tag lookup for simplicity.
+            lat = calculateTagOnlyLatency(pkt->headerDelay, tag_latency);
+
+            return true;
+        }
+
+        if (!blk) {
+
+            #ifdef Ongal_VC
+            #ifdef ASDT_Set_Associative_Array
+            ASDT_Invalidation_Check(pkt->req->getPaddr(), writebacks);
+            #endif
+            Add_NEW_ASDT_map_entry(pkt);
+            #endif
+
+            // need to do a replacement
+            blk = allocateBlock(pkt, writebacks);
+            if (!blk) {
+
+
+                // no replaceable block available: give up, fwd to next level.
+                incMissCount(pkt);
+
+                // A writeback searches for the block, then writes the data.
+                // As the block could not be found, it was a tag-only access.
+                lat = calculateTagOnlyLatency(pkt->headerDelay, tag_latency);
+
+                return false;
+            }
+
+          #ifdef Ongal_VC
+            if (get_VC_Structure_ptr() != NULL){
+              // L1 VC, check L1 line eviction (replacement, invalidations)
+              // in regions with active synonym
+              bool entry_with_synonym =
+                 get_VC_Structure_ptr()->entry_with_active_synonym(blk->paddr);
+          if (entry_with_synonym)
+            ++num_invalidation_from_lower_level_to_region_with_active_synonym;
+            }
+          #endif
+            blk->status |= BlkReadable;
+        }
+        // only mark the block dirty if we got a writeback command,
+        // and leave it as is for a clean writeback
+        if (pkt->cmd == MemCmd::WritebackDirty) {
+            // TODO: the coherent cache can assert(!blk->isDirty());
+            blk->status |= BlkDirty;
+        }
+        // if the packet does not have sharers, it is passing
+        // writable, and we got the writeback in Modified or Exclusive
+        // state, if not we are in the Owned or Shared state
+        if (!pkt->hasSharers()) {
+            blk->status |= BlkWritable;
+        }
+        // nothing else to do; writeback doesn't expect response
+        assert(!pkt->needsResponse());
+        pkt->writeDataToBlock(blk->data, blkSize);
+        DPRINTF(Cache, "%s new state is %s\n", __func__, blk->print());
+        incHitCount(pkt);
+
+        // A writeback searches for the block, then writes the data
+        lat = calculateAccessLatency(blk, pkt->headerDelay, tag_latency);
+
+        // When the packet metadata arrives, the tag lookup will be done while
+        // the payload is arriving. Then the block will be ready to access as
+        // soon as the fill is done
+        blk->setWhenReady(clockEdge(fillLatency) + pkt->headerDelay +
+            std::max(cyclesToTicks(tag_latency), (uint64_t)pkt->payloadDelay));
+
+        return true;
+    } else if (pkt->cmd == MemCmd::CleanEvict) {
+        // A CleanEvict does not need to access the data array
+        lat = calculateTagOnlyLatency(pkt->headerDelay, tag_latency);
+
+        if (blk) {
+            // Found the block in the tags, need to stop CleanEvict from
+            // propagating further down the hierarchy. Returning true will
+            // treat the CleanEvict like a satisfied write request and delete
+            // it.
+            return true;
+        }
+        // We didn't find the block here, propagate the CleanEvict further
+        // down the memory hierarchy. Returning false will treat the CleanEvict
+        // like a Writeback which could not find a replaceable block so has to
+        // go to next level.
+        return false;
+    } else if (pkt->cmd == MemCmd::WriteClean) {
+        // WriteClean handling is a special case. We can allocate a
+        // block directly if it doesn't exist and we can update the
+        // block immediately. The WriteClean transfers the ownership
+        // of the block as well.
+        assert(blkSize == pkt->getSize());
+
+        if (!blk) {
+            if (pkt->writeThrough()) {
+                // A writeback searches for the block, then writes the data.
+                // As the block could not be found, it was a tag-only access.
+                lat = calculateTagOnlyLatency(pkt->headerDelay, tag_latency);
+
+                // if this is a write through packet, we don't try to
+                // allocate if the block is not present
+                return false;
+            } else {
+                // a writeback that misses needs to allocate a new block
+                blk = allocateBlock(pkt, writebacks);
+                if (!blk) {
+                    // no replaceable block available: give up, fwd to
+                    // next level.
+                    incMissCount(pkt);
+
+                    // A writeback searches for the block, then writes the
+                    // data. As the block could not be found, it was a tag-only
+                    // access.
+                    lat = calculateTagOnlyLatency(pkt->headerDelay,
+                                                  tag_latency);
+
+                    return false;
+                }
+
+                blk->status |= BlkReadable;
+            }
+        }
+
+        // at this point either this is a writeback or a write-through
+        // write clean operation and the block is already in this
+        // cache, we need to update the data and the block flags
+        assert(blk);
+        // TODO: the coherent cache can assert(!blk->isDirty());
+        if (!pkt->writeThrough()) {
+            blk->status |= BlkDirty;
+        }
+        // nothing else to do; writeback doesn't expect response
+        assert(!pkt->needsResponse());
+        pkt->writeDataToBlock(blk->data, blkSize);
+        DPRINTF(Cache, "%s new state is %s\n", __func__, blk->print());
+
+        incHitCount(pkt);
+
+        // A writeback searches for the block, then writes the data
+        lat = calculateAccessLatency(blk, pkt->headerDelay, tag_latency);
+
+        // When the packet metadata arrives, the tag lookup will be done while
+        // the payload is arriving. Then the block will be ready to access as
+        // soon as the fill is done
+        blk->setWhenReady(clockEdge(fillLatency) + pkt->headerDelay +
+            std::max(cyclesToTicks(tag_latency), (uint64_t)pkt->payloadDelay));
+
+        // if this a write-through packet it will be sent to cache
+        // below
+        return !pkt->writeThrough();
+    } else if (blk && (pkt->needsWritable() ? blk->isWritable() :
+                       blk->isReadable())) {
+        // OK to satisfy access
+        incHitCount(pkt);
+
+        // Calculate access latency based on the need to access the data array
+        if (pkt->isRead() || pkt->isWrite()) {
+            lat = calculateAccessLatency(blk, pkt->headerDelay, tag_latency);
+        } else {
+            lat = calculateTagOnlyLatency(pkt->headerDelay, tag_latency);
+        }
+
+        satisfyRequest(pkt, blk);
+        maintainClusivity(pkt->fromCache(), blk);
+
+        return true;
+    }
+
+    // Can't satisfy access normally... either no block (blk == nullptr)
+    // or have block but need writable
+
+    incMissCount(pkt);
+
+    lat = calculateAccessLatency(blk, pkt->headerDelay, tag_latency);
+
+    if (!blk && pkt->isLLSC() && pkt->isWrite()) {
+        // complete miss on store conditional... just give up now
+        pkt->req->setExtraData(0);
+        return true;
+    }
+
+    return false;
+}
+
 
 bool
 Cache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
@@ -186,7 +651,31 @@ Cache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
         return false;
     }
 
-    return BaseCache::access(pkt, blk, lat, writebacks);
+#ifdef Ongal_VC
+#ifdef VIVT
+    std::set<uint64_t> demaps = pkt->req->get_demap_pages();
+
+    if ( demaps.size() > 0 ){
+
+      for ( std::set<uint64_t>::iterator it = demaps.begin(); it !=
+                      demaps.end() ; ++it ){
+        // demap handler
+        if ( *it == UNMAP_REQ ){
+          unmap_vmas_Handler(writebacks);
+        }else{
+          Demap_ASDT_Handler((*it),writebacks);
+        }
+      }
+    }
+#endif
+    Lookup_VCs(pkt->req->getVaddr(), pkt->req->getPaddr(), pkt->req->getCR3(),
+                    pkt);
+    return BaseCache_access_dup(pkt, blk, lat, writebacks);
+#else
+    return BaseCache_access_dup(pkt, blk, lat, writebacks);
+#endif
+
+
 }
 
 void
@@ -321,6 +810,127 @@ Cache::handleTimingReqHit(PacketPtr pkt, CacheBlk *blk, Tick request_time)
 
     BaseCache::handleTimingReqHit(pkt, blk, request_time);
 }
+
+
+CacheBlk*
+Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
+                      bool allocate)
+{
+    assert(pkt->isResponse());
+    Addr addr = pkt->getAddr();
+    bool is_secure = pkt->isSecure();
+#if TRACING_ON
+    CacheBlk::State old_state = blk ? blk->status : 0;
+#endif
+
+    // When handling a fill, we should have no writes to this line.
+    assert(addr == pkt->getBlockAddr(blkSize));
+    assert(!writeBuffer.findMatch(addr, is_secure));
+
+    if (!blk) {
+        // better have read new data...
+        assert(pkt->hasData() || pkt->cmd == MemCmd::InvalidateResp);
+
+        // need to do a replacement if allocating, otherwise we stick
+        // with the temporary storage
+
+        #ifdef Ongal_VC
+        #ifdef ASDT_Set_Associative_Array
+        ASDT_Invalidation_Check(pkt->req->getPaddr(), writebacks);
+        #endif
+        Add_NEW_ASDT_map_entry(pkt);
+        #endif
+
+
+        blk = allocate ? allocateBlock(pkt, writebacks) : nullptr;
+
+        if (!blk) {
+            // No replaceable block or a mostly exclusive
+            // cache... just use temporary storage to complete the
+            // current request and then get rid of it
+            blk = tempBlock;
+            tempBlock->insert(addr, is_secure);
+            DPRINTF(Cache, "using temp block for %#llx (%s)\n", addr,
+                    is_secure ? "s" : "ns");
+        }
+        else {
+         #ifdef Ongal_VC
+                    if (get_VC_Structure_ptr() != NULL){
+                      // L1 VC, check L1 line eviction (replacement,
+                      // invalidations)
+                      // in regions with active synonym
+                      bool entry_with_synonym =
+               get_VC_Structure_ptr()->entry_with_active_synonym(blk->paddr);
+                      if (entry_with_synonym)
+          ++num_invalidation_from_lower_level_to_region_with_active_synonym;
+                    }
+         #endif
+        }
+    } else {
+        // existing block... probably an upgrade
+        // don't clear block status... if block is already dirty we
+        // don't want to lose that
+    }
+
+    // Block is guaranteed to be valid at this point
+    assert(blk->isValid());
+    assert(blk->isSecure() == is_secure);
+    assert(regenerateBlkAddr(blk) == addr);
+
+    blk->status |= BlkReadable;
+
+    // sanity check for whole-line writes, which should always be
+    // marked as writable as part of the fill, and then later marked
+    // dirty as part of satisfyRequest
+    if (pkt->cmd == MemCmd::InvalidateResp) {
+        assert(!pkt->hasSharers());
+    }
+
+    // here we deal with setting the appropriate state of the line,
+    // and we start by looking at the hasSharers flag, and ignore the
+    // cacheResponding flag (normally signalling dirty data) if the
+    // packet has sharers, thus the line is never allocated as Owned
+    // (dirty but not writable), and always ends up being either
+    // Shared, Exclusive or Modified, see Packet::setCacheResponding
+    // for more details
+    if (!pkt->hasSharers()) {
+        // we could get a writable line from memory (rather than a
+        // cache) even in a read-only cache, note that we set this bit
+        // even for a read-only cache, possibly revisit this decision
+        blk->status |= BlkWritable;
+
+        // check if we got this via cache-to-cache transfer (i.e., from a
+        // cache that had the block in Modified or Owned state)
+        if (pkt->cacheResponding()) {
+            // we got the block in Modified state, and invalidated the
+            // owners copy
+            blk->status |= BlkDirty;
+
+            chatty_assert(!isReadOnly, "Should never see dirty snoop response "
+                          "in read-only cache %s\n", name());
+        }
+    }
+
+    DPRINTF(Cache, "Block addr %#llx (%s) moving from state %x to %s\n",
+            addr, is_secure ? "s" : "ns", old_state, blk->print());
+
+    // if we got new data, copy it in (checking for a read response
+    // and a response that has data is the same in the end)
+    if (pkt->isRead()) {
+        // sanity checks
+        assert(pkt->hasData());
+        assert(pkt->getSize() == blkSize);
+
+        pkt->writeDataToBlock(blk->data, blkSize);
+    }
+    // The block will be ready when the payload arrives and the fill is done
+    blk->setWhenReady(clockEdge(fillLatency) + pkt->headerDelay +
+                      pkt->payloadDelay);
+
+    return blk;
+}
+
+
 
 void
 Cache::handleTimingReqMiss(PacketPtr pkt, CacheBlk *blk, Tick forward_time,
@@ -660,6 +1270,167 @@ Cache::recvAtomic(PacketPtr pkt)
 
     // follow the same flow as in recvTimingReq, and check if a cache
     // above us is responding
+
+
+#ifdef LateMemTrap
+
+    // sanity check
+    assert(pkt->isRequest());
+
+    // Do only for L1 caches for late memory trap
+    if ( get_is_l1cache() ){
+
+      Fault fault = NoFault;
+      TheISA::TLB *tlb  = (TheISA::TLB *)pkt->req->get_tlb_ptr();
+      ThreadContext *tc = (ThreadContext *)pkt->req->get_tc_ptr();
+      pkt->set_Fault_latetrap(fault); // initialization
+
+      /* Check non-memory access based on vaddr.
+         filter out several cases where have no need to look up L1 VCs.
+         do some operations in advance in TLB:translate()
+
+         BUT, actually, this does not need to be done early.
+         L1 lookup will result in cache misses for them in the end,
+         we can correctly process them by consulting TLBs. */
+
+      bool non_mem_addr = false;
+      fault = tlb->translateInt_only(pkt->req, tc, &non_mem_addr);
+      bool use_paddr = false;
+
+      if (fault == NoFault){
+
+        if ( tlb->isProtectedMode(tc) != true || tlb->isPagingEnabled(tc) !=
+                        true ){
+
+          //physical address should be used for this operations
+          uint64 vaddr = pkt->req->getVaddr();
+          use_paddr = true;
+          pkt->req->setPaddr(vaddr);
+          pkt->setAddr(vaddr);
+        }
+
+        if (use_paddr){
+          // here BaseTLB::Read is meaningless
+          fault = tlb->finalizePhysical(pkt->req, tc, BaseTLB::Read);
+        }
+      }
+
+      // Filter out late memory traps
+      if (fault == NoFault) {
+
+        if (!pkt->req->getFlags().isSet(Request::NO_ACCESS)) {
+
+          Packet temp = Packet(pkt->req, pkt->cmd);
+          temp.dataStatic(pkt->data);
+          pkt->cp_Packet(&temp, true, true);
+          pkt->set_Fault_latetrap(fault);
+
+          if (pkt->req->isMmappedIpr()){ // mem mapped ipr
+            return 1; // back to CPU
+          }else{
+            // process this packet in the caches
+          }
+        }else{
+          // No cache access, back to CPU
+          return 1;
+        }
+      }
+      else{ // 2. Faults resulting from TLB lookups
+        return 1; // back to CPU
+      }
+
+      ////////////////////////////////////////////////////////////////
+      // L1 Virtual Cache Lookup Operations
+
+      bool l1_vc_lookup = true;
+
+      // Filter out several conditions we do not need to consult L1 VCs
+      if (system->bypassCaches())
+        l1_vc_lookup = false;
+      if (pkt->memInhibitAsserted())
+        l1_vc_lookup = false;
+
+      // handle tlb invalidations
+      std::set<uint64_t> demaps = pkt->req->get_demap_pages();
+      if ( demaps.size() > 0 ){
+        // bypass L1 VC access if we have some request invalidating TLB entries
+        l1_vc_lookup = false;
+      }
+
+      // see if L1 VC needs to be accessed.
+      if ( l1_vc_lookup ){
+
+        // ifetch or loads
+        CacheBlk *blk = NULL;
+        PacketList writebacks;
+        bool satisfied = access_virtual_cache(pkt, blk, lat, writebacks);
+
+        if (satisfied){ // Cache Hit, no need to execute below
+
+          // Handle writebacks (from the response handling) if needed
+          while (!writebacks.empty()){
+            PacketPtr wbPkt = writebacks.front();
+            memSidePort->sendAtomic(wbPkt);
+            writebacks.pop_front();
+            delete wbPkt;
+          }
+
+          if (pkt->needsResponse()) {
+            pkt->makeAtomicResponse();
+          }
+
+          return 1;
+        }
+      }
+
+      ////////////////////////////////////////////////////////////////
+      // Virtual Cache Misses or Bypassing
+      // TLB Looup Operations
+
+      if ( (tlb != NULL) && (tc != NULL) ){
+
+        if (pkt->req->isInstFetch()){ // ifetch
+          fault = tlb->translateAtomic(pkt->req, tc, BaseTLB::Execute);
+          //}else if (pkt->req->get_store() != true){ // data read request
+        }else{
+          if (pkt->isRead()){ // data read request
+            fault = tlb->translateAtomic(pkt->req, tc, BaseTLB::Read);
+          }else{ // data write
+            fault = tlb->translateAtomic(pkt->req, tc, BaseTLB::Write);
+          }
+        }
+
+        // keep the fault information from TLB lookup, in case CPU may use it.
+        pkt->set_Fault_latetrap(fault);
+
+        // Filter out late memory traps
+        if (fault == NoFault) {
+
+          if (!pkt->req->getFlags().isSet(Request::NO_ACCESS)) {
+
+            Packet temp = Packet(pkt->req, pkt->cmd);
+            temp.dataStatic(pkt->data);
+            pkt->cp_Packet(&temp, true, true);
+            pkt->set_Fault_latetrap(fault);
+
+            if (pkt->req->isMmappedIpr()){ // mem mapped ipr
+              return 1; // back to CPU
+            }else{
+              // process this packet in the caches
+            }
+          }else{
+            // No cache access, back to CPU
+            return 1;
+          }
+        }
+        else{ // 2. Faults resulting from TLB lookups
+          return 1; // back to CPU
+        }
+      }
+    } // if (is_l1_cache)
+#endif
+
+
     if (pkt->cacheResponding()) {
         assert(!pkt->req->isCacheInvalidate());
         DPRINTF(Cache, "Cache above responding to %s: not responding\n",
@@ -675,6 +1446,197 @@ Cache::recvAtomic(PacketPtr pkt)
 
     return BaseCache::recvAtomic(pkt);
 }
+
+
+#ifdef Ongal_VC
+int
+Cache::find_victim_LRU(int set_index, uint64_t* victim_PPN){
+
+  int target_way_index = -1;
+  int target_way_LRU = m_vc_structure->inc_LRU_counter();
+  // allocate up-to-date value
+  int target_way_lines = 0;
+  int num_ways = m_vc_structure->get_num_ways_ASDT_SA(set_index);
+
+
+
+  for (int index = 0; index < num_ways ; ++index){
+
+    ASDT_SA_entry *entry_SA = m_vc_structure->access_ASDT_SA_entry(set_index,
+                    index);
+
+    // valid entry and no locked entry
+    if ( entry_SA != NULL &&
+        entry_SA->get_valid() &&
+        !entry_SA->get_lock()){
+
+      uint64_t PPN = entry_SA->get_PPN(); // get a PPN
+      ASDT_entry* entry = m_vc_structure->access_matching_ASDT_map(PPN);
+
+      if (entry == NULL){
+        std::cout<<"find_victim_few_lines, should be a matching entry in an"
+                "ASDT map"<<std::endl;
+        abort();
+      }else{
+        // let's check only the entries having few lines
+        if ( entry->get_LRU() < target_way_LRU ){
+
+          bool mshr_hit = false;
+
+          // iterating all lines see if mshr hit occurs
+          int line_size = m_vc_structure->get_line_size();
+          int region_size = m_vc_structure->get_region_size();
+          int num_lines = region_size/line_size;
+          uint64_t region_paddr = PPN * region_size;
+
+          // iterating all lines in the PPN
+          for ( int line_index = 0 ; line_index < num_lines ; ++line_index ){
+
+            uint64_t line_paddr =  region_paddr + (line_index*line_size);
+            // find a block
+
+            CacheBlk *blk = tags->findBlock(line_paddr, true);
+            if ( !(blk && blk->isValid()) ) {
+              blk = tags->findBlock(line_paddr, false);
+            }
+
+            // check mshr
+            if ( blk && blk->isValid() ) {
+              #ifdef Ongal_VC
+              Addr repl_addr = blk->paddr;
+              #else
+              Addr repl_addr = tags->regenerateBlkAddr(blk->tag, blk->set);
+              #endif
+              MSHR *repl_mshr = mshrQueue.findMatch(repl_addr,
+                              blk->isSecure());
+              if (repl_mshr) {
+                // must be an outstanding upgrade request on a block we're
+                // about to replace...
+
+                mshr_hit = true;
+              } // mshr hit detection
+            } // mshr hit check
+          } // iterating all lines
+
+          ///////////////////////////////////////////
+          // found an entry satisfying the conditions
+          if (!mshr_hit){
+            // new target way!
+            target_way_lines = entry->get_num_cached_lines();
+            target_way_LRU = entry->get_LRU();
+            target_way_index = index;
+            *victim_PPN = PPN;
+          }
+        }
+      }
+    }
+  }
+
+  // profiling for ASDT conflict miss and number of invalidated lines for the
+  // event
+  if (target_way_index != -1){ // when we found a target entry
+    num_asdt_entry_conflict_miss++;
+    num_evicted_lines_per_asdt_conflict_miss += target_way_lines;
+  }
+
+  return target_way_index;
+}
+
+
+int
+Cache::find_victim_few_lines(int set_index, uint64_t* victim_PPN){
+
+  int target_way_index = -1;
+  int target_way_lines = 9999;
+
+  int num_ways = m_vc_structure->get_num_ways_ASDT_SA(set_index);
+
+
+
+  for (int index = 0; index < num_ways ; ++index){
+
+    ASDT_SA_entry *entry_SA = m_vc_structure->access_ASDT_SA_entry(set_index,
+                    index);
+
+    // valid entry and no locked entry
+    if ( entry_SA != NULL &&
+        entry_SA->get_valid() &&
+        !entry_SA->get_lock()){
+
+      uint64_t PPN = entry_SA->get_PPN(); // get a PPN
+      ASDT_entry* entry = m_vc_structure->access_matching_ASDT_map(PPN);
+
+      if (entry == NULL){
+        std::cout<<"find_victim_few_lines, should be a matching entry in an"
+                "ASDT map"<<std::endl;
+        abort();
+      }else{
+        // let's check only the entries having few lines
+        if ( entry->get_num_cached_lines() < 4 &&
+                        entry->get_num_cached_lines() > 0 ){
+
+          bool mshr_hit = false;
+
+          // iterating all lines see if mshr hit occurs
+          int line_size = m_vc_structure->get_line_size();
+          int region_size = m_vc_structure->get_region_size();
+          int num_lines = region_size/line_size;
+          uint64_t region_paddr = PPN * region_size;
+
+          // iterating all lines in the PPN
+          for ( int line_index = 0 ; line_index < num_lines ; ++line_index ){
+
+            uint64_t line_paddr =  region_paddr + (line_index*line_size);
+            // find a block
+
+            CacheBlk *blk = tags->findBlock(line_paddr, true);
+            if ( !(blk && blk->isValid()) ) {
+              blk = tags->findBlock(line_paddr, false);
+            }
+
+            // check mshr
+            if ( blk && blk->isValid() ) {
+              #ifdef Ongal_VC
+              Addr repl_addr = blk->paddr;
+              #else
+              Addr repl_addr = tags->regenerateBlkAddr(blk->tag, blk->set);
+              #endif
+            MSHR *repl_mshr = mshrQueue.findMatch(repl_addr, blk->isSecure());
+              if (repl_mshr) {
+                // must be an outstanding upgrade request on a block we're
+                // about to replace...
+
+                mshr_hit = true;
+              } // mshr hit detection
+            } // mshr hit check
+          } // iterating all lines
+
+          // found an entry satisfying the conditions
+          if ( !mshr_hit &&
+                          (target_way_lines >entry->get_num_cached_lines())){
+            // new target way!
+            target_way_lines = entry->get_num_cached_lines();
+            target_way_index = index;
+            *victim_PPN = PPN;
+          }
+        }
+      }
+    }
+  }
+
+  // profiling for ASDT conflict miss and number of invalidated lines for the
+  // event
+  if (target_way_index != -1){ // when we found a target entry
+    num_asdt_entry_conflict_miss++;
+    num_evicted_lines_per_asdt_conflict_miss += target_way_lines;
+  }
+
+  return target_way_index;
+}
+
+#endif
+
+
 
 
 /////////////////////////////////////////////////////
