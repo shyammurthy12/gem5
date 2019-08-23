@@ -70,6 +70,7 @@ SetAssociative::extractSet(const Addr addr) const
 uint32_t
 SetAssociative::extractSet_Vaddr(Addr addr) const
 {
+      printf("Set number is %lu\n",(addr >> setShift) & setMask);
       // addr should be a virtual address
       return ((addr >> setShift) & setMask);
 }

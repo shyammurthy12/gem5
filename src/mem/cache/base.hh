@@ -528,6 +528,7 @@ class BaseCache : public ClockedObject
      */
     virtual void recvTimingResp(PacketPtr pkt);
 
+    void helper_function();
     /**
      * Snoops bus transactions to maintain coherence.
      * @param pkt The current bus transaction.

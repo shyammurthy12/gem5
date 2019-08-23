@@ -875,7 +875,13 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
     // Block is guaranteed to be valid at this point
     assert(blk->isValid());
     assert(blk->isSecure() == is_secure);
-    assert(regenerateBlkAddr(blk) == addr);
+    printf("regenerateBlkAddr %lu\n",regenerateBlkAddr(blk));
+    printf("addr is %lu\n", addr);
+
+    //ongal
+    //disabling this assert, as this is not applicable
+    //for a VIVT cache, unlike for a PIPT cache.
+    //assert(regenerateBlkAddr(blk) == addr);
 
     blk->status |= BlkReadable;
 
@@ -928,6 +934,145 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                       pkt->payloadDelay);
 
     return blk;
+}
+
+
+
+//overloaded this function, so that we call the implementation of
+//handleFill defined in Cache class, instead of BaseCache class.
+void
+Cache::recvTimingResp(PacketPtr pkt)
+{
+    DPRINTF(Cache,"Running Cache class recvTimingResp\n");
+    assert(pkt->isResponse());
+
+    // all header delay should be paid for by the crossbar, unless
+    // this is a prefetch response from above
+    panic_if(pkt->headerDelay != 0 && pkt->cmd != MemCmd::HardPFResp,
+             "%s saw a non-zero packet delay\n", name());
+
+    const bool is_error = pkt->isError();
+
+    if (is_error) {
+        DPRINTF(Cache, "%s: Cache received %s with error\n", __func__,
+                pkt->print());
+    }
+
+    DPRINTF(Cache, "%s: Handling response %s\n", __func__,
+            pkt->print());
+
+    // if this is a write, we should be looking at an uncacheable
+    // write
+    if (pkt->isWrite()) {
+        assert(pkt->req->isUncacheable());
+        handleUncacheableWriteResp(pkt);
+        return;
+    }
+
+    // we have dealt with any (uncacheable) writes above, from here on
+    // we know we are dealing with an MSHR due to a miss or a prefetch
+    MSHR *mshr = dynamic_cast<MSHR*>(pkt->popSenderState());
+    assert(mshr);
+
+    if (mshr == noTargetMSHR) {
+        // we always clear at least one target
+        clearBlocked(Blocked_NoTargets);
+        noTargetMSHR = nullptr;
+    }
+
+    // Initial target is used just for stats
+    QueueEntry::Target *initial_tgt = mshr->getTarget();
+    int stats_cmd_idx = initial_tgt->pkt->cmdToIndex();
+    Tick miss_latency = curTick() - initial_tgt->recvTime;
+
+    if (pkt->req->isUncacheable()) {
+        assert(pkt->req->masterId() < system->maxMasters());
+        mshr_uncacheable_lat[stats_cmd_idx][pkt->req->masterId()] +=
+            miss_latency;
+    } else {
+        assert(pkt->req->masterId() < system->maxMasters());
+        mshr_miss_latency[stats_cmd_idx][pkt->req->masterId()] +=
+            miss_latency;
+    }
+
+    PacketList writebacks;
+
+    bool is_fill = !mshr->isForward &&
+        (pkt->isRead() || pkt->cmd == MemCmd::UpgradeResp ||
+         mshr->wasWholeLineWrite);
+
+    // make sure that if the mshr was due to a whole line write then
+    // the response is an invalidation
+    assert(!mshr->wasWholeLineWrite || pkt->isInvalidate());
+
+    CacheBlk *blk = tags->findBlock(pkt->getAddr(), pkt->isSecure());
+
+    if (is_fill && !is_error) {
+        DPRINTF(Cache, "Block for addr %#llx being updated in Cache\n",
+                pkt->getAddr());
+
+        const bool allocate = (writeAllocator && mshr->wasWholeLineWrite) ?
+            writeAllocator->allocate() : mshr->allocOnFill();
+        blk = handleFill(pkt, blk, writebacks, allocate);
+        assert(blk != nullptr);
+        ppFill->notify(pkt);
+    }
+
+    if (blk && blk->isValid() && pkt->isClean() && !pkt->isInvalidate()) {
+        // The block was marked not readable while there was a pending
+        // cache maintenance operation, restore its flag.
+        blk->status |= BlkReadable;
+
+        // This was a cache clean operation (without invalidate)
+        // and we have a copy of the block already. Since there
+        // is no invalidation, we can promote targets that don't
+        // require a writable copy
+        mshr->promoteReadable();
+    }
+
+    if (blk && blk->isWritable() && !pkt->req->isCacheInvalidate()) {
+        // If at this point the referenced block is writable and the
+        // response is not a cache invalidate, we promote targets that
+        // were deferred as we couldn't guarrantee a writable copy
+        mshr->promoteWritable();
+    }
+
+    serviceMSHRTargets(mshr, pkt, blk);
+
+    if (mshr->promoteDeferredTargets()) {
+        // avoid later read getting stale data while write miss is
+        // outstanding.. see comment in timingAccess()
+        if (blk) {
+            blk->status &= ~BlkReadable;
+        }
+        mshrQueue.markPending(mshr);
+        schedMemSideSendEvent(clockEdge() + pkt->payloadDelay);
+    } else {
+        // while we deallocate an mshr from the queue we still have to
+        // check the isFull condition before and after as we might
+        // have been using the reserved entries already
+        const bool was_full = mshrQueue.isFull();
+        mshrQueue.deallocate(mshr);
+        if (was_full && !mshrQueue.isFull()) {
+            clearBlocked(Blocked_NoMSHRs);
+        }
+
+        // Request the bus for a prefetch if this deallocation freed enough
+        // MSHRs for a prefetch to take place
+        BaseCache::helper_function();
+    }
+
+    // if we used temp block, check to see if its valid and then clear it out
+    if (blk == tempBlock && tempBlock->isValid()) {
+            BaseCache::evictBlock(blk, writebacks);
+    }
+
+    const Tick forward_time = clockEdge(forwardLatency) + pkt->headerDelay;
+    // copy writebacks to write buffer
+    doWritebacks(writebacks, forward_time);
+
+    DPRINTF(CacheVerbose, "%s: Leaving with %s\n", __func__, pkt->print());
+    delete pkt;
 }
 
 

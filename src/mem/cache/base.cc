@@ -127,6 +127,23 @@ BaseCache::BaseCache(const BaseCacheParams *p, unsigned blk_size)
 
 }
 
+//Ongal
+//defining a helper function for the redefined
+//recvTimingResp function in Cache class
+
+void
+BaseCache::helper_function()
+{
+ if (prefetcher && mshrQueue.canPrefetch()) {
+     Tick next_pf_time = std::max(prefetcher->nextPrefetchReadyTime(),
+                                  clockEdge());
+     if (next_pf_time != MaxTick)
+         schedMemSideSendEvent(next_pf_time);
+ }
+}
+
+
+
 BaseCache::~BaseCache()
 {
     delete tempBlock;
@@ -407,6 +424,7 @@ BaseCache::handleUncacheableWriteResp(PacketPtr pkt)
 void
 BaseCache::recvTimingResp(PacketPtr pkt)
 {
+    printf("Base class recvTimingResponse\n");
     assert(pkt->isResponse());
 
     // all header delay should be paid for by the crossbar, unless
@@ -1248,7 +1266,10 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
     // Block is guaranteed to be valid at this point
     assert(blk->isValid());
     assert(blk->isSecure() == is_secure);
-    assert(regenerateBlkAddr(blk) == addr);
+    //ongal
+    //disabling this assert, as this is not applicable
+    //for a VIVT cache, unlike for a PIPT cache.
+    // assert(regenerateBlkAddr(blk) == addr);
 
     blk->status |= BlkReadable;
 

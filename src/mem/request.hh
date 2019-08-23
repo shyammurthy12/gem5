@@ -805,7 +805,8 @@ class Request
     Addr
     getVaddr() const
     {
-        assert(privateFlags.isSet(VALID_VADDR));
+        //Ongal
+        // assert(privateFlags.isSet(VALID_VADDR));
         return _vaddr;
     }
 

@@ -61,6 +61,8 @@
 #include "mem/packet.hh"
 #include "mem/ruby/common/ASDT_entry.hh"
 
+class BasePrefetcher;
+
 class CacheBlk;
 struct CacheParams;
 class MSHR;
@@ -190,6 +192,8 @@ class Cache : public BaseCache
     //related functionality)
     CacheBlk *handleFill(PacketPtr pkt, CacheBlk *blk,
                          PacketList &writebacks, bool allocate);
+
+    void recvTimingResp(PacketPtr);
 
     bool BaseCache_access_dup(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
                                 PacketList &writebacks);
