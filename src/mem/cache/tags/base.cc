@@ -95,9 +95,9 @@ BaseTags::findBlock(Addr addr, bool is_secure) const
          Addr CPA_VPN   = ASDT_entry->get_virtual_page_number();
          Addr CPA_Vaddr = (CPA_VPN * Region_Size) + (addr % Region_Size);
          uint64_t CPA_CR3 = ASDT_entry->get_cr3();
-         printf("Find block with addr: %lx vtag: %lx, cr3: %lu\n",CPA_Vaddr,
-                         extractTag(CPA_Vaddr),
-                         CPA_CR3);
+        // printf("Find block with addr: %lx vtag: %lx, cr3: %lu\n",CPA_Vaddr,
+        //                 extractTag(CPA_Vaddr),
+        //                 CPA_CR3);
 
         const std::vector<ReplaceableEntry*> entries =
                 indexingPolicy->getPossibleEntries_with_Vaddr(CPA_Vaddr);
@@ -243,8 +243,8 @@ BaseTags::insertBlock(const PacketPtr pkt, CacheBlk *blk)
            blk->cr3 = CPA_CR3;
            // store the write permission information
            blk->is_writable_page = is_writable_page;
-           printf("Inserting block with vtag %lx cr3:"
-                           "%lu\n",blk->vtag,blk->cr3);
+          // printf("Inserting block with vtag %lx cr3:"
+          //                 "%lu\n",blk->vtag,blk->cr3);
          }
 #endif
 

@@ -875,8 +875,8 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
     // Block is guaranteed to be valid at this point
     assert(blk->isValid());
     assert(blk->isSecure() == is_secure);
-    printf("regenerateBlkAddr %lu\n",regenerateBlkAddr(blk));
-    printf("addr is %lu\n", addr);
+   // printf("regenerateBlkAddr %lu\n",regenerateBlkAddr(blk));
+   // printf("addr is %lu\n", addr);
 
     //ongal
     //disabling this assert, as this is not applicable
