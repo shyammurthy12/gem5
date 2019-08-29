@@ -903,8 +903,21 @@ class BaseCache : public ClockedObject
     /** Number of misses per thread for each type of command.
         @sa Packet::Command */
     Stats::Vector misses[MemCmd::NUM_MEM_CMDS];
+
+    //smurthy:
+    //stat to compute the number of misses that are
+    //from speculative loads.
+//    Stats::Vector speculative_misses[MemCmd::NUM_MEM_CMDS];
+
     /** Number of misses for demand accesses. */
     Stats::Formula demandMisses;
+
+    //smurthy:
+    //stat to compute the total number of demand misses that
+    //are from speculative loads.
+  //  Stats::Formula demand_speculative_misses;
+
+
     /** Number of misses for all accesses. */
     Stats::Formula overallMisses;
 
@@ -1225,6 +1238,8 @@ class BaseCache : public ClockedObject
     {
         assert(pkt->req->masterId() < system->maxMasters());
         misses[pkt->cmdToIndex()][pkt->req->masterId()]++;
+//        if (pkt->req->isRequestSpeculativeLoad)
+//	   speculative_misses[pkt->cmdToIndex()][pkt->req->masterId()]++;
         pkt->req->incAccessDepth();
         if (missCount) {
             --missCount;

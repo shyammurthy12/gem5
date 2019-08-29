@@ -565,6 +565,16 @@ class LSQUnit
     /** Total number of software prefetches ignored due to invalid addresses. */
     Stats::Scalar invAddrSwpfs;
 
+    //smurthy:
+    //Extra stats to count the number of speculative
+    //loads that hit in the cache and that missed in the
+    //cache.
+    Stats::Scalar speculativeLoadL1Hits;
+    Stats::Scalar speculativeLoadL1Misses;
+    Stats::Scalar speculativeLoadL1HitAndSquashed;
+    Stats::Scalar speculativeLoadL1MissAndSquashed;
+
+
     /** Ready loads blocked due to partial store-forwarding. */
     Stats::Scalar lsqBlockedLoads;
 
@@ -866,7 +876,10 @@ LSQUnit<Impl>::read(LSQRequest *req, int load_idx)
         state->isSplit = req->isSplit();
         req->senderState(state);
     }
-    req->buildPackets();
+    //load for which we are creating
+    //a packet, so parameter passed is
+    //true.
+    req->buildPackets(true);
 
 #ifdef Ongal_VC
      req->senderState()->inst->CLA_snd_vaddr =
@@ -879,7 +892,10 @@ LSQUnit<Impl>::read(LSQRequest *req, int load_idx)
        DPRINTF(LSQUnit, "In LSQ, the load is non-speculative\n");
     else
        DPRINTF(LSQUnit, "In LSQ, the load is speculative\n");
+ //   if ((!(load_inst->isPrevBrsResolved())))
+ // 	req->isRequestSpeculativeLoad = true;
     req->sendPacketToCache();
+
     if (!req->isSent())
         iewStage->blockMemInst(load_inst);
 

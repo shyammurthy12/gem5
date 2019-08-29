@@ -962,9 +962,16 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
     if (pkt->isPacketFromLSQ)
         DPRINTF(Cache,"Packet come from LSQ\n");
 
+    if (pkt->isPacketFromSpeculativeLoad)
+        printf("Hello, I am a speculative cache access\n");
+
     DPRINTF(Cache, "%s for %s %s\n", __func__, pkt->print(),
             blk ? "hit " + blk->print() : "miss");
-
+    //smurthy
+    if (blk)
+        pkt->req->isRequestHitInL1Cache = true;
+    else
+        pkt->req->isRequestMissInL1Cache = false;
     if (pkt->req->isCacheMaintenance()) {
         // A cache maintenance operation is always forwarded to the
         // memory below even if the block is found in dirty state.

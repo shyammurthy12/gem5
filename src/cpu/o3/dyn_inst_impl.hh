@@ -111,6 +111,9 @@ BaseO3DynInst<Impl>::initVars()
     _numDestMiscRegs = 0;
     this->prevControlFlowInst = NULL;
     this->RefCountPtrRemoved = false;
+    //smurthy:
+    this->isSpeculativeLoadRequestL1Hit = false;
+    this->isSpeculativeLoadRequestL1Miss = false;
 #if TRACING_ON
     // Value -1 indicates that particular phase
     // hasn't happened (yet).

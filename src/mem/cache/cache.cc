@@ -359,9 +359,21 @@ bool Cache::BaseCache_access_dup(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
     blk = tags->accessBlock(pkt->getAddr(), pkt->isSecure(), tag_latency);
 
     //smurthy
-    if (pkt->isPacketFromLSQ)
-        DPRINTF(Cache,"Packet come from LSQ\n");
+//    if (pkt->isPacketFromLSQ)
+//        DPRINTF(Cache,"Packet come from LSQ\n");
+//    if (pkt->isPacketFromSpeculativeLoad)
+//	printf("Hello, I am a speculative cache access\n");
 
+    //smurthy
+    //so that we know the request sent out hit or missed in the
+    //L1 cache.
+    if (get_is_l1cache() ){
+     //printf("I am in L1 cache access\n");
+     if (blk)
+        pkt->req->isRequestHitInL1Cache = true;
+      else
+        pkt->req->isRequestMissInL1Cache = true;
+    }
     DPRINTF(Cache, "%s for %s %s\n", __func__, pkt->print(),
             blk ? "hit " + blk->print() : "miss");
 

@@ -484,7 +484,10 @@ class LSQ
         /** @} */
         virtual bool recvTimingResp(PacketPtr pkt) = 0;
         virtual void sendPacketToCache() = 0;
-        virtual void buildPackets() = 0;
+        //Ongal
+        //source to indicate if this request is coming
+        //from a load or store.
+        virtual void buildPackets(bool source) = 0;
 
         /**
          * Memory mapped IPR accesses
@@ -660,7 +663,7 @@ class LSQ
                 ThreadContext* tc, BaseTLB::Mode mode);
         virtual bool recvTimingResp(PacketPtr pkt);
         virtual void sendPacketToCache();
-        virtual void buildPackets();
+        virtual void buildPackets(bool source);
         virtual void handleIprWrite(ThreadContext *thread, PacketPtr pkt);
         virtual Cycles handleIprRead(ThreadContext *thread, PacketPtr pkt);
         virtual bool isCacheBlockHit(Addr blockAddr, Addr cacheBlockMask);
@@ -735,7 +738,8 @@ class LSQ
         virtual bool recvTimingResp(PacketPtr pkt);
         virtual void initiateTranslation();
         virtual void sendPacketToCache();
-        virtual void buildPackets();
+
+        virtual void buildPackets(bool source);
 
         virtual void handleIprWrite(ThreadContext *thread, PacketPtr pkt);
         virtual Cycles handleIprRead(ThreadContext *thread, PacketPtr pkt);

@@ -92,6 +92,8 @@ class Request
     typedef uint8_t ArchFlagsType;
     typedef ::Flags<FlagsType> Flags;
 
+    //smurthy
+    bool isRequestSpeculativeLoad;
     enum : FlagsType {
         /**
          * Architecture specific flags.
@@ -435,6 +437,9 @@ class Request
          set_tc_ptr(NULL);
       #endif
       #endif
+      //smurthy
+      //set this flag as false by default.
+      isRequestSpeculativeLoad = false;
     }
 
     Request(Addr paddr, unsigned size, Flags flags, MasterID mid,
@@ -460,6 +465,9 @@ class Request
            set_tc_ptr(NULL);
         #endif
         #endif
+        //smurthy
+        //set this flag as false by default.
+        isRequestSpeculativeLoad = false;
     }
 
     /**
@@ -487,6 +495,9 @@ class Request
                 set_tc_ptr(NULL);
         #endif
         #endif
+        //smurthy
+        //set this flag as false by default.
+        isRequestSpeculativeLoad = false;
     }
 
     Request(Addr paddr, unsigned size, Flags flags, MasterID mid, Tick time)
@@ -508,6 +519,10 @@ class Request
                 set_tc_ptr(NULL);
         #endif
         #endif
+        //smurthy
+        //set this flag as false by default.
+        isRequestSpeculativeLoad = false;
+
     }
 
     Request(Addr paddr, unsigned size, Flags flags, MasterID mid, Tick time,
@@ -531,6 +546,9 @@ class Request
                 set_tc_ptr(NULL);
         #endif
         #endif
+        //smurthy
+        //set this flag as false by default.
+        isRequestSpeculativeLoad = false;
     }
 
     Request(uint64_t asid, Addr vaddr, unsigned size, Flags flags,
@@ -554,6 +572,10 @@ class Request
         set_tc_ptr(NULL);
 #endif
 #endif
+        //smurthy
+        //set this flag as false by default.
+        isRequestSpeculativeLoad = false;
+
     }
 
     Request(uint64_t asid, Addr vaddr, unsigned size, Flags flags,
@@ -573,6 +595,9 @@ class Request
                 set_tc_ptr(NULL);
         #endif
         #endif
+        //smurthy
+        //set this flag as false by default.
+        isRequestSpeculativeLoad = false;
     }
 
     Request(const Request& other)
@@ -604,6 +629,10 @@ class Request
                 set_tc_ptr(NULL);
         #endif
         #endif
+        //smurthy
+        //set this flag as false by default.
+        isRequestSpeculativeLoad = false;
+
     }
 
     ~Request()
@@ -1045,6 +1074,11 @@ class Request
     bool isAtomicReturn() const { return _flags.isSet(ATOMIC_RETURN_OP); }
     bool isAtomicNoReturn() const { return _flags.isSet(ATOMIC_NO_RETURN_OP); }
 
+    //smurthy:
+    //extra fields to know if a load request
+    //hit or miss in the L1 cache.
+    bool isRequestHitInL1Cache = false;
+    bool isRequestMissInL1Cache = false;
     bool
     isAtomic() const
     {

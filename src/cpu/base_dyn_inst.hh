@@ -166,6 +166,12 @@ class BaseDynInst : public ExecContext, public RefCounted
     //speculative if there are prior unresolved branches
     bool isInstructionSpeculative;
 
+    //smurthy:
+    //is speculative load request a hit/miss in the L1 cache
+    bool isSpeculativeLoadRequestL1Hit;
+    bool isSpeculativeLoadRequestL1Miss;
+
+
     /** The StaticInst used by this BaseDynInst. */
     const StaticInstPtr staticInst;
 

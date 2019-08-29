@@ -330,6 +330,7 @@ class Packet : public Printable
 
     //smurthy
     bool isPacketFromLSQ = false;
+    bool isPacketFromSpeculativeLoad = false;
   private:
    /**
     * A pointer to the data being transferred. It can be different
