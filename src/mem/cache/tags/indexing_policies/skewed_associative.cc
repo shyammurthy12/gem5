@@ -221,7 +221,8 @@ SkewedAssociative::getPossibleEntries(const Addr addr) const
 
 //Ongal
 std::vector<ReplaceableEntry*>
-SkewedAssociative::getPossibleEntries_with_Vaddr(const Addr addr) const
+SkewedAssociative::getPossibleEntries_with_Vaddr(const Addr addr, uint32_t
+                random_constant_to_xor_with) const
 {
     std::vector<ReplaceableEntry*> entries;
 

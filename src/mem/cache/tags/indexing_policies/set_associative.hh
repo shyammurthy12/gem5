@@ -124,7 +124,7 @@ class SetAssociative : public BaseIndexingPolicy
     //Ongal
 
     std::vector<ReplaceableEntry*> getPossibleEntries_with_Vaddr(const Addr
-                    addr) const;
+                    addr, uint32_t random_constant_to_xor_with) const;
     /**
      * Regenerate an entry's address from its tag and assigned set and way.
      *

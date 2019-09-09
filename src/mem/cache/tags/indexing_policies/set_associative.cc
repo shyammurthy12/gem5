@@ -91,7 +91,8 @@ SetAssociative::getPossibleEntries(const Addr addr) const
 
 //Ongal
 std::vector<ReplaceableEntry*>
-SetAssociative::getPossibleEntries_with_Vaddr(const Addr addr) const
+SetAssociative::getPossibleEntries_with_Vaddr(const Addr addr, uint32_t
+                random_constant_to_xor_with) const
 {
     return sets[extractSet_Vaddr(addr)];
 }

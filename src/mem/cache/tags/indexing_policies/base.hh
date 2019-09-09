@@ -151,7 +151,7 @@ class BaseIndexingPolicy : public SimObject
 
 
     virtual std::vector<ReplaceableEntry*> getPossibleEntries_with_Vaddr(const
-                    Addr addr) const = 0;
+                    Addr addr, uint32_t random_constant_to_xor_with) const = 0;
     /**
      * Regenerate an entry's address from its tag and assigned indexing bits.
      *

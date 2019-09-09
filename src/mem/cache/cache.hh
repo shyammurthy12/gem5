@@ -53,6 +53,7 @@
 #define __MEM_CACHE_CACHE_HH__
 
 #include <cstdint>
+#include <map>
 #include <unordered_set>
 
 #include "base/types.hh"
@@ -60,6 +61,9 @@
 #include "mem/ongal_VC.hh"
 #include "mem/packet.hh"
 #include "mem/ruby/common/ASDT_entry.hh"
+
+using namespace std;
+
 
 class BasePrefetcher;
 
@@ -188,6 +192,7 @@ class Cache : public BaseCache
     /** Instantiates a basic cache object. */
     Cache(const CacheParams *p);
 
+    set<uint64_t> physical_pages_touched;
     //Ongal (redefinition to use some Cache class related
     //related functionality)
     CacheBlk *handleFill(PacketPtr pkt, CacheBlk *blk,
@@ -273,7 +278,7 @@ class Cache : public BaseCache
       // calculate the virtual page number (VPN)
       uint64_t VPN = Vaddr / m_vc_structure->get_region_size();
       uint64_t matching_cr3 = 0;
-
+      uint32_t random_number_to_hash_with = 0;
       // find the corresponding ASDT entry with the VPN as the leading virtual
       // page (LVP)
       // invalidate the entry in the map
@@ -282,7 +287,8 @@ class Cache : public BaseCache
 
       do{
 
-        found = m_vc_structure->invalidate_ASDT_with_VPN(VPN, &matching_cr3);
+        found = m_vc_structure->invalidate_ASDT_with_VPN(VPN, &matching_cr3,
+                        &random_number_to_hash_with);
 
         // invalidate all lines in the page
         if ( found ){
@@ -299,7 +305,8 @@ class Cache : public BaseCache
 
             uint64_t line_vaddr = region_vaddr + (line_index*line_size);
             // find a block
-            CacheBlk *blk = tags->findBlock_vaddr(line_vaddr, matching_cr3);
+            CacheBlk *blk = tags->findBlock_vaddr(line_vaddr, matching_cr3,
+                            random_number_to_hash_with);
 
             if (blk && blk->isValid()) {
               // if it is dirty, put it in a write back buffer
@@ -341,22 +348,33 @@ class Cache : public BaseCache
       if ( m_vc_structure->find_matching_ASDT_map( PPN ) ){
         // do nothing
       }else{
-
+        //have a stat to here that tells how many insertions we
+        //had into the ASDT.
+        num_asdt_insertions++;
+        //we are touching this page for the
+        //first time.
+        if (physical_pages_touched.find(PPN) == physical_pages_touched.end())
+        {
+          num_unique_pages_referenced++;
+          physical_pages_touched.insert(PPN);
+        }
         // need to allocate an ASDT SA entry for the PPN
 
         // check an available entry in the set
         int set_index = m_vc_structure->get_set_index_ASDT_SA(PPN);
         // set index
-      int way_index = m_vc_structure->find_available_ASDT_SA_entry(set_index);
-      // find an empty entry
+        int way_index =
+                m_vc_structure->find_available_ASDT_SA_entry(set_index);
+        // find an empty entry
 
 
         if ( way_index == -1 ){
           // no available entry,
           // find victim ASDT entry
           uint64_t victim_PPN;
-          way_index = find_victim_LRU(set_index, &victim_PPN);
-          //way_index = find_victim_few_lines(set_index, &victim_PPN);
+          //way_index = find_victim_LRU(set_index, &victim_PPN);
+          cout <<"Conflicting PPN is "<<PPN<<endl;
+          way_index = find_victim_few_lines(set_index, &victim_PPN);
 
           if ( way_index == -1 ){
             // no? victim? then push_back one more entry
@@ -389,6 +407,7 @@ class Cache : public BaseCache
                 // if it is dirty, put it in a write back buffer
                 if (blk->isDirty()) {
                   // Save writeback packet for handling by caller
+                  DPRINTF(Cache,"Pushing writeback from ASDT_Invalidation\n");
                   writebacks.push_back(writebackBlk(blk));
                 }
 

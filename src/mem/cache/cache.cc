@@ -1706,6 +1706,8 @@ Cache::find_victim_few_lines(int set_index, uint64_t* victim_PPN){
   int target_way_index = -1;
   int target_way_lines = 9999;
 
+  int target_way_LRU = m_vc_structure->inc_LRU_counter();
+
   int num_ways = m_vc_structure->get_num_ways_ASDT_SA(set_index);
 
 
@@ -1771,11 +1773,26 @@ Cache::find_victim_few_lines(int set_index, uint64_t* victim_PPN){
           // found an entry satisfying the conditions
           if ( !mshr_hit &&
                           (target_way_lines >entry->get_num_cached_lines())){
-            // new target way!
-            target_way_lines = entry->get_num_cached_lines();
-            target_way_index = index;
-            *victim_PPN = PPN;
+              // new target way!
+              target_way_lines = entry->get_num_cached_lines();
+              target_way_index = index;
+              //update the replacement bits
+              target_way_LRU = entry->get_LRU();
+              *victim_PPN = PPN;
           }
+          //if two cache blocks have the same number of cache lines,
+          //then pick the older block for eviction.
+          else if (!mshr_hit &&
+                          (target_way_lines == entry->get_num_cached_lines())&&
+                           (entry->get_LRU() < target_way_LRU)){
+              // new target way!
+              target_way_lines = entry->get_num_cached_lines();
+              target_way_index = index;
+              //update the replacement bits
+              target_way_LRU = entry->get_LRU();
+              *victim_PPN = PPN;
+          }
+
         }
       }
     }
@@ -1785,6 +1802,9 @@ Cache::find_victim_few_lines(int set_index, uint64_t* victim_PPN){
   // event
   if (target_way_index != -1){ // when we found a target entry
     num_asdt_entry_conflict_miss++;
+    cout<<"The ASDT index of interest is: "<< set_index <<endl;
+    cout<<"The ASDT way evicted is: "<< target_way_index <<endl;
+    cout<<"The number of lines is: "<<target_way_lines<<endl;
     num_evicted_lines_per_asdt_conflict_miss += target_way_lines;
   }
 
@@ -1978,7 +1998,10 @@ Cache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt, CacheBlk *blk)
 PacketPtr
 Cache::evictBlock(CacheBlk *blk)
 {
-    PacketPtr pkt = (blk->isDirty() || writebackClean) ?
+    //Ongal, we might have invalidated block during
+    //ASDT invalidation check, need to check if the
+    //block is valid or not, as well.
+    PacketPtr pkt = ((blk->isDirty() || writebackClean)&&(blk->isValid())) ?
         writebackBlk(blk) : cleanEvictBlk(blk);
 
     invalidateBlock(blk);
@@ -1992,9 +2015,16 @@ Cache::cleanEvictBlk(CacheBlk *blk)
     assert(!writebackClean);
     assert(blk && blk->isValid() && !blk->isDirty());
 
+    RequestPtr req;
     // Creating a zero sized write, a message to the snoop filter
-    RequestPtr req = std::make_shared<Request>(
+     #ifdef Ongal_VC
+     req = std::make_shared<Request>(
+        blk->paddr, blkSize, 0,
+        Request::wbMasterId);
+     #else
+     req = std::make_shared<Request>(
         regenerateBlkAddr(blk), blkSize, 0, Request::wbMasterId);
+     #endif
 
     if (blk->isSecure())
         req->setFlags(Request::SECURE);

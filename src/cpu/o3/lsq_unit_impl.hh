@@ -179,7 +179,11 @@ LSQUnit<Impl>::completeDataAccess(PacketPtr pkt)
                     == OTHERS ){
       std::cout<<std::endl;
       std::cout<<" What? "<<pkt->req->get_request_type()<<std::endl;
-      abort();
+      if (inst->isStore())
+          std::cout<<"Instruction is a store"<<endl;
+      else if (inst->isLoad())
+          std::cout<<"Instruction is a load"<<endl;
+//      abort();
     }
 
     uint64_t Leading_Line_Index =

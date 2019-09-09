@@ -94,13 +94,17 @@ BaseTags::findBlock(Addr addr, bool is_secure) const
        }else{
          Addr CPA_VPN   = ASDT_entry->get_virtual_page_number();
          Addr CPA_Vaddr = (CPA_VPN * Region_Size) + (addr % Region_Size);
+         uint32_t random_number_to_hash_with =
+                 ASDT_entry->get_random_number_to_hash_with();
+
          uint64_t CPA_CR3 = ASDT_entry->get_cr3();
         // printf("Find block with addr: %lx vtag: %lx, cr3: %lu\n",CPA_Vaddr,
         //                 extractTag(CPA_Vaddr),
         //                 CPA_CR3);
 
         const std::vector<ReplaceableEntry*> entries =
-                indexingPolicy->getPossibleEntries_with_Vaddr(CPA_Vaddr);
+indexingPolicy->getPossibleEntries_with_Vaddr(CPA_Vaddr,
+                random_number_to_hash_with);
       // only leading virtual address
       CacheBlk* target_block = NULL;
      // Search for block
@@ -143,14 +147,16 @@ BaseTags::findBlock(Addr addr, bool is_secure) const
 
 #ifdef Ongal_VC
 CacheBlk*
-BaseTags::findBlock_vaddr(Addr addr, Addr cr3) const
+BaseTags::findBlock_vaddr(Addr addr, Addr cr3, uint32_t
+                random_number_to_xor_with) const
 {
 
     // Extract block tag
     Addr tag = extractTag(addr);
     // Find possible entries that may contain the given address
     const std::vector<ReplaceableEntry*> entries =
-        indexingPolicy->getPossibleEntries_with_Vaddr(addr);
+        indexingPolicy->getPossibleEntries_with_Vaddr(addr,
+                        random_number_to_xor_with);
 
     // Search for block
     for (const auto& location : entries) {
@@ -173,8 +179,10 @@ BaseTags::findBlock_with_vaddr(Addr addr, Addr cr3, bool is_secure) const
     // Extract block tag
     Addr tag = extractTag(addr);
     // Find possible entries that may contain the given address
+    //This implementation is broken, but does not get used.
+    //Change this later on, when we turn on LateMemTrap.
     const std::vector<ReplaceableEntry*> entries =
-        indexingPolicy->getPossibleEntries_with_Vaddr(addr);
+        indexingPolicy->getPossibleEntries_with_Vaddr(addr,0);
 
     // Search for block
     for (const auto& location : entries) {

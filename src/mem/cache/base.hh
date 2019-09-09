@@ -1047,6 +1047,8 @@ class BaseCache : public ClockedObject
     Stats::Scalar num_ss_64KB_hits;
     Stats::Scalar num_ss_1MB_hits;
 
+    Stats::Scalar num_unique_pages_referenced;
+    Stats::Scalar num_asdt_insertions;
 
     Stats::Scalar num_art_hits;
 
@@ -1084,6 +1086,8 @@ class BaseCache : public ClockedObject
     Stats::Scalar num_SLB_Lookup;
 
     Stats::Scalar num_page_info_change;
+
+
 
 #endif
 

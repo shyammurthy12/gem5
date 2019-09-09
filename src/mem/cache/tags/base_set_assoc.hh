@@ -221,9 +221,13 @@ class BaseSetAssoc : public BaseTags
        }else{
          Addr CPA_VPN   = ASDT_entry->get_virtual_page_number();
          Addr CPA_Vaddr = (CPA_VPN * Region_Size) + (addr % Region_Size);
+         uint32_t random_number_to_xor_with;
+         random_number_to_xor_with =
+                 ASDT_entry->get_random_number_to_hash_with();
 
         const std::vector<ReplaceableEntry*> entries =
-                indexingPolicy->getPossibleEntries_with_Vaddr(CPA_Vaddr);
+        indexingPolicy->getPossibleEntries_with_Vaddr(CPA_Vaddr,
+                        random_number_to_xor_with);
 
         // Choose replacement victim from replacement candidates
         CacheBlk* victim = static_cast<CacheBlk*>(replacementPolicy->getVictim(

@@ -1526,8 +1526,14 @@ BaseCache::writebackBlk(CacheBlk *blk)
 PacketPtr
 BaseCache::writecleanBlk(CacheBlk *blk, Request::Flags dest, PacketId id)
 {
-    RequestPtr req = std::make_shared<Request>(
+    RequestPtr req;
+    #ifdef Ongal_VC
+     req = std::make_shared<Request>(
+        blk->paddr, blkSize, 0, Request::wbMasterId);
+    #else
+      req = std::make_shared<Request>(
         regenerateBlkAddr(blk), blkSize, 0, Request::wbMasterId);
+    #endif
 
     if (blk->isSecure()) {
         req->setFlags(Request::SECURE);
@@ -1596,7 +1602,7 @@ BaseCache::writebackVisitor(CacheBlk &blk)
         RequestPtr request;
         #ifdef Ongal_VC
          request = std::make_shared<Request>(
-            regenerateBlkAddr(&blk), blkSize, 0, Request::funcMasterId);
+            blk.paddr, blkSize, 0, Request::funcMasterId);
         #else
           request = std::make_shared<Request>(
             regenerateBlkAddr(&blk), blkSize, 0, Request::funcMasterId);
@@ -2499,6 +2505,16 @@ BaseCache::regStats()
     num_valid_asdt_entry_two_lines
         .name(name() + ".num_valid_asdt_entry_two_lines")
         .desc("number of valid ASDT entries")
+        ;
+
+    num_unique_pages_referenced
+        .name(name() + ".num_unique_pages_referenced")
+        .desc("number of unique pages referenced")
+        ;
+
+    num_asdt_insertions
+        .name(name() + ".num_asdt_insertions")
+        .desc("number of asdt insertions")
         ;
 
     num_asdt_entry_conflict_miss

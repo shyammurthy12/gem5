@@ -164,7 +164,7 @@ class SkewedAssociative : public BaseIndexingPolicy
 
 
     std::vector<ReplaceableEntry*> getPossibleEntries_with_Vaddr(const Addr
-                    addr) const override;
+                    addr, uint32_t random_constant_to_xor_with) const override;
     /**
      * Regenerate an entry's address from its tag and assigned set and way.
      * Uses the inverse of the skewing function.
