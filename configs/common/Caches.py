@@ -57,6 +57,7 @@ class L1Cache(Cache):
     response_latency = 2
     mshrs = 4
     tgts_per_mshr = 20
+    clusivity = 'mostly_incl'
 
 class L1_ICache(L1Cache):
     is_read_only = True
@@ -74,6 +75,8 @@ class L2Cache(Cache):
     mshrs = 20
     tgts_per_mshr = 12
     write_buffers = 8
+    #enable only for exclusive hierarchies
+#    clusivity = 'mostly_excl'
 
 class IOCache(Cache):
     assoc = 8

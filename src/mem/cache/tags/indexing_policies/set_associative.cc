@@ -76,6 +76,26 @@ SetAssociative::extractSet_Vaddr(Addr addr) const
 }
 
 
+uint32_t
+SetAssociative::extractSet_Vaddr_with_hashing(Addr addr, uint32_t
+                random_constant_to_xor_with) const
+{
+      //printf("Set number is %lu\n",(addr >> setShift) & setMask);
+      // addr should be a virtual address
+   //   return ((((addr >> setShift) &
+   //   setMask)^random_constant_to_xor_with))&setMask;
+#ifdef Smurthy_debug
+      printf("The random constant to xor with"
+                      "%u\n",random_constant_to_xor_with);
+      printf("The setNumber is %lu\n",
+                   (((addr >> setShift)^random_constant_to_xor_with))&setMask);
+#endif
+      //random_constant_to_xor_with = 0;
+      return (((addr >> setShift)^random_constant_to_xor_with))&setMask;
+}
+
+
+
 Addr
 SetAssociative::regenerateAddr(const Addr tag, const ReplaceableEntry* entry)
                                                                         const
@@ -94,7 +114,7 @@ std::vector<ReplaceableEntry*>
 SetAssociative::getPossibleEntries_with_Vaddr(const Addr addr, uint32_t
                 random_constant_to_xor_with) const
 {
-    return sets[extractSet_Vaddr(addr)];
+ return sets[extractSet_Vaddr_with_hashing(addr,random_constant_to_xor_with)];
 }
 
 SetAssociative*

@@ -34,7 +34,7 @@
 // O3 + Ruby System for Timing results
 #define Ongal_Three_Level // Cache hierarchy setting
 #define O3CPU_Ongal_VC // it allows LSQ operations for VC-DSR to be executed.
-
+//#define Smurthy_debug
 
 /////////////////////////////
 // ASDT/SS/ART manage options

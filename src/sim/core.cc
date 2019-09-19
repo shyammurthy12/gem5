@@ -152,6 +152,28 @@ registerExitCallback(Callback *callback)
 void
 doExitCleanup()
 {
+    printf("Hello, end of simulation\n");
+    for (int i = 0;i<lifetimes_of_hash_entries.size();i++)
+    {
+     if (hash_entries_used.at(i))
+     {
+       printf("We have %lu lifetime records for entry %d\n",
+              lifetimes_of_hash_entries.at(i).size(),
+                i);
+       if (!lifetimes_of_hash_entries.at(i).back().subtraction_done){
+         printf("The record for entry %d is still present\n",i);
+         lifetimes_of_hash_entries.at(i).back().lifetime =
+          curTick()-lifetimes_of_hash_entries.at(i).back().lifetime;
+       }
+       for (int j = 0;j<lifetimes_of_hash_entries.at(i).size();j++)
+       {
+          printf("The lifetime for entry %d and sub-record %d is"
+          "%lu\n",i,j,lifetimes_of_hash_entries.at(i).at(j).lifetime);
+
+       }
+     }
+    }
+    printf("The value of the curTick is %lu\n",curTick());
     exitCallbacks().process();
     exitCallbacks().clear();
 

@@ -88,30 +88,65 @@ BaseTags::findBlock(Addr addr, bool is_secure) const
        uint64_t PPN = addr/Region_Size;
        ASDT_entry * ASDT_entry =
                get_VC_structure()->access_matching_ASDT_map(PPN);
+#ifdef Smurthy_debug
+      printf("FindBlock: PPN is %lu\n",
+                      PPN);
+#endif
 
        if (ASDT_entry == NULL){
          return NULL;
        }else{
          Addr CPA_VPN   = ASDT_entry->get_virtual_page_number();
          Addr CPA_Vaddr = (CPA_VPN * Region_Size) + (addr % Region_Size);
-         uint32_t random_number_to_hash_with =
-                 ASDT_entry->get_random_number_to_hash_with();
-
+         //uint32_t random_number_to_hash_with =
+         //        ASDT_entry->get_random_number_to_hash_with();
+         uint32_t constant_to_xor_with = 0;
          uint64_t CPA_CR3 = ASDT_entry->get_cr3();
-        // printf("Find block with addr: %lx vtag: %lx, cr3: %lu\n",CPA_Vaddr,
-        //                 extractTag(CPA_Vaddr),
-        //                 CPA_CR3);
 
+         uint64_t index_into_hash_lookup_table = (CPA_VPN^CPA_CR3)&
+                  (m_vc_structure->get_hash_lookup_table_size()-1);
+#ifdef Smurthy_debug
+         printf("Index into the hash lookup table(findBlock) is %ld\n",
+                         index_into_hash_lookup_table);
+#endif
+         //if the entry in the hash lookup table is valid
+         int temp = index_into_hash_lookup_table;
+         if (get_VC_structure()->hash_entry_to_use_getValid(temp))
+         {
+           //obtain the hash entry to use.
+           uint64_t hash_entry_to_use =
+                   get_VC_structure()->get_hash_entry_to_use(temp);
+           //the hashing function table is always assumed
+           //to have a valid entry that can be used.
+           int temp1 = hash_entry_to_use;
+    constant_to_xor_with =
+    get_VC_structure()->hashing_function_to_use_get_constant_to_xor_with(temp);
+
+         }
+         //absence of a valid entry, indicates
+         //a miss in the cache.
+         else
+         {
+          return NULL;
+         }
+#ifdef Smurthy_debug
+         printf("Find block with addr: %lx vtag: %lx, cr3: %lu, Paddr:"
+                         "%lx\n",CPA_Vaddr,
+                         extractTag(CPA_Vaddr),
+                         CPA_CR3, addr);
+#endif
         const std::vector<ReplaceableEntry*> entries =
 indexingPolicy->getPossibleEntries_with_Vaddr(CPA_Vaddr,
-                random_number_to_hash_with);
+                constant_to_xor_with);
       // only leading virtual address
       CacheBlk* target_block = NULL;
      // Search for block
      for (const auto& location : entries) {
          CacheBlk* blk = static_cast<CacheBlk*>(location);
-         if ((blk->vtag == extractTag(CPA_Vaddr))&& (CPA_CR3 == blk->cr3) &&
-                         (blk->isValid()) &&
+         //if ((blk->vtag == extractTag(CPA_Vaddr))&& (CPA_CR3 == blk->cr3) &&
+         //part of the temporary hack
+         if ((blk->vtag == CPA_Vaddr/64)&& (CPA_CR3 == blk->cr3) &&
+                 (blk->isValid()) &&
              (blk->isSecure() == is_secure)) {
              target_block =  blk;
          }
@@ -246,7 +281,12 @@ BaseTags::insertBlock(const PacketPtr pkt, CacheBlk *blk)
            // update blk->vtag
            uint64_t CPA_Vaddr = (CPA_VPN * Region_Size) + (pkt->req->getPaddr()
                            % Region_Size);
-           blk->vtag = extractTag(CPA_Vaddr);
+           //blk->vtag = extractTag(CPA_Vaddr);
+           //Ongal:
+           //temporary hack, to get this to work with
+           //hashing.
+           //what constitutes a tag with hashing, find out.
+           blk->vtag = CPA_Vaddr/64;
            // update blk->cr3
            blk->cr3 = CPA_CR3;
            // store the write permission information

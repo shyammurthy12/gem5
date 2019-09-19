@@ -221,12 +221,45 @@ class BaseSetAssoc : public BaseTags
        }else{
          Addr CPA_VPN   = ASDT_entry->get_virtual_page_number();
          Addr CPA_Vaddr = (CPA_VPN * Region_Size) + (addr % Region_Size);
-         uint32_t random_number_to_xor_with;
-         random_number_to_xor_with =
-                 ASDT_entry->get_random_number_to_hash_with();
+         uint32_t random_number_to_xor_with = 0;
+         uint64_t CPA_CR3 = ASDT_entry->get_cr3();
 
-        const std::vector<ReplaceableEntry*> entries =
-        indexingPolicy->getPossibleEntries_with_Vaddr(CPA_Vaddr,
+         uint64_t index_into_hash_lookup_table = (CPA_VPN^CPA_CR3)&
+                  (m_vc_structure->get_hash_lookup_table_size()-1);
+
+#ifdef Smurthy_debug
+         printf("Index into the hash lookup table(findVictim) is %ld\n",
+                         index_into_hash_lookup_table);
+#endif
+         //if the entry in the hash lookup table is valid
+         int temp;
+         if (get_VC_structure()->hash_entry_to_use_getValid(temp))
+         {
+           //obtain the hash entry to use.
+           uint64_t hash_entry_to_use =
+                   get_VC_structure()->get_hash_entry_to_use(temp);
+           //the hashing function table is always assumed
+           //to have a valid entry that can be used.
+   random_number_to_xor_with =
+    get_VC_structure()->hashing_function_to_use_get_constant_to_xor_with(temp);
+
+         }
+         //absence of a valid entry, indicates
+         //a miss in the cache.
+         else
+         {
+            cout<<"What??. The entry should be valid when in findVictim()\n";
+            abort();
+         }
+         #ifdef Smurthy_debug
+         printf("Find victim with addr: %lx vtag: %lx, cr3: %lu and Paddr:"
+                         "%lx\n",CPA_Vaddr,
+                         extractTag(CPA_Vaddr),
+                         CPA_CR3, addr);
+         #endif
+
+         const std::vector<ReplaceableEntry*> entries =
+         indexingPolicy->getPossibleEntries_with_Vaddr(CPA_Vaddr,
                         random_number_to_xor_with);
 
         // Choose replacement victim from replacement candidates

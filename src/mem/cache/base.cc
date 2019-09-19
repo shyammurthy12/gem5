@@ -1376,6 +1376,7 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
         }
     }
 
+    bool updated_asdt_for_allocated_block = false;
     // The victim will be replaced by a new entry, so increase the replacement
     // counter if a valid block is being replaced
     if (replacement) {
@@ -1389,7 +1390,19 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
                 if (blk->wasPrefetched()) {
                     unusedPrefetches++;
                 }
+                //before the evicted block updates ASDT,
+                //make the update for the allocated block.
+                if (tags->get_VC_structure() != NULL)
+                {
+                  updated_asdt_for_allocated_block = true;
+                  tags->get_VC_structure()->update_ASDT(pkt->req->getVaddr(),
+                                          pkt->req->getPaddr(),
+                                          pkt->req->getCR3(),
+                                          true, &num_CPA_change,
+                                          &num_CPA_change_check,
+                                          pkt->req->get_is_writable_page());
 
+                }
                 evictBlock(blk, writebacks);
             }
         }
@@ -1406,6 +1419,21 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
 
          // only for the first level cache
          // replacement
+
+         // allocation
+         // before this, the entry should already be set to valid.
+         //if we don't have a cache replacement.
+         if (!updated_asdt_for_allocated_block){
+         tags->get_VC_structure()->update_ASDT(pkt->req->getVaddr(),
+                                          pkt->req->getPaddr(),
+                                          pkt->req->getCR3(),
+                                          true, &num_CPA_change,
+                                          &num_CPA_change_check,
+                                          pkt->req->get_is_writable_page());
+         }
+         //at this point, also update hash lookup table based on VPN and CR3.
+         //if it is invalid, set to valid. Assign an entry to point to and
+         //set counter to 1. Else, simply increment the counter within
          if (victim->isValid()){
            Addr repl_addr = victim->paddr;
 
@@ -1413,6 +1441,12 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
            tags->get_VC_structure()->update_ASDT( 0, repl_addr, 0,
                                false, &num_CPA_change, &num_CPA_change_check,
                                             pkt->req->get_is_writable_page());
+           //at this point, we also need to update the hash lookup table
+           //appropriately.
+           //decrement the counter, to indicate that we have one line lesser
+           //from that page.
+          // uint64_t index_into_hash_lookup_table = (CPA_VPN^CPA_CR3)&15;
+
          }
 
          /*
@@ -1420,13 +1454,6 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
                   <<" Paddr "<<pkt->req->getPaddr()
                   <<" CR3 "<<pkt->req->getCR3()<<endl;
          */
-         // allocation
-         tags->get_VC_structure()->update_ASDT(pkt->req->getVaddr(),
-                                          pkt->req->getPaddr(),
-                                          pkt->req->getCR3(),
-                                          true, &num_CPA_change,
-                                          &num_CPA_change_check,
-                                          pkt->req->get_is_writable_page());
        }
        #endif
        // Insert new block at victimized entry

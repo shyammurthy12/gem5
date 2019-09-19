@@ -1,5 +1,8 @@
 #include "mem/ruby/common/ASDT_entry.hh"
 
+std::vector<std::vector<lifetime_record>> lifetimes_of_hash_entries;
+std::vector<bool> hash_entries_used;
+
 ASDT_entry::ASDT_entry(uint64_t VPN, uint64_t CR3, int num_lines_per_region,
                 uint64_t lru_count){
 
@@ -31,6 +34,13 @@ ASDT_entry::ASDT_entry(uint64_t VPN, uint64_t CR3, int num_lines_per_region,
     " num_max_lines "<<dec<< num_lines_per_region<<endl;
 #endif
 }
+
+void
+ASDT_entry::clear_bit_vector(){
+        cached_bit_vector.clear();
+}
+
+
 
 void
 ASDT_entry::set_bit_vector( int index ){
@@ -131,6 +141,7 @@ VC_structure::VC_structure(string name,
   // set region and line size
   set_region_size(region_size);
   set_line_size(line_size);
+  set_num_sets(set_size);
 
   std::cout<<"ASDT_structure is cleared"<<std::endl;
   ASDT_structure.clear(); //init
@@ -144,7 +155,7 @@ VC_structure::VC_structure(string name,
     asdt_way = 16;
     //have this hash lookup table for
     //data cache alone.
-    m_hash_lookup_table_size = 16;
+    m_hash_lookup_table_size = 256 ;
     m_size_of_hash_function_list = 64;
   }else{
     asdt_set = 8;
@@ -160,11 +171,18 @@ VC_structure::VC_structure(string name,
     temp.assign(asdt_way, ASDT_SA_entry());
     ASDT_SA_structure.push_back(temp);
   }
+  lifetimes_of_hash_entries.resize(m_hash_lookup_table_size);
+  hash_entries_used.resize(m_hash_lookup_table_size);
+  for (int i = 0;i<m_hash_lookup_table_size;i++)
+    hash_entries_used.at(i) = false;
   for (int i = 0; i<m_hash_lookup_table_size; i++){
     hash_function_lookup_table_entry temp;
     //invalidate this entry.Made valid when referenced
     //first time and assigned a hash function to use.
     temp.invalidate();
+    //set the entry number in the hash lookup
+    //table.
+    temp.set_entry_number(i);
     hash_lookup_table.push_back(temp);
   }
   std::cout<<"Hash function lookup table size is "<<
@@ -176,7 +194,8 @@ VC_structure::VC_structure(string name,
      hashing_functions_table_entry temp;
      //16-bit quantity to xor with.
      temp.set_constant_to_xor_with(rand()%65535);
-     cout<<"Random numbers used are\n"<<temp.get_constant_to_xor_with()<<endl;
+     cout<<"Random numbers used for " <<i<<": "
+             <<temp.get_constant_to_xor_with()<<endl;
      temp.set_of_lines_using_entry(0);
      list_of_all_hashing_functions.push_back(temp);
   }
@@ -229,9 +248,27 @@ void
 VC_structure::set_hash_entry_to_use(int index_of_entry, uint64_t
                 _hash_entry_to_use)
 {
-   hash_function_lookup_table_entry temp;
-   temp = hash_lookup_table.at(index_of_entry);
+   hash_function_lookup_table_entry &temp =
+           hash_lookup_table.at(index_of_entry);
    return temp.set_hash_entry_to_use(_hash_entry_to_use);
+}
+
+int
+VC_structure::get_hash_lookup_table_size()
+{
+ return m_hash_lookup_table_size;
+}
+
+
+void VC_structure::set_hash_entry_to_use_helper(int index_of_entry){
+
+        int random_number_to_xor_with = rand()%m_size_of_hash_function_list;
+#ifdef Smurthy_debug
+        printf("Setting random number to xor (%d) for index (%d)\n",
+                        random_number_to_xor_with,index_of_entry);
+#endif
+        return set_hash_entry_to_use(index_of_entry,
+                        random_number_to_xor_with);
 }
 
 uint64_t
@@ -241,9 +278,12 @@ VC_structure::get_hash_entry_to_use(int index_of_entry)
 }
 
 void
-VC_structure::hash_entry_to_use_inc_number_of_cache_lines(int index_of_entry)
+VC_structure::hash_entry_to_use_inc_number_of_cache_lines(int
+                index_of_entry,int number_of_hashing_functions)
 {
-  return hash_lookup_table.at(index_of_entry).inc_number_of_cache_lines();
+  int temp = index_of_entry;
+  int temp1 = number_of_hashing_functions;
+  return hash_lookup_table.at(temp).inc_number_of_cache_lines(temp1);
 }
 void
 VC_structure::hash_entry_to_use_dec_number_of_cache_lines(int index_of_entry)
@@ -268,23 +308,23 @@ VC_structure::hash_entry_to_use_invalidate(int index_of_entry)
 uint64_t
 VC_structure::hashing_function_to_use_get_constant_to_xor_with(int
                 index_of_entry){
-  hashing_functions_table_entry temp;
-  temp = list_of_all_hashing_functions.at(index_of_entry)
+   hashing_functions_table_entry &temp =
+           list_of_all_hashing_functions.at(index_of_entry);
    return temp.get_constant_to_xor_with();
   }
 void
 VC_structure::hashing_function_to_use_set_constant_to_xor_with(int
                 index_of_entry, uint64_t _set_constant_to_xor_with){
-  hashing_functions_table_entry temp;
-  temp = list_of_all_hashing_functions.at(index_of_entry)
+  hashing_functions_table_entry &temp =
+          list_of_all_hashing_functions.at(index_of_entry);
   return temp.set_constant_to_xor_with(_set_constant_to_xor_with);
 }
 void
 VC_structure::hashing_function_to_use_set_of_lines_using_entry(int
                 index_of_entry, int  _number_of_cache_lines){
 
-  hashing_functions_table_entry temp;
-  temp = list_of_all_hashing_functions.at(index_of_entry)
+  hashing_functions_table_entry &temp =
+          list_of_all_hashing_functions.at(index_of_entry);
   return temp.set_of_lines_using_entry(_number_of_cache_lines);
 }
 
@@ -292,15 +332,15 @@ void
 VC_structure::hashing_function_to_use_increment_number_of_lines_using_entry(int
                 index_of_entry){
 
-    hashing_functions_table_entry temp;
-    temp = list_of_all_hashing_functions.at(index_of_entry)
+    hashing_functions_table_entry &temp =
+            list_of_all_hashing_functions.at(index_of_entry);
    return temp.increment_number_of_lines_using_entry();
 }
 void
 VC_structure::hashing_function_to_use_decrement_number_of_lines_using_entry(int
                 index_of_entry){
-    hashing_functions_table_entry temp;
-    temp = list_of_all_hashing_functions.at(index_of_entry)
+    hashing_functions_table_entry &temp =
+            list_of_all_hashing_functions.at(index_of_entry);
     return temp.decrement_number_of_lines_using_entry();
 }
 
@@ -316,9 +356,15 @@ VC_structure::update_ASDT( const Address addr,
   // physical page number (PPN)
   uint64_t PPN = addr.getAddress() / get_region_size();
   int line_index = (addr.getAddress() % get_region_size())/get_line_size();
+#ifdef Smurthy_debug
+  printf("The PPN is %ld and address is %lld\n",PPN,addr.getAddress());
+  printf("The line index is %d\n",line_index);
+  if (allocate)
+    printf("We have an allocate\n");
+  else
+    printf("No allocate\n");
+#endif
 
-
-  //printf("The line index is %d\n",line_index);
   // search for the corresponding ASDT entry with addr
   std::map<uint64_t, ASDT_entry *>::iterator it =
     ASDT_structure.find(PPN);
@@ -350,7 +396,10 @@ VC_structure::update_ASDT( const Address addr,
                <<" VPN "<<std::hex<<VPN
                <<" CR3 "<<addr.get_CR3()<<std::endl;
 #endif
-
+#ifdef Smurthy_debug
+      printf("Added new ASDT map for PPN: %lx and"
+                      "cleared bit vector\n",PPN);
+#endif
       add_new_ASDT_map(PPN, VPN, addr.get_CR3());
     }
 
@@ -360,10 +409,27 @@ VC_structure::update_ASDT( const Address addr,
     unlock_ASDT_SA_entry(PPN);
     #endif
 
+    //Ongal
+    //increment the number of cache lines at VPN^CR3
+    uint64_t index_into_hash_table =
+            ((it->second->get_virtual_page_number())^
+            (it->second->get_cr3()))&(m_hash_lookup_table_size-1);
+
+    //Ongal
+    //decrement the number of cache lines at VPN^CR3
+    //entry in the hash lookup table.
+#ifdef Smurthy_debug
+    printf("Incrementing number of cache lines for"
+                    "entry %lu\n",index_into_hash_table);
+#endif
+    hash_entry_to_use_inc_number_of_cache_lines(index_into_hash_table,
+                m_size_of_hash_function_list);
+
     // set the corresponding bit
     ASDT_structure[PPN]->set_bit_vector(line_index);
     ASDT_structure[PPN]->update_LRU(inc_LRU_counter());
     ASDT_structure[PPN]->set_is_writable_page(is_writable_page);
+
   }else{
 
     // when a line is evicted, so the corresponding entry should exist
@@ -375,6 +441,33 @@ VC_structure::update_ASDT( const Address addr,
     // unset bit
     bool empty = false;
     empty = it->second->unset_bit_vector(line_index);
+
+    //Ongal
+    //decrement the number of cache lines at VPN^CR3
+    uint64_t index_into_hash_table =
+            ((it->second->get_virtual_page_number())^
+            (it->second->get_cr3()))&(m_hash_lookup_table_size-1);
+   // printf("The index into the hash table is %ld\n",index_into_hash_table);
+    //entry should be valid.
+    if (!(hash_entry_to_use_getValid(index_into_hash_table)))
+    {
+      cout <<"What?? This entry in the hash lookup table should be valid\n";
+      abort();
+    }
+    else
+    {
+        //decrement the number of cache lines by one corresponding to this
+        //entry in the hash lookup table.
+
+
+
+#ifdef Smurthy_debug
+        printf("Decrementing number of cache lines for"
+                    "entry %lu\n",index_into_hash_table);
+#endif
+        hash_entry_to_use_dec_number_of_cache_lines(index_into_hash_table);
+
+    }
 
     if (empty){
       // no more corresponding lines reside in a cache

@@ -82,8 +82,10 @@ Cache::Cache(const CacheParams *p)
     m_cache_num_sets = numSets;
     m_cache_assoc = p->assoc;
 
-    if ( p->name.find("dcache") != string::npos || p->name.find("icache") !=
-                    string::npos ){
+   // if ( p->name.find("dcache") != string::npos || p->name.find("icache") !=
+   //                 string::npos ){
+
+    if ( p->name.find("dcache") != string::npos){
 
       set_is_l1cache(true);
       std::cout<<" L1Cache is found ";
@@ -460,9 +462,11 @@ bool Cache::BaseCache_access_dup(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
 
         if (!blk) {
 
+            //if we miss in the cache, need
+            //to make an allocation in the ASDT, if necessary.
             #ifdef Ongal_VC
             #ifdef ASDT_Set_Associative_Array
-            ASDT_Invalidation_Check(pkt->req->getPaddr(), writebacks);
+            ASDT_Invalidation_Check(pkt->getAddr(), writebacks);
             #endif
             Add_NEW_ASDT_map_entry(pkt);
             #endif
@@ -1701,7 +1705,8 @@ Cache::find_victim_LRU(int set_index, uint64_t* victim_PPN){
 
 
 int
-Cache::find_victim_few_lines(int set_index, uint64_t* victim_PPN){
+Cache::find_victim_few_lines(int set_index, uint64_t* victim_PPN,
+                uint64_t* victim_VPN,uint64_t* victim_CR3){
 
   int target_way_index = -1;
   int target_way_lines = 9999;
@@ -1723,8 +1728,10 @@ Cache::find_victim_few_lines(int set_index, uint64_t* victim_PPN){
         !entry_SA->get_lock()){
 
       uint64_t PPN = entry_SA->get_PPN(); // get a PPN
-      ASDT_entry* entry = m_vc_structure->access_matching_ASDT_map(PPN);
 
+      ASDT_entry* entry = m_vc_structure->access_matching_ASDT_map(PPN);
+      uint64_t VPN = entry->get_virtual_page_number();
+      uint64_t CR3 = entry->get_cr3();
       if (entry == NULL){
         std::cout<<"find_victim_few_lines, should be a matching entry in an"
                 "ASDT map"<<std::endl;
@@ -1779,6 +1786,10 @@ Cache::find_victim_few_lines(int set_index, uint64_t* victim_PPN){
               //update the replacement bits
               target_way_LRU = entry->get_LRU();
               *victim_PPN = PPN;
+              //return the leading virtual page
+              //as well as the leading cr3
+              *victim_VPN = VPN;
+              *victim_CR3 = CR3;
           }
           //if two cache blocks have the same number of cache lines,
           //then pick the older block for eviction.
@@ -1791,6 +1802,10 @@ Cache::find_victim_few_lines(int set_index, uint64_t* victim_PPN){
               //update the replacement bits
               target_way_LRU = entry->get_LRU();
               *victim_PPN = PPN;
+              //return the leading virtual page
+              //as well as the leading cr3
+              *victim_VPN = VPN;
+              *victim_CR3 = CR3;
           }
 
         }
@@ -1802,9 +1817,9 @@ Cache::find_victim_few_lines(int set_index, uint64_t* victim_PPN){
   // event
   if (target_way_index != -1){ // when we found a target entry
     num_asdt_entry_conflict_miss++;
-    cout<<"The ASDT index of interest is: "<< set_index <<endl;
-    cout<<"The ASDT way evicted is: "<< target_way_index <<endl;
-    cout<<"The number of lines is: "<<target_way_lines<<endl;
+   // cout<<"The ASDT index of interest is: "<< set_index <<endl;
+   // cout<<"The ASDT way evicted is: "<< target_way_index <<endl;
+   // cout<<"The number of lines is: "<<target_way_lines<<endl;
     num_evicted_lines_per_asdt_conflict_miss += target_way_lines;
   }
 

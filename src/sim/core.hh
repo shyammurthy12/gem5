@@ -39,10 +39,26 @@
  */
 
 #include <string>
+#include <vector>
 
 #include "base/types.hh"
 #include "sim/eventq.hh"
 
+//for every entry in the hash lookup table,
+//we have a lifetime record that is inserted when
+//a hash is assigned to it.
+//The lifetime record is subtracted from the tick when the
+//hash use is over. (or the number of cache lines using the
+//entry falls to zero).
+struct lifetime_record
+{
+  uint64_t lifetime;
+  //once the number of lines has
+  //fallen to zero, then we can
+  bool subtraction_done;
+};
+extern std::vector<std::vector<lifetime_record>> lifetimes_of_hash_entries;
+extern std::vector<bool> hash_entries_used;
 /// The universal simulation clock.
 inline Tick curTick() { return _curEventQueue->getCurTick(); }
 
@@ -103,5 +119,6 @@ void setOutputDir(const std::string &dir);
 class Callback;
 void registerExitCallback(Callback *callback);
 void doExitCleanup();
+
 
 #endif /* __SIM_CORE_HH__ */

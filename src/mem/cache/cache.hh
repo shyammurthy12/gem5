@@ -221,7 +221,10 @@ class Cache : public BaseCache
     bool get_is_l1cache(){ return m_is_l1cache; }
 
     // Find victims ASDT Set Associative Array
-    int find_victim_few_lines(int set_index, uint64_t* victim_PPN);
+    // Additionally also return the leading virtual page as well as
+    // the CR3 value.
+    int find_victim_few_lines(int set_index, uint64_t* victim_PPN,
+                    uint64_t* victim_VPN, uint64_t* victim_CR3);
     int find_victim_LRU(int set_index, uint64_t* victim_PPN);
 
     /* unmap_vmas_Handler
@@ -299,7 +302,27 @@ class Cache : public BaseCache
           int line_size = m_vc_structure->get_line_size();
           int num_lines = m_vc_structure->get_region_size()/line_size;
           uint64_t region_vaddr = VPN*m_vc_structure->get_region_size();
+          //find the random number to xor with.
 
+          uint64_t index_into_hash_lookup_table = (VPN^matching_cr3)&
+                  (m_vc_structure->get_hash_lookup_table_size()-1);
+         // printf("Index into the hash lookup table is %ld\n",
+         // index_into_hash_lookup_table);
+          //if the entry in the hash lookup table is valid
+  if (m_vc_structure->hash_entry_to_use_getValid(index_into_hash_lookup_table))
+          {
+            //obtain the hash entry to use.
+          uint64_t hash_entry_to_use =
+           m_vc_structure->get_hash_entry_to_use(index_into_hash_lookup_table);
+            //the hashing function table is always assumed
+            //to have a valid entry that can be used.
+           int temp = hash_entry_to_use;
+           random_number_to_hash_with =
+      m_vc_structure->hashing_function_to_use_get_constant_to_xor_with(temp);
+
+          }
+          else
+           cout<<"What?? Entry should be valid. In Demap_ASDT_Handler\n";
           // iterating all lines in the PPN
           for ( int line_index = 0 ; line_index < num_lines ; ++line_index ){
 
@@ -372,9 +395,20 @@ class Cache : public BaseCache
           // no available entry,
           // find victim ASDT entry
           uint64_t victim_PPN;
+          //leading VPN, leading CR3
+          uint64_t victim_VPN;
+          uint64_t victim_CR3;
+          //Ongal.
+          //currently we don't have aliases, so things are easier.
+          //With aliases, might get a lot trickier.
+          //currently, for a physical page, we have only a single virtual page
+          //that is cached.
+          //leading victim VPN and the victim CR3 value.
+
           //way_index = find_victim_LRU(set_index, &victim_PPN);
-          cout <<"Conflicting PPN is "<<PPN<<endl;
-          way_index = find_victim_few_lines(set_index, &victim_PPN);
+          //cout <<"Conflicting PPN is "<<PPN<<endl;
+          way_index = find_victim_few_lines(set_index, &victim_PPN,
+                                &victim_VPN, &victim_CR3);
 
           if ( way_index == -1 ){
             // no? victim? then push_back one more entry
@@ -421,6 +455,38 @@ class Cache : public BaseCache
                 // thus, deleting a way causes an issue: invalidate_block does
                 // not call update_ASDT method - purelly invalidating lines
 
+                //Ongal:
+                //Update the hash lookup table at this point, because we don't
+                //have an
+                //ASDT update where we can intercept to update the hash lookup
+                //table.
+                //Invalidate block
+                    //Ongal
+                //decrement the number of cache lines at VPN^CR3
+                uint64_t index_into_hash_table =
+                        ((victim_VPN)^(victim_CR3))&
+                        (m_vc_structure->get_hash_lookup_table_size()-1);
+               // printf("The index into the hash table is
+               // %ld\n",index_into_hash_table);
+                //entry should be valid.
+      if (!(m_vc_structure->hash_entry_to_use_getValid(index_into_hash_table)))
+      {
+        cout <<"What?? This entry in the hash lookup table should be valid\n";
+        abort();
+      }
+          else
+          {
+           //decrement the number of cache lines by one corresponding to this
+           //entry in the hash lookup table.
+#ifdef Smurthy_debug
+              printf("Decrementing number of cache lines for"
+                          "entry %lu\n",index_into_hash_table);
+#endif
+          int temp = index_into_hash_table;
+          m_vc_structure->hash_entry_to_use_dec_number_of_cache_lines(temp);
+
+          }
+
                 tags->invalidate_block(blk);
                 // invalidate block
                 blk->invalidate();
@@ -453,15 +519,38 @@ class Cache : public BaseCache
       if ( get_is_l1cache() != true )
         return ;
 
-      uint64_t PPN = pkt->req->getPaddr() / m_vc_structure->get_region_size();
-
+      uint64_t PPN = pkt->getAddr() / m_vc_structure->get_region_size();
+#ifdef Smurthy_debug
+      printf("Add_NEW_ASDT_map_entry: PPN is %lu\n",
+                      PPN);
+#endif
       if ( !(m_vc_structure->find_matching_ASDT_map( PPN ))){
         // ADD a new entry to ASDT map
         uint64_t VPN = pkt->req->getVaddr() /
                 m_vc_structure->get_region_size();
         uint64_t CR3 = pkt->req->getCR3();
         m_vc_structure->add_new_ASDT_map(PPN, VPN, CR3);
+        //upon insertion of the entry, set the corresponding
+        //entry in the hash lookup table to valid
+        uint64_t index_into_hash_lookup_table = (VPN^CR3)&
+        (m_vc_structure->get_hash_lookup_table_size()-1);
+
+#ifdef Smurthy_debug
+        printf("Adding new ASDT map entry for Physical address for %lx\n",
+                pkt->getAddr());
+        printf("Index into the hash lookup table is (Add new ASDT map) %ld\n",
+                        index_into_hash_lookup_table);
+#endif
+        //this entry in the table might have been validated by another
+        //page that maps to the same entry in the hash lookup table
+        int temp = index_into_hash_lookup_table;
+        if (!m_vc_structure->hash_entry_to_use_getValid(temp))
+        {
+         m_vc_structure->hash_entry_to_use_setValid(temp);
+         m_vc_structure->set_hash_entry_to_use_helper(temp);
+        }
       }
+
     }
 
   // This can be deleted never used.

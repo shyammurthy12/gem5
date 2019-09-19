@@ -14,6 +14,7 @@
 #include "mem/ruby/common/Other_VCs.hh"
 #include "mem/ruby/common/Physical_Mem.hh"
 #include "mem/ruby/common/TypeDefines.hh"
+#include "sim/core.hh"
 
 //#include "mem/ruby/structures/CacheMemory.hh"
 class CacheMemory;
@@ -26,21 +27,80 @@ public:
 
  void set_hash_entry_to_use(uint64_t _hash_entry_to_use)
  {
+  //this function is called only when
+  //this is the first cache line to be inserted
+  //for a ASDT entry that we are just inserting.
+  hash_entry_to_use_set = true;
   hash_entry_to_use = _hash_entry_to_use;
+  lifetime_record temp;
+  temp.lifetime = curTick();
+  temp.subtraction_done = false;
+  //Ongal
+  //to indicate that this entry in the hash
+  //lookup table has been used.
+  hash_entries_used.at(entry_number) = true;
+  lifetimes_of_hash_entries.at(entry_number).push_back(temp);
+#ifdef Smurthy_debug
+  printf("Setting hash_entry to use %lu\n",hash_entry_to_use);
+#endif
  }
  uint64_t get_hash_entry_to_use()
  {
   return  hash_entry_to_use;
  }
- void inc_number_of_cache_lines()
+ void inc_number_of_cache_lines(int total_number_of_hashing_functions)
  {
+   if (number_of_cache_lines_using_this_entry == 0)
+   {
+#ifdef Smurthy_debug
+      if (!valid)
+        printf("Changing hash function\n");
+#endif
+      valid = true;
+      //need to choose a fresh random number from 0 to total
+      //number of hash functions -1 we have.
+      if (!hash_entry_to_use_set)
+      {
+        hash_entry_to_use = (rand()%total_number_of_hashing_functions);
+        lifetime_record temp;
+        temp.lifetime = curTick();
+        temp.subtraction_done = false;
+        //Ongal
+        //to indicate that this entry in the hash
+        //lookup table has been used.
+        hash_entries_used.at(entry_number) = true;
+        lifetimes_of_hash_entries.at(entry_number).push_back(temp);
+#ifdef Smurthy_debug
+        printf("Setting hash_entry to use %lu\n",hash_entry_to_use);
+#endif
+        hash_entry_to_use_set = true;
+      }
+   }
    number_of_cache_lines_using_this_entry++;
+#ifdef Smurthy_debug
+   printf("Number of cache lines for entry %d = %lu\n"
+                   ,entry_number,number_of_cache_lines_using_this_entry);
+#endif
  }
  void dec_number_of_cache_lines()
  {
    number_of_cache_lines_using_this_entry--;
+#ifdef Smurthy_debug
+   printf("Number of cache lines for entry %d = %lu\n"
+                   ,entry_number,number_of_cache_lines_using_this_entry);
+#endif
    if (number_of_cache_lines_using_this_entry == 0)
+   {
+     lifetimes_of_hash_entries.at(entry_number).back().lifetime =
+         curTick()-lifetimes_of_hash_entries.at(entry_number).back().lifetime;
+     lifetimes_of_hash_entries.at(entry_number).back().subtraction_done = true;
      valid = false;
+     hash_entry_to_use_set = false;
+#ifdef Smurthy_debug
+     printf("Count of lines mapped to this entry has fallen to"
+                     "zero and we need to set the constant again\n");
+#endif
+   }
  }
  bool getValid()
  {
@@ -53,17 +113,30 @@ public:
  void invalidate()
  {
    valid = false;
+   //this is invalidated, because
+   //this entry is no longer valid.
+   //We have to set the entry to be used
+   //to some other value next time.
+   hash_entry_to_use_set = false;
  }
-
+ void set_entry_number(int _entry_number)
+ {
+  entry_number = _entry_number;
+ }
 private:
  //which entry in the hash function to use for
  //indexing.
  uint64_t hash_entry_to_use;
+ //just a flag to indicate if we have
+ //set the constant to xor with.
+ bool hash_entry_to_use_set;
  //number of cache lines using this
  //entry
  uint64_t number_of_cache_lines_using_this_entry;
  //entry validity bit.
  bool valid;
+ //set entry number in the hash lookup table.
+ int entry_number;
 };
 
 //the 2nd level table holding all the hash constants
@@ -123,6 +196,7 @@ public:
   uint64_t get_cr3(){ return m_cr3; }
 
   // Bit vector
+  void clear_bit_vector();
   void set_bit_vector( int index );
   bool unset_bit_vector( int index );
   bool get_bit_vector( int index );
@@ -371,13 +445,16 @@ bool lookup_VC_structure( const Address addr,
   //hash lookup table operations
   void set_hash_entry_to_use(int index_of_entry,
                   uint64_t _hash_entry_to_use);
+  void set_hash_entry_to_use_helper(int index_of_entry);
   uint64_t get_hash_entry_to_use(int index_of_entry);
-  void hash_entry_to_use_inc_number_of_cache_lines(int index_of_entry);
+  void hash_entry_to_use_inc_number_of_cache_lines(int index_of_entry,int
+                  number_of_hashing_functions);
   void hash_entry_to_use_dec_number_of_cache_lines(int index_of_entry);
   bool hash_entry_to_use_getValid(int index_of_entry);
   void hash_entry_to_use_setValid(int index_of_entry);
   void hash_entry_to_use_invalidate(int index_of_entry);
 
+  int get_hash_lookup_table_size();
   //hashing functions table entry
 
   uint64_t hashing_function_to_use_get_constant_to_xor_with(int
@@ -386,6 +463,8 @@ bool lookup_VC_structure( const Address addr,
                   uint64_t _set_constant_to_xor_with);
   void hashing_function_to_use_set_of_lines_using_entry(int index_of_entry, int
                   _number_of_cache_lines);
+  //pass in the number of hashing functions, so we can pick one out of the
+  //n at random.
   void hashing_function_to_use_increment_number_of_lines_using_entry(int
                   index_of_entry);
   void hashing_function_to_use_decrement_number_of_lines_using_entry(int
@@ -419,6 +498,9 @@ bool lookup_VC_structure( const Address addr,
 
   void set_line_size( uint64_t line_size ){ m_line_size = line_size; }
   uint64_t get_line_size(){ return m_line_size; }
+
+  void set_num_sets(uint64_t num_sets) {m_num_sets = num_sets; }
+  uint64_t get_num_sets(){return m_num_sets; }
 
   void printStats(); // print profile numbers
 
@@ -485,6 +567,9 @@ private:
   // Region
   uint64_t m_region_size;
   uint64_t m_line_size;
+  uint64_t m_num_sets;
+
+
 
   // Profiling
   uint64_t m_prev_lookuped_VPN;

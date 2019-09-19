@@ -93,6 +93,9 @@ class SetAssociative : public BaseIndexingPolicy
 
     //Ongal
     uint32_t extractSet_Vaddr(Addr addr) const;
+
+    uint32_t extractSet_Vaddr_with_hashing(Addr addr, uint32_t
+                    random_constant_to_xor_with) const;
   public:
     /**
      * Convenience typedef.
