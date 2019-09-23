@@ -232,7 +232,7 @@ class BaseSetAssoc : public BaseTags
                          index_into_hash_lookup_table);
 #endif
          //if the entry in the hash lookup table is valid
-         int temp;
+         int temp = index_into_hash_lookup_table;
          if (get_VC_structure()->hash_entry_to_use_getValid(temp))
          {
            //obtain the hash entry to use.
@@ -240,6 +240,7 @@ class BaseSetAssoc : public BaseTags
                    get_VC_structure()->get_hash_entry_to_use(temp);
            //the hashing function table is always assumed
            //to have a valid entry that can be used.
+   temp = hash_entry_to_use;
    random_number_to_xor_with =
     get_VC_structure()->hashing_function_to_use_get_constant_to_xor_with(temp);
 
