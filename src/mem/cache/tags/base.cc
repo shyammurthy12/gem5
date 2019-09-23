@@ -120,7 +120,7 @@ BaseTags::findBlock(Addr addr, bool is_secure) const
            //to have a valid entry that can be used.
            int temp1 = hash_entry_to_use;
     constant_to_xor_with =
-    get_VC_structure()->hashing_function_to_use_get_constant_to_xor_with(temp);
+  get_VC_structure()->hashing_function_to_use_get_constant_to_xor_with(temp1);
 
          }
          //absence of a valid entry, indicates
