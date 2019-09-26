@@ -167,8 +167,10 @@ doExitCleanup()
        }
        for (int j = 0;j<lifetimes_of_hash_entries.at(i).size();j++)
        {
-          printf("The lifetime for entry %d and sub-record %d is"
-          "%lu\n",i,j,lifetimes_of_hash_entries.at(i).at(j).lifetime);
+          printf("The lifetime for entry %d and sub-record %d is "
+          "%lu and epoch-id is %lu\n",i,j,
+          lifetimes_of_hash_entries.at(i).at(j).lifetime,
+          lifetimes_of_hash_entries.at(i).at(j).epoch_id);
 
        }
      }

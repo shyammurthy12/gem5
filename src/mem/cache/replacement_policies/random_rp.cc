@@ -63,6 +63,25 @@ RandomRP::reset(const std::shared_ptr<ReplacementData>& replacement_data) const
         replacement_data)->valid = true;
 }
 
+void
+RandomRP::reset_helper(const std::shared_ptr<ReplacementData>&
+                replacement_data,
+                uint64_t epoch_id) const
+{
+
+}
+
+
+//bogus function
+ReplaceableEntry*
+RandomRP::getVictim_epoch_considered(const ReplacementCandidates&
+                candidates) const
+{
+
+    return candidates[0];
+}
+
+
 ReplaceableEntry*
 RandomRP::getVictim(const ReplacementCandidates& candidates) const
 {

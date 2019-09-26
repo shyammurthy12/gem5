@@ -86,6 +86,9 @@ class BaseReplacementPolicy : public SimObject
      */
     virtual void reset(const std::shared_ptr<ReplacementData>&
                                                 replacement_data) const = 0;
+    virtual void reset_helper(const std::shared_ptr<ReplacementData>&
+                    replacement_data,
+                    uint64_t epoch_id) const=0;
 
     /**
      * Find replacement victim among candidates.
@@ -94,6 +97,9 @@ class BaseReplacementPolicy : public SimObject
      * @return Replacement entry to be replaced.
      */
     virtual ReplaceableEntry* getVictim(
+                           const ReplacementCandidates& candidates) const = 0;
+
+    virtual ReplaceableEntry* getVictim_epoch_considered(
                            const ReplacementCandidates& candidates) const = 0;
 
     /**

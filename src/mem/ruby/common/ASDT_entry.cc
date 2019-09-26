@@ -155,7 +155,7 @@ VC_structure::VC_structure(string name,
     asdt_way = 16;
     //have this hash lookup table for
     //data cache alone.
-    m_hash_lookup_table_size = 256 ;
+    m_hash_lookup_table_size = 64 ;
     m_size_of_hash_function_list = 64;
   }else{
     asdt_set = 8;
@@ -173,6 +173,21 @@ VC_structure::VC_structure(string name,
   }
   lifetimes_of_hash_entries.resize(m_hash_lookup_table_size);
   hash_entries_used.resize(m_hash_lookup_table_size);
+
+  //tunable parameters.
+  int epoch_rate = 12; //in microseconds
+  int number_of_bits_to_use_for_epoch_id = 3;
+
+  int epoch_id_mask_before_shifting;
+  int epoch_id_mask;
+
+  //multiply epoch rate by 10 to the power 6 because the one clock cycle has
+  //1000 ticks
+  //and the processor frequency in 1Ghz and hence 1 microsecond corresponds to
+  //10 to the power 6 clock ticks.
+  int number_of_bits_to_shift = log(float(epoch_rate)*pow(10,6))/log(2.0);
+  cout<<"Number of bits needed to represent " <<number_of_bits_to_shift<<endl;
+
   for (int i = 0;i<m_hash_lookup_table_size;i++)
     hash_entries_used.at(i) = false;
   for (int i = 0; i<m_hash_lookup_table_size; i++){
@@ -183,6 +198,11 @@ VC_structure::VC_structure(string name,
     //set the entry number in the hash lookup
     //table.
     temp.set_entry_number(i);
+    epoch_id_mask_before_shifting =
+            pow(2,number_of_bits_to_use_for_epoch_id)-1;
+    epoch_id_mask = (epoch_id_mask_before_shifting<<(number_of_bits_to_shift));
+    temp.set_epoch_id_mask_and_bits_to_shift(number_of_bits_to_shift,
+                    epoch_id_mask);
     hash_lookup_table.push_back(temp);
   }
   std::cout<<"Hash function lookup table size is "<<
@@ -275,6 +295,13 @@ uint64_t
 VC_structure::get_hash_entry_to_use(int index_of_entry)
 {
   return hash_lookup_table.at(index_of_entry).get_hash_entry_to_use();
+}
+
+
+uint64_t
+VC_structure::get_epoch_id_to_use(int index_of_entry)
+{
+  return hash_lookup_table.at(index_of_entry).get_epoch_id();
 }
 
 void

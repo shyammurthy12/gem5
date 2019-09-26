@@ -263,8 +263,15 @@ class BaseSetAssoc : public BaseTags
          indexingPolicy->getPossibleEntries_with_Vaddr(CPA_Vaddr,
                         random_number_to_xor_with);
 
+        CacheBlk* victim;
+        if (get_VC_structure()!=NULL)
         // Choose replacement victim from replacement candidates
-        CacheBlk* victim = static_cast<CacheBlk*>(replacementPolicy->getVictim(
+        victim = static_cast<CacheBlk*>(
+                        replacementPolicy->getVictim_epoch_considered(
+                                entries));
+        else
+        // Choose replacement victim from replacement candidates
+           victim = static_cast<CacheBlk*>(replacementPolicy->getVictim(
                                 entries));
 
         // There is only one eviction for this replacement
@@ -306,7 +313,22 @@ class BaseSetAssoc : public BaseTags
         // Update replacement policy
         replacementPolicy->reset(blk->replacementData);
     }
+#ifdef Ongal_VC
+    void insertBlock_helper_for_VC
+            (const PacketPtr pkt, CacheBlk* blk, uint64_t epoch_id)
+    {
 
+        // Insert block
+        BaseTags::insertBlock(pkt, blk);
+
+        // Increment tag counter
+        tagsInUse++;
+
+        // Update replacement policy with the epoch id information
+        // additionally.
+        replacementPolicy->reset_helper(blk->replacementData, epoch_id);
+    }
+#endif
     /**
      * Limit the allocation for the cache ways.
      * @param ways The maximum number of ways available for replacement.

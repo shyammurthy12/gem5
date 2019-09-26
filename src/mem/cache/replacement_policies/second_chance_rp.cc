@@ -81,6 +81,26 @@ SecondChanceRP::reset(const std::shared_ptr<ReplacementData>& replacement_data) 
         replacement_data)->hasSecondChance = true;
 }
 
+void
+SecondChanceRP::reset_helper(const std::shared_ptr<ReplacementData>&
+                replacement_data,
+                uint64_t epoch_id) const
+{
+
+}
+
+//bogus function
+ReplaceableEntry*
+SecondChanceRP::getVictim_epoch_considered(const ReplacementCandidates&
+                candidates) const
+{
+
+    return candidates[0];
+}
+
+
+
+
 ReplaceableEntry*
 SecondChanceRP::getVictim(const ReplacementCandidates& candidates) const
 {

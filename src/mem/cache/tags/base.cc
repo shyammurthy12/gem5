@@ -308,6 +308,13 @@ BaseTags::insertBlock(const PacketPtr pkt, CacheBlk *blk)
     tagAccesses += 1;
     dataAccesses += 1;
 }
+void
+BaseTags::insertBlock_helper_for_VC(const
+                PacketPtr pkt, CacheBlk* blk, uint64_t epoch_id)
+{
+
+}
+
 
 Addr
 BaseTags::extractTag(const Addr addr) const

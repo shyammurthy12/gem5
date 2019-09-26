@@ -55,6 +55,25 @@ BIPRP::reset(const std::shared_ptr<ReplacementData>& replacement_data) const
     }
 }
 
+void
+BIPRP::reset_helper(const std::shared_ptr<ReplacementData>& replacement_data,
+                uint64_t epoch_id) const
+{
+
+}
+
+//bogus function
+ReplaceableEntry*
+BIPRP::getVictim_epoch_considered(const
+                ReplacementCandidates& candidates) const
+{
+
+    return candidates[0];
+}
+
+
+
+
 BIPRP*
 BIPRPParams::create()
 {

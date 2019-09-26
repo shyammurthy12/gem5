@@ -80,6 +80,14 @@ class BIPRP : public LRURP
      */
     void reset(const std::shared_ptr<ReplacementData>& replacement_data) const
                                                                      override;
+     void reset_helper(const std::shared_ptr<ReplacementData>&
+                     replacement_data,
+                    uint64_t epoch_id) const override;
+
+     ReplaceableEntry* getVictim_epoch_considered(const
+                     ReplacementCandidates& candidates) const
+                     override;
+
 };
 
 #endif // __MEM_CACHE_REPLACEMENT_POLICIES_BIP_RP_HH__

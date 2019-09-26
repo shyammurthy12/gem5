@@ -35,10 +35,16 @@ public:
   lifetime_record temp;
   temp.lifetime = curTick();
   temp.subtraction_done = false;
+
   //Ongal
   //to indicate that this entry in the hash
   //lookup table has been used.
   hash_entries_used.at(entry_number) = true;
+  //set the epoch id when we have a remap.
+  epoch_id = (curTick()&epoch_id_mask)>>number_of_bits_shift;
+  temp.epoch_id = epoch_id;
+//  printf("The epoch id is (set hash entry to use) %lu and entry number is
+//  %d\n",epoch_id,entry_number);
   lifetimes_of_hash_entries.at(entry_number).push_back(temp);
 #ifdef Smurthy_debug
   printf("Setting hash_entry to use %lu\n",hash_entry_to_use);
@@ -47,6 +53,10 @@ public:
  uint64_t get_hash_entry_to_use()
  {
   return  hash_entry_to_use;
+ }
+ uint64_t get_epoch_id()
+ {
+  return epoch_id;
  }
  void inc_number_of_cache_lines(int total_number_of_hashing_functions)
  {
@@ -65,9 +75,16 @@ public:
         lifetime_record temp;
         temp.lifetime = curTick();
         temp.subtraction_done = false;
+
         //Ongal
         //to indicate that this entry in the hash
         //lookup table has been used.
+
+
+        //set the epoch id
+        epoch_id = (curTick()&epoch_id_mask)>>number_of_bits_shift;
+        //printf("The epoch id is %lu\n",epoch_id);
+
         hash_entries_used.at(entry_number) = true;
         lifetimes_of_hash_entries.at(entry_number).push_back(temp);
 #ifdef Smurthy_debug
@@ -93,6 +110,9 @@ public:
    {
      lifetimes_of_hash_entries.at(entry_number).back().lifetime =
          curTick()-lifetimes_of_hash_entries.at(entry_number).back().lifetime;
+     //add the epoch id to the lifetime record additionally.
+     lifetimes_of_hash_entries.at(entry_number).back().epoch_id =
+        epoch_id;
      lifetimes_of_hash_entries.at(entry_number).back().subtraction_done = true;
      valid = false;
      hash_entry_to_use_set = false;
@@ -118,15 +138,31 @@ public:
    //We have to set the entry to be used
    //to some other value next time.
    hash_entry_to_use_set = false;
+   number_of_cache_lines_using_this_entry = 0;
  }
  void set_entry_number(int _entry_number)
  {
   entry_number = _entry_number;
  }
+ void set_epoch_id_mask_and_bits_to_shift(uint64_t _number_of_bits_to_shift,
+                 uint64_t _epoch_id_mask)
+ {
+  number_of_bits_shift = _number_of_bits_to_shift;
+  epoch_id_mask = _epoch_id_mask;
+ }
 private:
  //which entry in the hash function to use for
  //indexing.
  uint64_t hash_entry_to_use;
+ //stored along with the hash to be used.
+ uint64_t epoch_id;
+
+ //one time, set when the entry is populated.
+ //(could also have these as macros too).
+ //below leads to unnecessary duplication.
+ uint64_t number_of_bits_shift;
+ uint64_t epoch_id_mask;
+
  //just a flag to indicate if we have
  //set the constant to xor with.
  bool hash_entry_to_use_set;
@@ -447,6 +483,7 @@ bool lookup_VC_structure( const Address addr,
                   uint64_t _hash_entry_to_use);
   void set_hash_entry_to_use_helper(int index_of_entry);
   uint64_t get_hash_entry_to_use(int index_of_entry);
+  uint64_t get_epoch_id_to_use(int index_of_entry);
   void hash_entry_to_use_inc_number_of_cache_lines(int index_of_entry,int
                   number_of_hashing_functions);
   void hash_entry_to_use_dec_number_of_cache_lines(int index_of_entry);

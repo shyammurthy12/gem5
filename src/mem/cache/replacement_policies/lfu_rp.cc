@@ -62,6 +62,24 @@ LFURP::reset(const std::shared_ptr<ReplacementData>& replacement_data) const
     std::static_pointer_cast<LFUReplData>(replacement_data)->refCount = 1;
 }
 
+void
+LFURP::reset_helper(const std::shared_ptr<ReplacementData>& replacement_data,
+                uint64_t epoch_id) const
+{
+
+}
+
+//bogus function
+ReplaceableEntry*
+LFURP::getVictim_epoch_considered(const
+                ReplacementCandidates& candidates) const
+{
+
+    return candidates[0];
+}
+
+
+
 ReplaceableEntry*
 LFURP::getVictim(const ReplacementCandidates& candidates) const
 {

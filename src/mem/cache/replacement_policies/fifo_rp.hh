@@ -81,6 +81,9 @@ class FIFORP : public BaseReplacementPolicy
     void invalidate(const std::shared_ptr<ReplacementData>& replacement_data)
                                                               const override;
 
+    void reset_helper(const std::shared_ptr<ReplacementData>& replacement_data,
+                    uint64_t epoch_id) const override;
+
     /**
      * Touch an entry to update its replacement data.
      * Does not modify the replacement data.
@@ -107,6 +110,10 @@ class FIFORP : public BaseReplacementPolicy
      */
     ReplaceableEntry* getVictim(const ReplacementCandidates& candidates) const
                                                                      override;
+
+    ReplaceableEntry* getVictim_epoch_considered(const ReplacementCandidates&
+                    candidates) const
+                    override;
 
     /**
      * Instantiate a replacement data entry.

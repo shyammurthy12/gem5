@@ -165,6 +165,26 @@ const
     touch(replacement_data);
 }
 
+void
+TreePLRURP::reset_helper(const std::shared_ptr<ReplacementData>&
+                replacement_data,
+                uint64_t epoch_id) const
+{
+
+}
+
+
+//bogus function
+ReplaceableEntry*
+TreePLRURP::getVictim_epoch_considered(const ReplacementCandidates&
+                candidates) const
+{
+
+    return candidates[0];
+}
+
+
+
 ReplaceableEntry*
 TreePLRURP::getVictim(const ReplacementCandidates& candidates) const
 {

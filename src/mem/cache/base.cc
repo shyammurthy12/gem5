@@ -1344,6 +1344,50 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
     std::vector<CacheBlk*> evict_blks;
     CacheBlk *victim = tags->findVictim(addr, is_secure, evict_blks);
 
+    uint64_t epoch_id = 0;
+    //finding the epoch id for the address.
+    if (tags->get_VC_structure() != NULL){
+
+       // No Corresponding ASDT entry?
+       uint64_t Region_Size = tags->get_VC_structure()->get_region_size();
+       uint64_t PPN = addr/Region_Size;
+       ASDT_entry * ASDT_entry =
+               tags->get_VC_structure()->access_matching_ASDT_map(PPN);
+
+       if (ASDT_entry == NULL){
+         return NULL;
+       }else{
+         Addr CPA_VPN   = ASDT_entry->get_virtual_page_number();
+         uint64_t CPA_CR3 = ASDT_entry->get_cr3();
+
+         uint64_t index_into_hash_lookup_table = (CPA_VPN^CPA_CR3)&
+                  (tags->get_VC_structure()->get_hash_lookup_table_size()-1);
+
+#ifdef Smurthy_debug
+         printf("Index into the hash lookup table(findVictim) is %ld\n",
+                         index_into_hash_lookup_table);
+#endif
+         //if the entry in the hash lookup table is valid
+         int temp = index_into_hash_lookup_table;
+         if (tags->get_VC_structure()->hash_entry_to_use_getValid(temp))
+         {
+           //obtain the hash entry to use.
+           epoch_id =
+                   tags->get_VC_structure()->get_epoch_id_to_use(temp);
+         }
+         //absence of a valid entry, indicates
+         //a miss in the cache.
+         else
+         {
+            cout<<"What??. The entry should be valid when in allocateBlock\n";
+            abort();
+         }
+
+      }
+    }
+
+
+
     // It is valid to return nullptr if there is no victim
     if (!victim)
         return nullptr;
@@ -1458,7 +1502,12 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
        #endif
        // Insert new block at victimized entry
 
-       tags->insertBlock(pkt, victim);
+
+       if (tags->get_VC_structure()!=NULL){
+          tags->insertBlock_helper_for_VC(pkt, victim,epoch_id);
+       }
+       else
+          tags->insertBlock(pkt, victim);
 
 
     return victim;

@@ -63,6 +63,16 @@ FIFORP::reset(const std::shared_ptr<ReplacementData>& replacement_data) const
         replacement_data)->tickInserted = curTick();
 }
 
+
+void
+FIFORP::reset_helper(const std::shared_ptr<ReplacementData>& replacement_data,
+                uint64_t epoch_id) const
+{
+
+}
+
+
+
 ReplaceableEntry*
 FIFORP::getVictim(const ReplacementCandidates& candidates) const
 {
@@ -83,6 +93,18 @@ FIFORP::getVictim(const ReplacementCandidates& candidates) const
 
     return victim;
 }
+//bogus function
+ReplaceableEntry*
+FIFORP::getVictim_epoch_considered(const
+                ReplacementCandidates& candidates) const
+{
+
+    return candidates[0];
+}
+
+
+
+
 
 std::shared_ptr<ReplacementData>
 FIFORP::instantiateEntry()
@@ -95,3 +117,5 @@ FIFORPParams::create()
 {
     return new FIFORP(this);
 }
+
+

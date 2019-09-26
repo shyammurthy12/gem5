@@ -99,6 +99,9 @@ class MRURP : public BaseReplacementPolicy
     void reset(const std::shared_ptr<ReplacementData>& replacement_data) const
                                                                      override;
 
+    void reset_helper(const std::shared_ptr<ReplacementData>& replacement_data,
+                uint64_t epoch_id) const override;
+
     /**
      * Find replacement victim using access timestamps.
      *
@@ -107,6 +110,11 @@ class MRURP : public BaseReplacementPolicy
      */
     ReplaceableEntry* getVictim(const ReplacementCandidates& candidates) const
                                                                      override;
+
+    ReplaceableEntry* getVictim_epoch_considered(const
+                    ReplacementCandidates& candidates) const
+                  override;
+
 
     /**
      * Instantiate a replacement data entry.

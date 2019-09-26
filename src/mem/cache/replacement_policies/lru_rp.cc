@@ -65,6 +65,19 @@ LRURP::reset(const std::shared_ptr<ReplacementData>& replacement_data) const
         replacement_data)->lastTouchTick = curTick();
 }
 
+void
+LRURP::reset_helper(const std::shared_ptr<ReplacementData>& replacement_data,
+                    uint64_t epoch_id) const
+{
+
+    // Set epoch id
+    std::static_pointer_cast<LRUReplData>(
+        replacement_data)->epoch_id = epoch_id;
+    reset(replacement_data);
+}
+
+
+
 ReplaceableEntry*
 LRURP::getVictim(const ReplacementCandidates& candidates) const
 {
@@ -85,6 +98,44 @@ LRURP::getVictim(const ReplacementCandidates& candidates) const
 
     return victim;
 }
+
+ReplaceableEntry*
+LRURP::getVictim_epoch_considered(const
+                ReplacementCandidates& candidates) const
+{
+    // There must be at least one replacement candidate
+    assert(candidates.size() > 0);
+
+    // Visit all candidates to find victim
+    ReplaceableEntry* victim = candidates[0];
+    for (const auto& candidate : candidates) {
+        // Update victim entry if necessary
+
+       if (std::static_pointer_cast<LRUReplData>(
+                    candidate->replacementData)->epoch_id <
+                std::static_pointer_cast<LRUReplData>(
+                    victim->replacementData)->epoch_id) {
+            victim = candidate;
+        }
+       //if epoch id's match, default to the normal LRU
+       else if (std::static_pointer_cast<LRUReplData>(
+                    candidate->replacementData)->epoch_id ==
+                std::static_pointer_cast<LRUReplData>(
+                    victim->replacementData)->epoch_id) {
+             if (std::static_pointer_cast<LRUReplData>(
+                         candidate->replacementData)->lastTouchTick <
+                     std::static_pointer_cast<LRUReplData>(
+                         victim->replacementData)->lastTouchTick) {
+                 victim = candidate;
+             }
+        }
+    }
+
+    return victim;
+}
+
+
+
 
 std::shared_ptr<ReplacementData>
 LRURP::instantiateEntry()

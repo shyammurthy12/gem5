@@ -53,6 +53,9 @@
 struct lifetime_record
 {
   uint64_t lifetime;
+  //adding this field to check what epoch id was assigned for
+  //a lifetime record
+  uint64_t epoch_id;
   //once the number of lines has
   //fallen to zero, then we can
   bool subtraction_done;

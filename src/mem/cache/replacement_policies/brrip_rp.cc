@@ -87,6 +87,15 @@ BRRIPRP::reset(const std::shared_ptr<ReplacementData>& replacement_data) const
     }
 }
 
+void
+BRRIPRP::reset_helper(const std::shared_ptr<ReplacementData>& replacement_data,
+                uint64_t epoch_id) const
+{
+
+}
+
+
+
 ReplaceableEntry*
 BRRIPRP::getVictim(const ReplacementCandidates& candidates) const
 {
@@ -131,6 +140,18 @@ BRRIPRP::getVictim(const ReplacementCandidates& candidates) const
 
     return victim;
 }
+
+//bogus function
+ReplaceableEntry*
+BRRIPRP::getVictim_epoch_considered(const
+                ReplacementCandidates& candidates) const
+{
+
+    return candidates[0];
+}
+
+
+
 
 std::shared_ptr<ReplacementData>
 BRRIPRP::instantiateEntry()

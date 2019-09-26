@@ -38,6 +38,7 @@
 #define __MEM_CACHE_REPLACEMENT_POLICIES_LRU_RP_HH__
 
 #include "mem/cache/replacement_policies/base.hh"
+#include "mem/ongal_VC.hh"
 
 struct LRURPParams;
 
@@ -49,11 +50,17 @@ class LRURP : public BaseReplacementPolicy
     {
         /** Tick on which the entry was last touched. */
         Tick lastTouchTick;
-
+#ifdef Ongal_VC
+        uint64_t epoch_id;
+#endif
         /**
          * Default constructor. Invalidate data.
          */
+#ifdef Ongal_VC
+        LRUReplData() : lastTouchTick(0), epoch_id(0) {}
+#else
         LRUReplData() : lastTouchTick(0) {}
+#endif
     };
 
   public:
@@ -97,6 +104,9 @@ class LRURP : public BaseReplacementPolicy
     void reset(const std::shared_ptr<ReplacementData>& replacement_data) const
                                                                      override;
 
+    void reset_helper(const std::shared_ptr<ReplacementData>& replacement_data,
+                    uint64_t epoch_id) const override;
+
     /**
      * Find replacement victim using LRU timestamps.
      *
@@ -105,7 +115,9 @@ class LRURP : public BaseReplacementPolicy
      */
     ReplaceableEntry* getVictim(const ReplacementCandidates& candidates) const
                                                                      override;
-
+    ReplaceableEntry* getVictim_epoch_considered(const
+                    ReplacementCandidates& candidates) const
+                    override;
     /**
      * Instantiate a replacement data entry.
      *
