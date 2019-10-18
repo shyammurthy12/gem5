@@ -1345,6 +1345,7 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
     CacheBlk *victim = tags->findVictim(addr, is_secure, evict_blks);
 
     uint64_t epoch_id = 0;
+    uint64_t epoch_id_validity_threshold = 0;
     //finding the epoch id for the address.
     if (tags->get_VC_structure() != NULL){
 
@@ -1374,6 +1375,9 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
            //obtain the hash entry to use.
            epoch_id =
                    tags->get_VC_structure()->get_epoch_id_to_use(temp);
+           epoch_id_validity_threshold =
+       tags->get_VC_structure()->get_epoch_id_validity_interval_to_use(temp);
+
          }
          //absence of a valid entry, indicates
          //a miss in the cache.
@@ -1504,7 +1508,8 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
 
 
        if (tags->get_VC_structure()!=NULL){
-          tags->insertBlock_helper_for_VC(pkt, victim,epoch_id);
+          tags->insertBlock_helper_for_VC(pkt, victim,epoch_id,
+                          epoch_id_validity_threshold);
        }
        else
           tags->insertBlock(pkt, victim);

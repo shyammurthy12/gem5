@@ -57,7 +57,8 @@ BIPRP::reset(const std::shared_ptr<ReplacementData>& replacement_data) const
 
 void
 BIPRP::reset_helper(const std::shared_ptr<ReplacementData>& replacement_data,
-                uint64_t epoch_id) const
+                uint64_t epoch_id,
+                uint64_t threshold_after_which_epoch_id_invalid) const
 {
 
 }

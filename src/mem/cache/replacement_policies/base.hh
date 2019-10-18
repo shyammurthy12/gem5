@@ -88,7 +88,8 @@ class BaseReplacementPolicy : public SimObject
                                                 replacement_data) const = 0;
     virtual void reset_helper(const std::shared_ptr<ReplacementData>&
                     replacement_data,
-                    uint64_t epoch_id) const=0;
+                    uint64_t epoch_id,
+                    uint64_t threshold_after_which_epoch_id_invalid) const=0;
 
     /**
      * Find replacement victim among candidates.

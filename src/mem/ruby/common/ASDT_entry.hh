@@ -42,6 +42,7 @@ public:
   hash_entries_used.at(entry_number) = true;
   //set the epoch id when we have a remap.
   epoch_id = (curTick()&epoch_id_mask)>>number_of_bits_shift;
+  epoch_id = 0;
   temp.epoch_id = epoch_id;
 //  printf("The epoch id is (set hash entry to use) %lu and entry number is
 //  %d\n",epoch_id,entry_number);
@@ -57,6 +58,10 @@ public:
  uint64_t get_epoch_id()
  {
   return epoch_id;
+ }
+ uint64_t get_epoch_id_validity_interval()
+ {
+  return (1<<number_of_bits_shift);
  }
  void inc_number_of_cache_lines(int total_number_of_hashing_functions)
  {
@@ -83,6 +88,7 @@ public:
 
         //set the epoch id
         epoch_id = (curTick()&epoch_id_mask)>>number_of_bits_shift;
+        epoch_id = 0;
         //printf("The epoch id is %lu\n",epoch_id);
 
         hash_entries_used.at(entry_number) = true;
@@ -484,6 +490,7 @@ bool lookup_VC_structure( const Address addr,
   void set_hash_entry_to_use_helper(int index_of_entry);
   uint64_t get_hash_entry_to_use(int index_of_entry);
   uint64_t get_epoch_id_to_use(int index_of_entry);
+  uint64_t get_epoch_id_validity_interval_to_use(int index_of_entry);
   void hash_entry_to_use_inc_number_of_cache_lines(int index_of_entry,int
                   number_of_hashing_functions);
   void hash_entry_to_use_dec_number_of_cache_lines(int index_of_entry);

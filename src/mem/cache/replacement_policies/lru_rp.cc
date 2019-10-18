@@ -67,12 +67,19 @@ LRURP::reset(const std::shared_ptr<ReplacementData>& replacement_data) const
 
 void
 LRURP::reset_helper(const std::shared_ptr<ReplacementData>& replacement_data,
-                    uint64_t epoch_id) const
+                    uint64_t epoch_id,
+                    uint64_t threshold_after_which_epoch_id_invalid) const
 {
 
     // Set epoch id
     std::static_pointer_cast<LRUReplData>(
         replacement_data)->epoch_id = epoch_id;
+    //set the tick when the block was inserted.
+    std::static_pointer_cast<LRUReplData>(
+        replacement_data)->tickInserted = curTick();
+    std::static_pointer_cast<LRUReplData>(
+        replacement_data)->threshold_after_which_epoch_id_invalid
+               = threshold_after_which_epoch_id_invalid;
     reset(replacement_data);
 }
 
@@ -105,30 +112,69 @@ LRURP::getVictim_epoch_considered(const
 {
     // There must be at least one replacement candidate
     assert(candidates.size() > 0);
+    //check if all the epochIDs are valid.
+    bool epoch_valid = true;
+    Tick tickInserted_temp;
+    uint64_t threshold_for_validity;
+    //this threshold is the same for all candidates.
+    threshold_for_validity = std::static_pointer_cast<LRUReplData>(
+      candidates[0]->replacementData)->threshold_after_which_epoch_id_invalid;
+    for (const auto& candidate : candidates) {
+       tickInserted_temp =
+               std::static_pointer_cast<LRUReplData>(
+               candidate->replacementData)->tickInserted;
 
+       if ((curTick()-tickInserted_temp)> threshold_for_validity){
+          epoch_valid = false;
+          break;
+       }
+    }
+    //if any of the epochID's is invalid, then we want the block is kicked out.
+    //We turn to the FIFO replacement policy in that case.
+    //Else, if all have epochIDs to be valid, we use the epochID plus LRU
+    //replacement
+    //policy.
     // Visit all candidates to find victim
     ReplaceableEntry* victim = candidates[0];
-    for (const auto& candidate : candidates) {
-        // Update victim entry if necessary
+    if (epoch_valid){
+       for (const auto& candidate : candidates) {
+           // Update victim entry if necessary
 
-       if (std::static_pointer_cast<LRUReplData>(
-                    candidate->replacementData)->epoch_id <
-                std::static_pointer_cast<LRUReplData>(
-                    victim->replacementData)->epoch_id) {
-            victim = candidate;
+          if (std::static_pointer_cast<LRUReplData>(
+                       candidate->replacementData)->epoch_id <
+                   std::static_pointer_cast<LRUReplData>(
+                       victim->replacementData)->epoch_id) {
+               victim = candidate;
+           }
+          //if epoch id's match, default to the normal LRU
+          else if (std::static_pointer_cast<LRUReplData>(
+                       candidate->replacementData)->epoch_id ==
+                   std::static_pointer_cast<LRUReplData>(
+                       victim->replacementData)->epoch_id) {
+                if (std::static_pointer_cast<LRUReplData>(
+                            candidate->replacementData)->lastTouchTick <
+                        std::static_pointer_cast<LRUReplData>(
+                            victim->replacementData)->lastTouchTick) {
+                    victim = candidate;
+                }
+           }
+       }
+    }
+    //if epoch id has gone invalid for any of the blocks,
+    //then we need to kick it out,
+    //resort to FIFO for the same.
+    else{
+        // Visit all candidates to find victim
+        for (const auto& candidate : candidates) {
+            // Update victim entry if necessary
+            if (std::static_pointer_cast<LRUReplData>(
+                        candidate->replacementData)->tickInserted <
+                    std::static_pointer_cast<LRUReplData>(
+                        victim->replacementData)->tickInserted) {
+                victim = candidate;
+            }
         }
-       //if epoch id's match, default to the normal LRU
-       else if (std::static_pointer_cast<LRUReplData>(
-                    candidate->replacementData)->epoch_id ==
-                std::static_pointer_cast<LRUReplData>(
-                    victim->replacementData)->epoch_id) {
-             if (std::static_pointer_cast<LRUReplData>(
-                         candidate->replacementData)->lastTouchTick <
-                     std::static_pointer_cast<LRUReplData>(
-                         victim->replacementData)->lastTouchTick) {
-                 victim = candidate;
-             }
-        }
+
     }
 
     return victim;

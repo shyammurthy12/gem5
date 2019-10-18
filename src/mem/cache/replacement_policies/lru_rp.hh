@@ -52,6 +52,8 @@ class LRURP : public BaseReplacementPolicy
         Tick lastTouchTick;
 #ifdef Ongal_VC
         uint64_t epoch_id;
+        Tick tickInserted;
+        uint64_t threshold_after_which_epoch_id_invalid;
 #endif
         /**
          * Default constructor. Invalidate data.
@@ -105,7 +107,9 @@ class LRURP : public BaseReplacementPolicy
                                                                      override;
 
     void reset_helper(const std::shared_ptr<ReplacementData>& replacement_data,
-                    uint64_t epoch_id) const override;
+                    uint64_t epoch_id,
+                    uint64_t threshold_after_which_epoch_id_invalid)
+                     const override;
 
     /**
      * Find replacement victim using LRU timestamps.

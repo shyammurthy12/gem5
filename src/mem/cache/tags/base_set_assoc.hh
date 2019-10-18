@@ -315,9 +315,12 @@ class BaseSetAssoc : public BaseTags
     }
 #ifdef Ongal_VC
     void insertBlock_helper_for_VC
-            (const PacketPtr pkt, CacheBlk* blk, uint64_t epoch_id)
+            (const PacketPtr pkt, CacheBlk* blk, uint64_t epoch_id,
+             uint64_t threshold_after_which_epoch_id_invalid)
     {
 
+        printf("Threshold after which epoch id is invalid is %lu\n",
+                        threshold_after_which_epoch_id_invalid);
         // Insert block
         BaseTags::insertBlock(pkt, blk);
 
@@ -326,7 +329,8 @@ class BaseSetAssoc : public BaseTags
 
         // Update replacement policy with the epoch id information
         // additionally.
-        replacementPolicy->reset_helper(blk->replacementData, epoch_id);
+        replacementPolicy->reset_helper(blk->replacementData, epoch_id,
+                        threshold_after_which_epoch_id_invalid);
     }
 #endif
     /**

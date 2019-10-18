@@ -351,7 +351,8 @@ class BaseTags : public ClockedObject
     virtual void insertBlock(const PacketPtr pkt, CacheBlk *blk);
 
     virtual void insertBlock_helper_for_VC(const
-                    PacketPtr pkt, CacheBlk* blk, uint64_t epoch_id);
+                    PacketPtr pkt, CacheBlk* blk, uint64_t epoch_id,
+                    uint64_t threshold_after_which_epoch_id_invalid);
     /**
      * Regenerate the block address.
      *

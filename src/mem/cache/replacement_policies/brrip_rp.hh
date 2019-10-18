@@ -142,7 +142,9 @@ class BRRIPRP : public BaseReplacementPolicy
     void reset(const std::shared_ptr<ReplacementData>& replacement_data) const
                                                                      override;
     void reset_helper(const std::shared_ptr<ReplacementData>& replacement_data,
-                    uint64_t epoch_id) const override;
+                    uint64_t epoch_id,
+                    uint64_t threshold_after_which_epoch_id_invalid)
+                   const override;
 
     /**
      * Find replacement victim using rrpv.
