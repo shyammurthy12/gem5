@@ -31,6 +31,7 @@
  *          Steve Reinhardt
  */
 
+
 #include "sim/core.hh"
 
 #include <iostream>
@@ -40,6 +41,7 @@
 #include "base/cprintf.hh"
 #include "base/logging.hh"
 #include "base/output.hh"
+#include "cpu/o3/commit.hh"
 #include "sim/eventq.hh"
 
 using namespace std;
@@ -163,8 +165,10 @@ doExitCleanup()
                 i);
        if (!lifetimes_of_hash_entries.at(i).back().subtraction_done){
          printf("The record for entry %d is still present\n",i);
+         //lifetimes_of_hash_entries.at(i).back().lifetime =
+         // curTick()-lifetimes_of_hash_entries.at(i).back().lifetime;
          lifetimes_of_hash_entries.at(i).back().lifetime =
-          curTick()-lifetimes_of_hash_entries.at(i).back().lifetime;
+          instCommits-lifetimes_of_hash_entries.at(i).back().lifetime;
        }
        int  max_subrecord;
        max_subrecord = 0;
@@ -196,7 +200,8 @@ doExitCleanup()
     }
     printf("The maximum lifetime across all entries is %lu\n",
                     max_record_lifetime_across_all_entries);
-    printf("The value of the curTick is %lu\n",curTick());
+    //printf("The value of the curTick is %lu\n",curTick());
+    printf("The number of instructions committed is %d\n",instCommits);
     exitCallbacks().process();
     exitCallbacks().clear();
 

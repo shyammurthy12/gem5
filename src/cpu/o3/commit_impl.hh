@@ -71,6 +71,8 @@
 
 using namespace std;
 
+int instCommits;
+
 template <class Impl>
 void
 DefaultCommit<Impl>::processTrapEvent(ThreadID tid)
@@ -104,6 +106,8 @@ DefaultCommit<Impl>::DefaultCommit(O3CPU *_cpu, DerivO3CPUParams *params)
 
     _status = Active;
     _nextStatus = Inactive;
+
+    instCommits = 0;
 
     if (commitPolicy == CommitPolicy::RoundRobin) {
         //Set-Up Priority List
@@ -1400,9 +1404,11 @@ void
 DefaultCommit<Impl>::updateComInstStats(const DynInstPtr &inst)
 {
     ThreadID tid = inst->threadNumber;
-
-    if (!inst->isMicroop() || inst->isLastMicroop())
+    if (!inst->isMicroop() || inst->isLastMicroop()) {
         instsCommitted[tid]++;
+        //instComm = instsCommitted[tid];
+        instCommits++;
+    }
     opsCommitted[tid]++;
 
     // To match the old model, don't count nops and instruction

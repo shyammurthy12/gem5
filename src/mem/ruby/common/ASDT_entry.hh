@@ -10,6 +10,7 @@
 
 #include "base/callback.hh"
 #include "base/statistics.hh"
+#include "cpu/o3/commit.hh"
 #include "mem/ruby/common/Address.hh"
 #include "mem/ruby/common/Other_VCs.hh"
 #include "mem/ruby/common/Physical_Mem.hh"
@@ -33,7 +34,8 @@ public:
   hash_entry_to_use_set = true;
   hash_entry_to_use = _hash_entry_to_use;
   lifetime_record temp;
-  temp.lifetime = curTick();
+  //temp.lifetime = curTick();
+  temp.lifetime = instCommits;
   temp.subtraction_done = false;
 
   //Ongal
@@ -41,6 +43,7 @@ public:
   //lookup table has been used.
   hash_entries_used.at(entry_number) = true;
   //set the epoch id when we have a remap.
+  //epoch_id = (curTick()&epoch_id_mask)>>number_of_bits_shift;
   epoch_id = (curTick()&epoch_id_mask)>>number_of_bits_shift;
   epoch_id = 0;
   temp.epoch_id = epoch_id;
@@ -78,7 +81,8 @@ public:
       {
         hash_entry_to_use = (rand()%total_number_of_hashing_functions);
         lifetime_record temp;
-        temp.lifetime = curTick();
+        //temp.lifetime = curTick();
+        temp.lifetime = instCommits;
         temp.subtraction_done = false;
 
         //Ongal
@@ -87,6 +91,7 @@ public:
 
 
         //set the epoch id
+        //epoch_id = (curTick()&epoch_id_mask)>>number_of_bits_shift;
         epoch_id = (curTick()&epoch_id_mask)>>number_of_bits_shift;
         epoch_id = 0;
         //printf("The epoch id is %lu\n",epoch_id);
@@ -114,8 +119,10 @@ public:
 #endif
    if (number_of_cache_lines_using_this_entry == 0)
    {
+     //lifetimes_of_hash_entries.at(entry_number).back().lifetime =
+     //  curTick()-lifetimes_of_hash_entries.at(entry_number).back().lifetime;
      lifetimes_of_hash_entries.at(entry_number).back().lifetime =
-         curTick()-lifetimes_of_hash_entries.at(entry_number).back().lifetime;
+       instCommits-lifetimes_of_hash_entries.at(entry_number).back().lifetime;
      //add the epoch id to the lifetime record additionally.
      lifetimes_of_hash_entries.at(entry_number).back().epoch_id =
         epoch_id;
