@@ -201,7 +201,7 @@ doExitCleanup()
     printf("The maximum lifetime across all entries is %lu\n",
                     max_record_lifetime_across_all_entries);
     //printf("The value of the curTick is %lu\n",curTick());
-    printf("The number of instructions committed is %d\n",instCommits);
+    printf("The number of instructions committed is %d\n",memRefCommits);
     exitCallbacks().process();
     exitCallbacks().clear();
 

@@ -1407,7 +1407,7 @@ DefaultCommit<Impl>::updateComInstStats(const DynInstPtr &inst)
     if (!inst->isMicroop() || inst->isLastMicroop()) {
         instsCommitted[tid]++;
         //instComm = instsCommitted[tid];
-        instCommits++;
+        memRefCommits++;
     }
     opsCommitted[tid]++;
 
