@@ -319,8 +319,8 @@ class BaseSetAssoc : public BaseTags
              uint64_t threshold_after_which_epoch_id_invalid)
     {
 
-        printf("Threshold after which epoch id is invalid is %lu\n",
-                        threshold_after_which_epoch_id_invalid);
+        //printf("Threshold after which epoch id is invalid is %lu\n",
+        //                threshold_after_which_epoch_id_invalid);
         // Insert block
         BaseTags::insertBlock(pkt, blk);
 

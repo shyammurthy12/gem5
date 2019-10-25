@@ -35,7 +35,7 @@ public:
   hash_entry_to_use = _hash_entry_to_use;
   lifetime_record temp;
   //temp.lifetime = curTick();
-  temp.lifetime = instCommits;
+  temp.lifetime = memRefCommits;
   temp.subtraction_done = false;
 
   //Ongal
@@ -82,7 +82,7 @@ public:
         hash_entry_to_use = (rand()%total_number_of_hashing_functions);
         lifetime_record temp;
         //temp.lifetime = curTick();
-        temp.lifetime = instCommits;
+        temp.lifetime = memRefCommits;
         temp.subtraction_done = false;
 
         //Ongal
@@ -122,7 +122,7 @@ public:
      //lifetimes_of_hash_entries.at(entry_number).back().lifetime =
      //  curTick()-lifetimes_of_hash_entries.at(entry_number).back().lifetime;
      lifetimes_of_hash_entries.at(entry_number).back().lifetime =
-       instCommits-lifetimes_of_hash_entries.at(entry_number).back().lifetime;
+     memRefCommits-lifetimes_of_hash_entries.at(entry_number).back().lifetime;
      //add the epoch id to the lifetime record additionally.
      lifetimes_of_hash_entries.at(entry_number).back().epoch_id =
         epoch_id;
