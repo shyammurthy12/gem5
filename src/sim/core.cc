@@ -168,7 +168,7 @@ doExitCleanup()
          //lifetimes_of_hash_entries.at(i).back().lifetime =
          // curTick()-lifetimes_of_hash_entries.at(i).back().lifetime;
          lifetimes_of_hash_entries.at(i).back().lifetime =
-          instCommits-lifetimes_of_hash_entries.at(i).back().lifetime;
+          memRefCommits-lifetimes_of_hash_entries.at(i).back().lifetime;
        }
        int  max_subrecord;
        max_subrecord = 0;

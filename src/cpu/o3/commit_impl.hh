@@ -71,7 +71,7 @@
 
 using namespace std;
 
-int instCommits;
+int memRefCommits;
 
 template <class Impl>
 void
@@ -107,7 +107,7 @@ DefaultCommit<Impl>::DefaultCommit(O3CPU *_cpu, DerivO3CPUParams *params)
     _status = Active;
     _nextStatus = Inactive;
 
-    instCommits = 0;
+    memRefCommits = 0;
 
     if (commitPolicy == CommitPolicy::RoundRobin) {
         //Set-Up Priority List

@@ -54,7 +54,7 @@
 #include "sim/probe/probe.hh"
 
 struct DerivO3CPUParams;
-extern int instCommits;
+extern int memRefCommits;
 
 template <class>
 struct O3ThreadState;
@@ -357,7 +357,6 @@ class DefaultCommit
   public:
     /** ROB interface. */
     ROB *rob;
-    //static int instComm;
   private:
     /** Pointer to O3CPU. */
     O3CPU *cpu;
