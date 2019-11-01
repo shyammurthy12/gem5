@@ -100,7 +100,7 @@ BaseTags::findBlock(Addr addr, bool is_secure) const
          Addr CPA_Vaddr = (CPA_VPN * Region_Size) + (addr % Region_Size);
          //uint32_t random_number_to_hash_with =
          //        ASDT_entry->get_random_number_to_hash_with();
-         uint32_t constant_to_xor_with = 0;
+         vector<int> hash_scheme_for_xor;
          uint64_t CPA_CR3 = ASDT_entry->get_cr3();
 
          uint64_t index_into_hash_lookup_table = (CPA_VPN^CPA_CR3)&
@@ -119,7 +119,7 @@ BaseTags::findBlock(Addr addr, bool is_secure) const
            //the hashing function table is always assumed
            //to have a valid entry that can be used.
            int temp1 = hash_entry_to_use;
-    constant_to_xor_with =
+    hash_scheme_for_xor =
   get_VC_structure()->hashing_function_to_use_get_constant_to_xor_with(temp1);
 
          }
@@ -137,7 +137,7 @@ BaseTags::findBlock(Addr addr, bool is_secure) const
 #endif
         const std::vector<ReplaceableEntry*> entries =
 indexingPolicy->getPossibleEntries_with_Vaddr(CPA_Vaddr,
-                constant_to_xor_with);
+                hash_scheme_for_xor);
       // only leading virtual address
       CacheBlk* target_block = NULL;
      // Search for block
@@ -182,8 +182,8 @@ indexingPolicy->getPossibleEntries_with_Vaddr(CPA_Vaddr,
 
 #ifdef Ongal_VC
 CacheBlk*
-BaseTags::findBlock_vaddr(Addr addr, Addr cr3, uint32_t
-                random_number_to_xor_with) const
+BaseTags::findBlock_vaddr(Addr addr, Addr cr3, vector<int>
+                hash_scheme_for_xor) const
 {
 
     // Extract block tag
@@ -191,7 +191,7 @@ BaseTags::findBlock_vaddr(Addr addr, Addr cr3, uint32_t
     // Find possible entries that may contain the given address
     const std::vector<ReplaceableEntry*> entries =
         indexingPolicy->getPossibleEntries_with_Vaddr(addr,
-                        random_number_to_xor_with);
+                        hash_scheme_for_xor);
 
     // Search for block
     for (const auto& location : entries) {
@@ -216,8 +216,9 @@ BaseTags::findBlock_with_vaddr(Addr addr, Addr cr3, bool is_secure) const
     // Find possible entries that may contain the given address
     //This implementation is broken, but does not get used.
     //Change this later on, when we turn on LateMemTrap.
+    vector<int> v{0};
     const std::vector<ReplaceableEntry*> entries =
-        indexingPolicy->getPossibleEntries_with_Vaddr(addr,0);
+        indexingPolicy->getPossibleEntries_with_Vaddr(addr,v);
 
     // Search for block
     for (const auto& location : entries) {

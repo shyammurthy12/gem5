@@ -39,6 +39,7 @@
 #include "base/intmath.hh"
 #include "base/logging.hh"
 #include "mem/cache/replacement_policies/replaceable_entry.hh"
+using namespace std;
 
 SkewedAssociative::SkewedAssociative(const Params *p)
     : BaseIndexingPolicy(p), msbShift(floorLog2(numSets) - 1)
@@ -221,8 +222,8 @@ SkewedAssociative::getPossibleEntries(const Addr addr) const
 
 //Ongal
 std::vector<ReplaceableEntry*>
-SkewedAssociative::getPossibleEntries_with_Vaddr(const Addr addr, uint32_t
-                random_constant_to_xor_with) const
+SkewedAssociative::getPossibleEntries_with_Vaddr(const Addr addr, vector<int>
+                hash_scheme_for_xor) const
 {
     std::vector<ReplaceableEntry*> entries;
 

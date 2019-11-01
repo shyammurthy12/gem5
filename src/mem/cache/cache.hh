@@ -287,7 +287,7 @@ class Cache : public BaseCache
       // invalidate the entry in the map
       // flush ART/SS in the method
       bool found = false;
-
+      vector<int> hash_scheme_for_xor{0};
       do{
 
         found = m_vc_structure->invalidate_ASDT_with_VPN(VPN, &matching_cr3,
@@ -317,8 +317,8 @@ class Cache : public BaseCache
             //the hashing function table is always assumed
             //to have a valid entry that can be used.
            int temp = hash_entry_to_use;
-           random_number_to_hash_with =
-      m_vc_structure->hashing_function_to_use_get_constant_to_xor_with(temp);
+           hash_scheme_for_xor = m_vc_structure->
+      hashing_function_to_use_get_constant_to_xor_with(temp);
 
           }
           else
@@ -329,7 +329,7 @@ class Cache : public BaseCache
             uint64_t line_vaddr = region_vaddr + (line_index*line_size);
             // find a block
             CacheBlk *blk = tags->findBlock_vaddr(line_vaddr, matching_cr3,
-                            random_number_to_hash_with);
+                            hash_scheme_for_xor);
 
             if (blk && blk->isValid()) {
               // if it is dirty, put it in a write back buffer

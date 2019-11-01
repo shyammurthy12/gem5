@@ -40,6 +40,7 @@
 
 #include "mem/cache/tags/indexing_policies/base.hh"
 #include "params/SkewedAssociative.hh"
+using namespace std;
 
 class ReplaceableEntry;
 
@@ -164,7 +165,7 @@ class SkewedAssociative : public BaseIndexingPolicy
 
 
     std::vector<ReplaceableEntry*> getPossibleEntries_with_Vaddr(const Addr
-                    addr, uint32_t random_constant_to_xor_with) const override;
+                    addr, vector<int> hash_scheme_for_xor) const override;
     /**
      * Regenerate an entry's address from its tag and assigned set and way.
      * Uses the inverse of the skewing function.

@@ -221,7 +221,8 @@ class BaseSetAssoc : public BaseTags
        }else{
          Addr CPA_VPN   = ASDT_entry->get_virtual_page_number();
          Addr CPA_Vaddr = (CPA_VPN * Region_Size) + (addr % Region_Size);
-         uint32_t random_number_to_xor_with = 0;
+        // uint32_t random_number_to_xor_with = 0;
+         vector<int> hash_scheme_for_xor;
          uint64_t CPA_CR3 = ASDT_entry->get_cr3();
 
          uint64_t index_into_hash_lookup_table = (CPA_VPN^CPA_CR3)&
@@ -241,7 +242,7 @@ class BaseSetAssoc : public BaseTags
            //the hashing function table is always assumed
            //to have a valid entry that can be used.
    temp = hash_entry_to_use;
-   random_number_to_xor_with =
+   hash_scheme_for_xor =
     get_VC_structure()->hashing_function_to_use_get_constant_to_xor_with(temp);
 
          }
@@ -261,7 +262,8 @@ class BaseSetAssoc : public BaseTags
 
          const std::vector<ReplaceableEntry*> entries =
          indexingPolicy->getPossibleEntries_with_Vaddr(CPA_Vaddr,
-                        random_number_to_xor_with);
+                         hash_scheme_for_xor);
+                        //random_number_to_xor_with);
 
         CacheBlk* victim;
         if (get_VC_structure()!=NULL)

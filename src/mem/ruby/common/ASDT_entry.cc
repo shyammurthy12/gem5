@@ -1,7 +1,46 @@
 #include "mem/ruby/common/ASDT_entry.hh"
-
+using namespace std;
 std::vector<std::vector<lifetime_record>> lifetimes_of_hash_entries;
 std::vector<bool> hash_entries_used;
+
+// Function to return the next random number
+int getNum(vector<int>& v)
+{
+
+    // Size of the vector
+    int n = v.size();
+
+    // Make sure the number is within
+    // the index range
+    int index = rand() % n;
+
+    // Get random number from the vector
+    int num = v[index];
+
+    // Remove the number from the vector
+    swap(v[index], v[n - 1]);
+    v.pop_back();
+
+    // Return the removed number
+    return num;
+}
+
+// Function to generate n non-repeating random numbers
+vector<int> generateRandom(int n)
+{
+    vector<int> v(n);
+    vector<int> scheme;
+    // Fill the vector with the values
+    // 1, 2, 3, ..., n
+    for (int i = 0; i < n; i++)
+        v[i] = i + 1;
+
+    // get a random number from the vector and print it
+    for (int i=0;i<9;i++) {
+        scheme.push_back(getNum(v)+14);
+    }
+    return scheme;
+}
 
 ASDT_entry::ASDT_entry(uint64_t VPN, uint64_t CR3, int num_lines_per_region,
                 uint64_t lru_count){
@@ -16,6 +55,7 @@ ASDT_entry::ASDT_entry(uint64_t VPN, uint64_t CR3, int num_lines_per_region,
   //0 and 99 for now. Later, change this.
   uint32_t random_number = rand()%100;
   set_random_number_to_hash_with(random_number);
+
 
   // set cr3 value
   set_cr3( CR3 );
@@ -212,10 +252,13 @@ VC_structure::VC_structure(string name,
   for (int i = 0;i<m_size_of_hash_function_list;i++)
   {
      hashing_functions_table_entry temp;
-     //16-bit quantity to xor with.
-     temp.set_constant_to_xor_with(rand()%65535);
-     cout<<"Random numbers used for " <<i<<": "
-             <<temp.get_constant_to_xor_with()<<endl;
+     //9-ints for hash scheme
+     vector<int> scheme = generateRandom(17);
+     temp.set_constant_to_xor_with(scheme);
+     cout<<"Random numbers used for " <<i<<": "<<endl;
+     vector<int> scheme_ = temp.get_constant_to_xor_with();
+     for (int i=0; i<scheme_.size(); i++)
+        cout << scheme_[i] << endl;
      temp.set_of_lines_using_entry(0);
      list_of_all_hashing_functions.push_back(temp);
   }
@@ -341,7 +384,7 @@ VC_structure::hash_entry_to_use_invalidate(int index_of_entry)
 {
   return hash_lookup_table.at(index_of_entry).invalidate();
 }
-uint64_t
+vector<int>
 VC_structure::hashing_function_to_use_get_constant_to_xor_with(int
                 index_of_entry){
    hashing_functions_table_entry &temp =
@@ -350,7 +393,7 @@ VC_structure::hashing_function_to_use_get_constant_to_xor_with(int
   }
 void
 VC_structure::hashing_function_to_use_set_constant_to_xor_with(int
-                index_of_entry, uint64_t _set_constant_to_xor_with){
+                index_of_entry, vector<int> _set_constant_to_xor_with){
   hashing_functions_table_entry &temp =
           list_of_all_hashing_functions.at(index_of_entry);
   return temp.set_constant_to_xor_with(_set_constant_to_xor_with);

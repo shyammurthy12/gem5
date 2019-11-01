@@ -54,6 +54,7 @@
 #include "mem/ongal_VC.hh"
 #include "mem/ruby/common/ASDT_entry.hh"
 
+using namespace std;
 SetAssociative::SetAssociative(const Params *p)
     : BaseIndexingPolicy(p)
 {
@@ -77,21 +78,35 @@ SetAssociative::extractSet_Vaddr(Addr addr) const
 
 
 uint32_t
-SetAssociative::extractSet_Vaddr_with_hashing(Addr addr, uint32_t
-                random_constant_to_xor_with) const
+SetAssociative::extractSet_Vaddr_with_hashing(Addr addr, vector<int>
+                hash_scheme_for_xor) const
 {
-      //printf("Set number is %lu\n",(addr >> setShift) & setMask);
+ //     printf("Address is %lx\n",addr>>setShift);
       // addr should be a virtual address
    //   return ((((addr >> setShift) &
    //   setMask)^random_constant_to_xor_with))&setMask;
+  //  cout << "Hash scheme used" << endl;
+ //   for (int i=0;i<hash_scheme_for_xor.size();i++) {
+ //   	cout << hash_scheme_for_xor[i] << endl;
+ //   }
+      uint64_t num_to_xor_with=0;
+      for (int i=0; i<hash_scheme_for_xor.size(); i++) {
+        uint64_t temp = addr&(1<<hash_scheme_for_xor[i]);
+//	printf("%d, %lu, %lu",i, temp, (addr>>hash_scheme_for_xor[i])&0x01);
+        if (temp)
+                num_to_xor_with = (num_to_xor_with<<1) + 1;
+        else
+                num_to_xor_with = (num_to_xor_with<<1);
+//	printf("%lx\n", num_to_xor_with);
+      }
 #ifdef Smurthy_debug
       printf("The random constant to xor with"
-                      "%u\n",random_constant_to_xor_with);
+                      "%lx\n",num_to_xor_with);
       printf("The setNumber is %lu\n",
-                   (((addr >> setShift)^random_constant_to_xor_with))&setMask);
+                   (((addr >> setShift)^num_to_xor_with))&setMask);
 #endif
       //random_constant_to_xor_with = 0;
-      return (((addr >> setShift)^random_constant_to_xor_with))&setMask;
+      return (((addr >> setShift)^num_to_xor_with))&setMask;
 }
 
 
@@ -111,10 +126,10 @@ SetAssociative::getPossibleEntries(const Addr addr) const
 
 //Ongal
 std::vector<ReplaceableEntry*>
-SetAssociative::getPossibleEntries_with_Vaddr(const Addr addr, uint32_t
-                random_constant_to_xor_with) const
+SetAssociative::getPossibleEntries_with_Vaddr(const Addr addr, vector<int>
+                hash_scheme_for_xor) const
 {
- return sets[extractSet_Vaddr_with_hashing(addr,random_constant_to_xor_with)];
+ return sets[extractSet_Vaddr_with_hashing(addr,hash_scheme_for_xor)];
 }
 
 SetAssociative*
