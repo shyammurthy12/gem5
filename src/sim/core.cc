@@ -42,6 +42,7 @@
 #include "base/logging.hh"
 #include "base/output.hh"
 #include "cpu/o3/commit.hh"
+#include "mem/cache/base.hh"
 #include "sim/eventq.hh"
 
 using namespace std;
@@ -201,7 +202,9 @@ doExitCleanup()
     printf("The maximum lifetime across all entries is %lu\n",
                     max_record_lifetime_across_all_entries);
     //printf("The value of the curTick is %lu\n",curTick());
-    printf("The number of instructions committed is %d\n",memRefCommits);
+    printf("The number of memory instructions committed is %d\n",
+                    memRefCommits);
+    printf("The number of extra writebacks are %d\n",writeback_counter);
     exitCallbacks().process();
     exitCallbacks().clear();
 

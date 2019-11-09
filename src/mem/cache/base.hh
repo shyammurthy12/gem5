@@ -90,6 +90,7 @@ class MasterPort;
 class QueueEntry;
 struct BaseCacheParams;
 
+extern int writeback_counter;
 /**
  * A basic cache interface. Implements some common functions for speed.
  */
@@ -899,7 +900,7 @@ class BaseCache : public ClockedObject
     Stats::Formula demandHits;
     /** Number of hit for all accesses. */
     Stats::Formula overallHits;
-
+    int memrefs_cache_flush=0;
     /** Number of misses per thread for each type of command.
         @sa Packet::Command */
     Stats::Vector misses[MemCmd::NUM_MEM_CMDS];
@@ -1241,7 +1242,11 @@ class BaseCache : public ClockedObject
     void incMissCount(PacketPtr pkt)
     {
         assert(pkt->req->masterId() < system->maxMasters());
+        if (memrefs_cache_flush==0)
+                writeback_counter=0;
         misses[pkt->cmdToIndex()][pkt->req->masterId()]++;
+        if (L1dcache_flush)
+                memrefs_cache_flush++;
 //        if (pkt->req->isRequestSpeculativeLoad)
 //	   speculative_misses[pkt->cmdToIndex()][pkt->req->masterId()]++;
         pkt->req->incAccessDepth();
@@ -1251,13 +1256,26 @@ class BaseCache : public ClockedObject
                 exitSimLoop("A cache reached the maximum miss count");
         }
     }
+
+    bool L1dcache_flush=0;
+
     void incHitCount(PacketPtr pkt)
     {
         assert(pkt->req->masterId() < system->maxMasters());
         hits[pkt->cmdToIndex()][pkt->req->masterId()]++;
-
+        if (L1dcache_flush) {
+                memrefs_cache_flush++;
+                if (memrefs_cache_flush > 10000)
+                        cache_flush();
+        }
     }
 
+    void cache_flush()
+    {
+         //for all block
+         memWriteback();
+         memInvalidate();
+    }
     /**
      * Checks if the cache is coalescing writes
      *

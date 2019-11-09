@@ -514,7 +514,6 @@ bool Cache::BaseCache_access_dup(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
         assert(!pkt->needsResponse());
         pkt->writeDataToBlock(blk->data, blkSize);
         DPRINTF(Cache, "%s new state is %s\n", __func__, blk->print());
-        incHitCount(pkt);
 
         // A writeback searches for the block, then writes the data
         lat = calculateAccessLatency(blk, pkt->headerDelay, tag_latency);
@@ -525,6 +524,7 @@ bool Cache::BaseCache_access_dup(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
         blk->setWhenReady(clockEdge(fillLatency) + pkt->headerDelay +
             std::max(cyclesToTicks(tag_latency), (uint64_t)pkt->payloadDelay));
 
+        incHitCount(pkt);
         return true;
     } else if (pkt->cmd == MemCmd::CleanEvict) {
         // A CleanEvict does not need to access the data array
@@ -592,7 +592,6 @@ bool Cache::BaseCache_access_dup(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
         pkt->writeDataToBlock(blk->data, blkSize);
         DPRINTF(Cache, "%s new state is %s\n", __func__, blk->print());
 
-        incHitCount(pkt);
 
         // A writeback searches for the block, then writes the data
         lat = calculateAccessLatency(blk, pkt->headerDelay, tag_latency);
@@ -605,11 +604,11 @@ bool Cache::BaseCache_access_dup(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
 
         // if this a write-through packet it will be sent to cache
         // below
+        incHitCount(pkt);
         return !pkt->writeThrough();
     } else if (blk && (pkt->needsWritable() ? blk->isWritable() :
                        blk->isReadable())) {
         // OK to satisfy access
-        incHitCount(pkt);
 
         // Calculate access latency based on the need to access the data array
         if (pkt->isRead() || pkt->isWrite()) {
@@ -621,6 +620,7 @@ bool Cache::BaseCache_access_dup(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
         satisfyRequest(pkt, blk);
         maintainClusivity(pkt->fromCache(), blk);
 
+        incHitCount(pkt);
         return true;
     }
 

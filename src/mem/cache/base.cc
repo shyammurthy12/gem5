@@ -64,6 +64,7 @@
 class BaseMasterPort;
 class BaseSlavePort;
 
+int writeback_counter;
 using namespace std;
 
 BaseCache::CacheSlavePort::CacheSlavePort(const std::string &_name,
@@ -122,6 +123,9 @@ BaseCache::BaseCache(const BaseCacheParams *p, unsigned blk_size)
     tags->tagsInit();
 
 
+    if (p->name.find("dcache") !=string::npos ) {
+        L1dcache_flush=1;
+    }
     if (prefetcher)
         prefetcher->setCache(this);
 
@@ -1697,7 +1701,7 @@ BaseCache::writebackVisitor(CacheBlk &blk)
         packet.dataStatic(blk.data);
 
         memSidePort.sendFunctional(&packet);
-
+        writeback_counter++;
         blk.status &= ~BlkDirty;
     }
 }

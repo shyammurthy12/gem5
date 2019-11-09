@@ -1406,8 +1406,6 @@ DefaultCommit<Impl>::updateComInstStats(const DynInstPtr &inst)
     ThreadID tid = inst->threadNumber;
     if (!inst->isMicroop() || inst->isLastMicroop()) {
         instsCommitted[tid]++;
-        //instComm = instsCommitted[tid];
-        memRefCommits++;
     }
     opsCommitted[tid]++;
 
@@ -1428,6 +1426,7 @@ DefaultCommit<Impl>::updateComInstStats(const DynInstPtr &inst)
     //
     if (inst->isMemRef()) {
         statComRefs[tid]++;
+        memRefCommits++;
 
         if (inst->isLoad()) {
             statComLoads[tid]++;

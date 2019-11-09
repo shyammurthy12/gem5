@@ -93,7 +93,7 @@ class BaseCache(ClockedObject):
     mshrs = Param.Unsigned("Number of MSHRs (max outstanding requests)")
     demand_mshr_reserve = Param.Unsigned(1, "MSHRs reserved for demand access")
     tgts_per_mshr = Param.Unsigned("Max number of accesses per MSHR")
-    write_buffers = Param.Unsigned(8, "Number of write buffers")
+    write_buffers = Param.Unsigned(1024, "Number of write buffers")
 
     is_read_only = Param.Bool(False, "Is this cache read only (e.g. inst)")
 

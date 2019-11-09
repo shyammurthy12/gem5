@@ -195,7 +195,7 @@ VC_structure::VC_structure(string name,
     asdt_way = 16;
     //have this hash lookup table for
     //data cache alone.
-    m_hash_lookup_table_size = 1024 ;
+    m_hash_lookup_table_size = 32 ;
     m_size_of_hash_function_list = 64;
   }else{
     asdt_set = 8;
