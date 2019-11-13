@@ -55,6 +55,7 @@
 #include <cassert>
 #include <cstdint>
 #include <string>
+#include <vector>
 
 #include "base/addr_range.hh"
 #include "base/statistics.hh"
@@ -90,6 +91,7 @@ class MasterPort;
 class QueueEntry;
 struct BaseCacheParams;
 
+extern vector<int> writeback_flush;
 extern int writeback_counter;
 /**
  * A basic cache interface. Implements some common functions for speed.
@@ -1265,8 +1267,12 @@ class BaseCache : public ClockedObject
         hits[pkt->cmdToIndex()][pkt->req->masterId()]++;
         if (L1dcache_flush) {
                 memrefs_cache_flush++;
-                if (memrefs_cache_flush > 10000)
+                if (memrefs_cache_flush > 1000) {
                         cache_flush();
+                        writeback_flush.push_back(writeback_counter);
+                        writeback_counter=0;
+                        memrefs_cache_flush=0;
+                }
         }
     }
 

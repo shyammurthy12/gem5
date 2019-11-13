@@ -45,8 +45,8 @@
  * @file
  * Definition of BaseCache functions.
  */
-
 #include "mem/cache/base.hh"
+#include <vector>
 
 #include "base/compiler.hh"
 #include "base/logging.hh"
@@ -65,6 +65,8 @@ class BaseMasterPort;
 class BaseSlavePort;
 
 int writeback_counter;
+vector<int> writeback_flush;
+
 using namespace std;
 
 BaseCache::CacheSlavePort::CacheSlavePort(const std::string &_name,
