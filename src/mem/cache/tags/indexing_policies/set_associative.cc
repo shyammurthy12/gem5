@@ -90,15 +90,15 @@ SetAssociative::extractSet_Vaddr_with_hashing(Addr addr, vector<int>
  //   	cout << hash_scheme_for_xor[i] << endl;
  //   }
       uint64_t num_to_xor_with=0;
-//      for (int i=0; i<hash_scheme_for_xor.size(); i++) {
-//        uint64_t temp = addr&(1<<hash_scheme_for_xor[i]);
-////	printf("%d, %lu, %lu",i, temp, (addr>>hash_scheme_for_xor[i])&0x01);
-//        if (temp)
-//                num_to_xor_with = (num_to_xor_with<<1) + 1;
-//        else
-//                num_to_xor_with = (num_to_xor_with<<1);
-////	printf("%lx\n", num_to_xor_with);
-//      }
+      for (int i=0; i<hash_scheme_for_xor.size(); i++) {
+        uint64_t temp = addr&(1<<hash_scheme_for_xor[i]);
+//	printf("%d, %lu, %lu",i, temp, (addr>>hash_scheme_for_xor[i])&0x01);
+        if (temp)
+                num_to_xor_with = (num_to_xor_with<<1) + 1;
+        else
+                num_to_xor_with = (num_to_xor_with<<1);
+//	printf("%lx\n", num_to_xor_with);
+      }
 #ifdef Smurthy_debug
       printf("The random constant to xor with"
                       "%lx\n",num_to_xor_with);

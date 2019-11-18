@@ -1657,6 +1657,23 @@ BaseCache::writecleanBlk(CacheBlk *blk, Request::Flags dest, PacketId id)
 
 
 void
+BaseCache::partialFlushMemWriteback()
+{
+        printf("Partial flush writebacks main\n");
+    tags->forEachBlk([this](CacheBlk &blk) {
+                    partialFlushWritebackVisitor(blk); });
+}
+
+void
+BaseCache::partialFlushMemInvalidate()
+{
+        printf("Partial flush invalidate main\n");
+    tags->forEachBlk([this](CacheBlk &blk) {
+                    partialFlushInvalidateVisitor(blk); });
+    tags->get_VC_structure()->set_notRecycled();
+}
+
+void
 BaseCache::memWriteback()
 {
     tags->forEachBlk([this](CacheBlk &blk) { writebackVisitor(blk); });
@@ -1678,6 +1695,50 @@ bool
 BaseCache::coalesce() const
 {
     return writeAllocator && writeAllocator->coalesce();
+}
+
+void
+BaseCache::partialFlushWritebackVisitor(CacheBlk &blk)
+{
+    if (blk.isDirty() && blk.isHashRecycled()) {
+        assert(blk.isValid());
+
+        RequestPtr request;
+        #ifdef Ongal_VC
+         request = std::make_shared<Request>(
+            blk.paddr, blkSize, 0, Request::funcMasterId);
+        #else
+          request = std::make_shared<Request>(
+            regenerateBlkAddr(&blk), blkSize, 0, Request::funcMasterId);
+        #endif
+        request->taskId(blk.task_id);
+        if (blk.isSecure()) {
+            request->setFlags(Request::SECURE);
+        }
+
+        Packet packet(request, MemCmd::WriteReq);
+        packet.dataStatic(blk.data);
+
+        memSidePort.sendFunctional(&packet);
+        writeback_counter++;
+        blk.status &= ~BlkDirty;
+    }
+}
+
+void
+BaseCache::partialFlushInvalidateVisitor(CacheBlk &blk)
+{
+    if (blk.isDirty())
+        warn_once("Invalidating dirty cache lines. " \
+                  "Expect things to break.\n");
+
+    if (blk.isValid() && blk.isHashRecycled()) {
+        assert(!blk.isDirty());
+        invalidateBlock(&blk);
+    }
+    else if (blk.isValid() && !blk.isHashRecycled()) {
+            blk.hashRecycled=1;
+    }
 }
 
 void

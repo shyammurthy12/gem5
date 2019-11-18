@@ -90,7 +90,7 @@ class CacheBlk : public ReplaceableEntry
 
     /** Data block tag value. */
     Addr tag;
-
+    bool hashRecycled;
     #ifdef Ongal_VC
     Addr vtag;
     uint64_t cr3;
@@ -219,6 +219,10 @@ class CacheBlk : public ReplaceableEntry
         return (status & BlkValid) != 0;
     }
 
+    bool isHashRecycled() const
+    {
+        return hashRecycled;
+    }
     /**
      * Invalidate the block and clear all state.
      */

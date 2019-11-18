@@ -772,6 +772,7 @@ class BaseCache : public ClockedObject
      * Write back dirty blocks in the cache using functional accesses.
      */
     virtual void memWriteback() override;
+    virtual void partialFlushMemWriteback();
 
     /**
      * Invalidates all blocks in the cache.
@@ -781,6 +782,7 @@ class BaseCache : public ClockedObject
      * want the to write them to memory.
      */
     virtual void memInvalidate() override;
+    virtual void partialFlushMemInvalidate();
 
     /**
      * Determine if there are any dirty blocks in the cache.
@@ -1267,7 +1269,7 @@ class BaseCache : public ClockedObject
         hits[pkt->cmdToIndex()][pkt->req->masterId()]++;
         if (L1dcache_flush) {
                 memrefs_cache_flush++;
-                if (memrefs_cache_flush > 1000) {
+                if (memrefs_cache_flush > 100000) {
                         cache_flush();
                         writeback_flush.push_back(writeback_counter);
                         writeback_counter=0;
@@ -1279,8 +1281,8 @@ class BaseCache : public ClockedObject
     void cache_flush()
     {
          //for all block
-         memWriteback();
-         memInvalidate();
+         partialFlushMemWriteback();
+         partialFlushMemInvalidate();
     }
     /**
      * Checks if the cache is coalescing writes
@@ -1295,6 +1297,7 @@ class BaseCache : public ClockedObject
      * functional writes.
      */
     void writebackVisitor(CacheBlk &blk);
+    void partialFlushWritebackVisitor(CacheBlk &blk);
 
     /**
      * Cache block visitor that invalidates all blocks in the cache.
@@ -1302,6 +1305,7 @@ class BaseCache : public ClockedObject
      * @warn Dirty cache lines will not be written back to memory.
      */
     void invalidateVisitor(CacheBlk &blk);
+    void partialFlushInvalidateVisitor(CacheBlk &blk);
 
     /**
      * Take an MSHR, turn it into a suitable downstream packet, and

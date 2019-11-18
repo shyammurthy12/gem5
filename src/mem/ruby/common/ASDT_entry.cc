@@ -195,7 +195,7 @@ VC_structure::VC_structure(string name,
     asdt_way = 16;
     //have this hash lookup table for
     //data cache alone.
-    m_hash_lookup_table_size = 32 ;
+    m_hash_lookup_table_size = 64 ;
     m_size_of_hash_function_list = 64;
   }else{
     asdt_set = 8;
@@ -340,6 +340,20 @@ VC_structure::get_hash_entry_to_use(int index_of_entry)
   return hash_lookup_table.at(index_of_entry).get_hash_entry_to_use();
 }
 
+bool
+VC_structure::get_notRecycled(int index_of_entry)
+{
+  return hash_lookup_table.at(index_of_entry).get_notRecycled();
+}
+
+void
+VC_structure::set_notRecycled()
+{
+  for (int i=0; i< m_hash_lookup_table_size; i++) {
+        hash_lookup_table.at(i).set_notRecycled();
+  }
+  return;
+}
 
 uint64_t
 VC_structure::get_epoch_id_to_use(int index_of_entry)

@@ -33,6 +33,7 @@ public:
   //for a ASDT entry that we are just inserting.
   hash_entry_to_use_set = true;
   hash_entry_to_use = _hash_entry_to_use;
+  notRecycled = false;
   lifetime_record temp;
   //temp.lifetime = curTick();
   temp.lifetime = memRefCommits;
@@ -53,6 +54,15 @@ public:
 #ifdef Smurthy_debug
   printf("Setting hash_entry to use %lu\n",hash_entry_to_use);
 #endif
+ }
+ bool get_notRecycled()
+ {
+  return  notRecycled;
+ }
+ void set_notRecycled()
+ {
+  notRecycled=1;
+  return;
  }
  uint64_t get_hash_entry_to_use()
  {
@@ -169,7 +179,7 @@ private:
  uint64_t hash_entry_to_use;
  //stored along with the hash to be used.
  uint64_t epoch_id;
-
+ bool notRecycled;
  //one time, set when the entry is populated.
  //(could also have these as macros too).
  //below leads to unnecessary duplication.
@@ -497,6 +507,8 @@ bool lookup_VC_structure( const Address addr,
                   uint64_t _hash_entry_to_use);
   void set_hash_entry_to_use_helper(int index_of_entry);
   uint64_t get_hash_entry_to_use(int index_of_entry);
+  bool get_notRecycled(int index_of_entry);
+  void set_notRecycled();
   uint64_t get_epoch_id_to_use(int index_of_entry);
   uint64_t get_epoch_id_validity_interval_to_use(int index_of_entry);
   void hash_entry_to_use_inc_number_of_cache_lines(int index_of_entry,int

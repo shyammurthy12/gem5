@@ -292,8 +292,29 @@ BaseTags::insertBlock(const PacketPtr pkt, CacheBlk *blk)
            blk->cr3 = CPA_CR3;
            // store the write permission information
            blk->is_writable_page = is_writable_page;
-          // printf("Inserting block with vtag %lx cr3:"
-          //                 "%lu\n",blk->vtag,blk->cr3);
+           // printf("Inserting block with vtag %lx cr3:"
+           //                 "%lu\n",blk->vtag,blk->cr3);
+           uint64_t index_into_hash_lookup_table = (CPA_VPN^CPA_CR3)&
+                  (m_vc_structure->get_hash_lookup_table_size()-1);
+#ifdef Smurthy_debug
+           printf("Index into the hash lookup table(findBlock) is %ld\n",
+                         index_into_hash_lookup_table);
+#endif
+           //if the entry in the hash lookup table is valid
+           int temp = index_into_hash_lookup_table;
+           if (get_VC_structure()->hash_entry_to_use_getValid(temp))
+           {
+             blk->hashRecycled =
+                   get_VC_structure()->get_notRecycled(temp);
+           }
+           //absence of a valid entry, indicates
+           //a miss in the cache.
+           else
+           {
+             std::cout<<"tags->insertblock(), should find a corresponding hash"
+                     "entry in a map";
+             abort();
+           }
          }
 #endif
 
