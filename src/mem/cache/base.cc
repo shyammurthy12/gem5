@@ -1659,7 +1659,6 @@ BaseCache::writecleanBlk(CacheBlk *blk, Request::Flags dest, PacketId id)
 void
 BaseCache::partialFlushMemWriteback()
 {
-        printf("Partial flush writebacks main\n");
     tags->forEachBlk([this](CacheBlk &blk) {
                     partialFlushWritebackVisitor(blk); });
 }
@@ -1667,7 +1666,6 @@ BaseCache::partialFlushMemWriteback()
 void
 BaseCache::partialFlushMemInvalidate()
 {
-        printf("Partial flush invalidate main\n");
     tags->forEachBlk([this](CacheBlk &blk) {
                     partialFlushInvalidateVisitor(blk); });
     tags->get_VC_structure()->set_notRecycled();
