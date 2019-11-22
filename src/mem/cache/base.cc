@@ -65,7 +65,9 @@ class BaseMasterPort;
 class BaseSlavePort;
 
 int writeback_counter;
+int number_stale_cachelines;
 vector<int> writeback_flush;
+vector<int> stale_cachelines;
 
 using namespace std;
 
@@ -1732,6 +1734,7 @@ BaseCache::partialFlushInvalidateVisitor(CacheBlk &blk)
 
     if (blk.isValid() && blk.isHashRecycled()) {
         assert(!blk.isDirty());
+        number_stale_cachelines++;
         invalidateBlock(&blk);
     }
     else if (blk.isValid() && !blk.isHashRecycled()) {

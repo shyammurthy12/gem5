@@ -42,7 +42,7 @@
 #include "base/cprintf.hh"
 #include "base/logging.hh"
 #include "base/output.hh"
-#include "cpu/o3/commit.hh"
+#include "cpu/simple/base.hh"
 #include "mem/cache/base.hh"
 #include "sim/eventq.hh"
 
@@ -208,6 +208,8 @@ doExitCleanup()
                     memRefCommits);
     for (int i=0; i<writeback_flush.size(); i++)
         printf("The number of extra writebacks are %d\n",writeback_flush[i]);
+    for (int i=0; i<stale_cachelines.size(); i++)
+        printf("The number of stale cachelines are %d\n",stale_cachelines[i]);
     exitCallbacks().process();
     exitCallbacks().clear();
 

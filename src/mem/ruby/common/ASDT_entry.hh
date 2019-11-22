@@ -10,7 +10,7 @@
 
 #include "base/callback.hh"
 #include "base/statistics.hh"
-#include "cpu/o3/commit.hh"
+#include "cpu/simple/base.hh"
 #include "mem/ruby/common/Address.hh"
 #include "mem/ruby/common/Other_VCs.hh"
 #include "mem/ruby/common/Physical_Mem.hh"

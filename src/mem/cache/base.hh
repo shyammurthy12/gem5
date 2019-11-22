@@ -92,7 +92,9 @@ class QueueEntry;
 struct BaseCacheParams;
 
 extern vector<int> writeback_flush;
+extern vector<int> stale_cachelines;
 extern int writeback_counter;
+extern int number_stale_cachelines;
 /**
  * A basic cache interface. Implements some common functions for speed.
  */
@@ -1246,8 +1248,10 @@ class BaseCache : public ClockedObject
     void incMissCount(PacketPtr pkt)
     {
         assert(pkt->req->masterId() < system->maxMasters());
-        if (memrefs_cache_flush==0)
+        if (memrefs_cache_flush==0) {
                 writeback_counter=0;
+                number_stale_cachelines=0;
+        }
         misses[pkt->cmdToIndex()][pkt->req->masterId()]++;
         if (L1dcache_flush)
                 memrefs_cache_flush++;
@@ -1272,7 +1276,9 @@ class BaseCache : public ClockedObject
                 if (memrefs_cache_flush > 100000) {
                         cache_flush();
                         writeback_flush.push_back(writeback_counter);
+                        stale_cachelines.push_back(number_stale_cachelines);
                         writeback_counter=0;
+                        number_stale_cachelines=0;
                         memrefs_cache_flush=0;
                 }
         }
