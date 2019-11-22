@@ -105,7 +105,7 @@ SetAssociative::extractSet_Vaddr_with_hashing(Addr addr, vector<int>
       printf("The setNumber is %lu\n",
                    (((addr >> setShift)^num_to_xor_with))&setMask);
 #endif
-      //random_constant_to_xor_with = 0;
+      num_to_xor_with = 0;
       return (((addr >> setShift)^num_to_xor_with))&setMask;
 }
 
