@@ -83,6 +83,7 @@
 
 using namespace std;
 using namespace TheISA;
+int memRefCommits;
 
 BaseSimpleCPU::BaseSimpleCPU(BaseSimpleCPUParams *p)
     : BaseCPU(p),
@@ -106,6 +107,7 @@ BaseSimpleCPU::BaseSimpleCPU(BaseSimpleCPUParams *p)
         ThreadContext *tc = thread->getTC();
         threadContexts.push_back(tc);
     }
+    memRefCommits = 0;
 
     if (p->checker) {
         if (numThreads != 1)
@@ -593,6 +595,7 @@ BaseSimpleCPU::postExecute()
 
     if (curStaticInst->isMemRef()) {
         t_info.numMemRefs++;
+        memRefCommits++;
     }
 
     if (curStaticInst->isLoad()) {

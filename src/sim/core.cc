@@ -42,7 +42,7 @@
 #include "base/cprintf.hh"
 #include "base/logging.hh"
 #include "base/output.hh"
-#include "cpu/o3/commit.hh"
+#include "cpu/simple/base.hh"
 #include "mem/cache/base.hh"
 #include "sim/eventq.hh"
 
