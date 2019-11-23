@@ -69,6 +69,8 @@ class Checkpoint;
 class Process;
 class Processor;
 class ThreadContext;
+extern int memRefCommits;
+
 
 namespace TheISA
 {
