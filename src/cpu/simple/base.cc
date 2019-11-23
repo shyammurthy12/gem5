@@ -83,6 +83,7 @@
 
 using namespace std;
 using namespace TheISA;
+int memRefCommits;
 
 BaseSimpleCPU::BaseSimpleCPU(BaseSimpleCPUParams *p)
     : BaseCPU(p),
@@ -107,6 +108,7 @@ BaseSimpleCPU::BaseSimpleCPU(BaseSimpleCPUParams *p)
         threadContexts.push_back(tc);
     }
 
+    memRefCommits = 0;
     if (p->checker) {
         if (numThreads != 1)
             fatal("Checker currently does not support SMT");
@@ -593,6 +595,7 @@ BaseSimpleCPU::postExecute()
 
     if (curStaticInst->isMemRef()) {
         t_info.numMemRefs++;
+        memRefCommits++;
     }
 
     if (curStaticInst->isLoad()) {
