@@ -162,10 +162,10 @@ l2_l3_structure::l2_l3_structure(string name, uint64_t region_size){
   bool isl2 = false;
   bool isl3 = false;
 
-  if ( m_name.find("l2cache") != string::npos ){
+  if ( m_name.find("l2") != string::npos ){
         isl2=true;
   }
-  if ( m_name.find("l3cache") != string::npos ){
+  if ( m_name.find("l3") != string::npos ){
         isl3=true;
   }
 

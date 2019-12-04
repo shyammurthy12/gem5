@@ -206,10 +206,14 @@ doExitCleanup()
 //    //printf("The value of the curTick is %lu\n",curTick());
     printf("The number of memory instructions committed is %d\n",
                     memRefCommits);
-    for (int i=0; i<writeback_flush.size(); i++)
-        printf("The number of extra writebacks are %d\n",writeback_flush[i]);
-    for (int i=0; i<stale_cachelines.size(); i++)
-        printf("The number of stale cachelines are %d\n",stale_cachelines[i]);
+//    for (int i=0; i<writeback_flush.size(); i++)
+//      printf("The number of extra writebacks are %d\n",writeback_flush[i]);
+//    for (int i=0; i<stale_cachelines.size(); i++)
+//      printf("The number of stale cachelines are %d\n",stale_cachelines[i]);
+    for (int i=0; i<l2_writeback_flush.size(); i++)
+      printf("The number of extra writebacks are %d\n",l2_writeback_flush[i]);
+    for (int i=0; i<l2_stale_cachelines.size(); i++)
+      printf("The number of stale cachelines are %d\n",l2_stale_cachelines[i]);
     exitCallbacks().process();
     exitCallbacks().clear();
 

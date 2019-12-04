@@ -523,7 +523,7 @@ class Cache : public BaseCache
                 uint64_t PPN = pkt->getAddr() / (m_l2_l3_structure
                         ->get_region_size());
                 uint64_t index_into_hash_lookup_table = PPN &
-                (m_vc_structure->get_hash_lookup_table_size()-1);
+                (m_l2_l3_structure->get_hash_lookup_table_size()-1);
 
                 int temp = index_into_hash_lookup_table;
                 if (!m_l2_l3_structure->hash_entry_to_use_getValid(temp))

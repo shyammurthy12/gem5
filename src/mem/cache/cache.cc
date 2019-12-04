@@ -157,10 +157,11 @@ Cache::Cache(const CacheParams *p)
       num_page_info_change = 0;
 
     }
-    else if ( p->name.find("l2") != string::npos){
+    else if ( p->name.find("l2") != string::npos ||
+                    p->name.find("l3") != string::npos){
       set_is_l1cache(false);
       set_is_l2_l3_cache(true);
-      std::cout<<" This cache is NOT L1Cache ";
+      std::cout<<" This cache is L2/L3 Cache ";
       std::cout<<(p->name);
 
       m_vc_structure = NULL;
@@ -172,7 +173,7 @@ Cache::Cache(const CacheParams *p)
     else {
       set_is_l1cache(false);
       set_is_l2_l3_cache(false);
-      std::cout<<" This cache is L1 ICache ";
+      std::cout<<" This cache is neither L1 nor L2/L3 Cache ";
 
       m_vc_structure = NULL;
       tags->set_VC_structure(m_vc_structure);
