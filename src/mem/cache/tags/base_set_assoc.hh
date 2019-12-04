@@ -261,8 +261,9 @@ class BaseSetAssoc : public BaseTags
          #endif
 
          const std::vector<ReplaceableEntry*> entries =
-         indexingPolicy->getPossibleEntries_with_Vaddr(CPA_Vaddr,
-                         hash_scheme_for_xor);
+         indexingPolicy->getPossibleEntries(CPA_Vaddr);
+        // indexingPolicy->getPossibleEntries_with_Vaddr(CPA_Vaddr,
+        //                 hash_scheme_for_xor);
                         //random_number_to_xor_with);
 
         CacheBlk* victim;

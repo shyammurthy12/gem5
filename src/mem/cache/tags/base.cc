@@ -136,8 +136,7 @@ BaseTags::findBlock(Addr addr, bool is_secure) const
                          CPA_CR3, addr);
 #endif
         const std::vector<ReplaceableEntry*> entries =
-indexingPolicy->getPossibleEntries_with_Vaddr(CPA_Vaddr,
-                hash_scheme_for_xor);
+indexingPolicy->getPossibleEntries(CPA_Vaddr);
       // only leading virtual address
       CacheBlk* target_block = NULL;
      // Search for block
