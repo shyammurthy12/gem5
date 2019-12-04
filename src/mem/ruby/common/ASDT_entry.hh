@@ -25,6 +25,8 @@ using namespace std;
 class hash_function_lookup_table_entry{
 
 public:
+ bool isl1 = false;
+ bool isl2 = false;
 
  void set_hash_entry_to_use(uint64_t _hash_entry_to_use)
  {
@@ -39,18 +41,23 @@ public:
   temp.lifetime = memRefCommits;
   temp.subtraction_done = false;
 
-  //Ongal
-  //to indicate that this entry in the hash
-  //lookup table has been used.
-  hash_entries_used.at(entry_number) = true;
   //set the epoch id when we have a remap.
   //epoch_id = (curTick()&epoch_id_mask)>>number_of_bits_shift;
   epoch_id = (curTick()&epoch_id_mask)>>number_of_bits_shift;
   epoch_id = 0;
   temp.epoch_id = epoch_id;
+  //Ongal
+  //to indicate that this entry in the hash
+  //lookup table has been used.
+  if (isl1) {
+        hash_entries_used.at(entry_number) = true;
+        lifetimes_of_hash_entries.at(entry_number).push_back(temp);
+  } else if (isl2) {
+        l2_hash_entries_used.at(entry_number) = true;
+        l2_lifetimes_of_hash_entries.at(entry_number).push_back(temp);
+  }
 //  printf("The epoch id is (set hash entry to use) %lu and entry number is
 //  %d\n",epoch_id,entry_number);
-  lifetimes_of_hash_entries.at(entry_number).push_back(temp);
 #ifdef Smurthy_debug
   printf("Setting hash_entry to use %lu\n",hash_entry_to_use);
 #endif
@@ -106,8 +113,13 @@ public:
         epoch_id = 0;
         //printf("The epoch id is %lu\n",epoch_id);
 
+  if (isl1) {
         hash_entries_used.at(entry_number) = true;
         lifetimes_of_hash_entries.at(entry_number).push_back(temp);
+  } else if (isl2) {
+        l2_hash_entries_used.at(entry_number) = true;
+        l2_lifetimes_of_hash_entries.at(entry_number).push_back(temp);
+  }
 #ifdef Smurthy_debug
         printf("Setting hash_entry to use %lu\n",hash_entry_to_use);
 #endif
@@ -131,12 +143,26 @@ public:
    {
      //lifetimes_of_hash_entries.at(entry_number).back().lifetime =
      //  curTick()-lifetimes_of_hash_entries.at(entry_number).back().lifetime;
-     lifetimes_of_hash_entries.at(entry_number).back().lifetime =
-     memRefCommits-lifetimes_of_hash_entries.at(entry_number).back().lifetime;
-     //add the epoch id to the lifetime record additionally.
-     lifetimes_of_hash_entries.at(entry_number).back().epoch_id =
-        epoch_id;
-     lifetimes_of_hash_entries.at(entry_number).back().subtraction_done = true;
+     if (isl1) {
+        lifetimes_of_hash_entries.at(entry_number).back().lifetime =
+                memRefCommits
+                -lifetimes_of_hash_entries.at(entry_number).back().lifetime;
+        //add the epoch id to the lifetime record additionally.
+        lifetimes_of_hash_entries.at(entry_number).back().epoch_id =
+                epoch_id;
+        lifetimes_of_hash_entries.at(entry_number).back().subtraction_done
+                = true;
+     } else if (isl2) {
+
+        l2_lifetimes_of_hash_entries.at(entry_number).back().lifetime =
+        memRefCommits-
+        l2_lifetimes_of_hash_entries.at(entry_number).back().lifetime;
+        //add the epoch id to the lifetime record additionally.
+        l2_lifetimes_of_hash_entries.at(entry_number).back().epoch_id =
+                epoch_id;
+        l2_lifetimes_of_hash_entries.at(entry_number).back().subtraction_done
+                = true;
+     }
      valid = false;
      hash_entry_to_use_set = false;
 #ifdef Smurthy_debug

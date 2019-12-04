@@ -160,14 +160,14 @@ l2_l3_structure::l2_l3_structure(string name, uint64_t region_size){
   m_region_size = region_size;
 
   bool isl2 = false;
-  bool isl3 = false;
+  //bool isl3 = false;
 
   if ( m_name.find("l2") != string::npos ){
         isl2=true;
   }
-  if ( m_name.find("l3") != string::npos ){
-        isl3=true;
-  }
+  //if ( m_name.find("l3") != string::npos ){
+  //      isl3=true;
+  //}
 
   if (isl2) {
     m_hash_lookup_table_size = 8;
@@ -175,7 +175,7 @@ l2_l3_structure::l2_l3_structure(string name, uint64_t region_size){
     l2_lifetimes_of_hash_entries.resize(m_hash_lookup_table_size);
     l2_hash_entries_used.resize(m_hash_lookup_table_size);
   }
-  else if (isl3) {
+  else { //if not L2, it has to be L3
     m_hash_lookup_table_size = 8;
     m_size_of_hash_function_list = 8;
     l3_lifetimes_of_hash_entries.resize(m_hash_lookup_table_size);
@@ -183,13 +183,14 @@ l2_l3_structure::l2_l3_structure(string name, uint64_t region_size){
   }
 
   for (int i = 0;i<m_hash_lookup_table_size;i++){
-    hash_entries_used.at(i) = false;
+    l2_hash_entries_used.at(i) = false;
     hash_function_lookup_table_entry temp;
     //invalidate this entry.Made valid when referenced
     //first time and assigned a hash function to use.
     temp.invalidate();
     //set the entry number in the hash lookup
     //table.
+    temp.isl2 = true;
     temp.set_entry_number(i);
     hash_lookup_table.push_back(temp);
   }
@@ -300,6 +301,7 @@ VC_structure::VC_structure(string name,
     //set the entry number in the hash lookup
     //table.
     temp.set_entry_number(i);
+    temp.isl1 = true;
     epoch_id_mask_before_shifting =
             pow(2,number_of_bits_to_use_for_epoch_id)-1;
     epoch_id_mask = (epoch_id_mask_before_shifting<<(number_of_bits_to_shift));
