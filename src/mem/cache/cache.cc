@@ -88,6 +88,7 @@ Cache::Cache(const CacheParams *p)
     if ( p->name.find("dcache") != string::npos){
 
       set_is_l1cache(true);
+      set_is_l2_l3_cache(false);
       std::cout<<" L1Cache is found ";
 
       prev_cr3 = 0;
@@ -101,8 +102,10 @@ Cache::Cache(const CacheParams *p)
                                          numSets,
                                          p->assoc);
 
+      m_l2_l3_structure = NULL;
       // after creating VC structure
       tags->set_VC_structure(m_vc_structure);
+      tags->set_l2_l3_structure(m_l2_l3_structure);
 
       // profiling variables
       num_active_synonym_access = 0;
@@ -153,13 +156,29 @@ Cache::Cache(const CacheParams *p)
 
       num_page_info_change = 0;
 
-    } else {
+    }
+    else if ( p->name.find("l2") != string::npos){
       set_is_l1cache(false);
+      set_is_l2_l3_cache(true);
       std::cout<<" This cache is NOT L1Cache ";
+      std::cout<<(p->name);
 
       m_vc_structure = NULL;
       tags->set_VC_structure(m_vc_structure);
 
+      m_l2_l3_structure = new l2_l3_structure(p->name, REGION_SIZE);
+      tags->set_l2_l3_structure(m_l2_l3_structure);
+    }
+    else {
+      set_is_l1cache(false);
+      set_is_l2_l3_cache(false);
+      std::cout<<" This cache is L1 ICache ";
+
+      m_vc_structure = NULL;
+      tags->set_VC_structure(m_vc_structure);
+
+      m_l2_l3_structure = NULL;
+      tags->set_l2_l3_structure(m_l2_l3_structure);
     }
 
     std::cout<<std::endl;
@@ -469,6 +488,7 @@ bool Cache::BaseCache_access_dup(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
             ASDT_Invalidation_Check(pkt->getAddr(), writebacks);
             #endif
             Add_NEW_ASDT_map_entry(pkt);
+            validate_l2_l3_hash_table(pkt);
             #endif
 
             // need to do a replacement
@@ -855,6 +875,7 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
         ASDT_Invalidation_Check(pkt->req->getPaddr(), writebacks);
         #endif
         Add_NEW_ASDT_map_entry(pkt);
+        validate_l2_l3_hash_table(pkt);
         #endif
 
 

@@ -95,6 +95,14 @@ extern vector<int> writeback_flush;
 extern vector<int> stale_cachelines;
 extern int writeback_counter;
 extern int number_stale_cachelines;
+extern vector<int> l2_writeback_flush;
+extern vector<int> l2_stale_cachelines;
+extern int l2_writeback_counter;
+extern int l2_number_stale_cachelines;
+extern vector<int> l3_writeback_flush;
+extern vector<int> l3_stale_cachelines;
+extern int l3_writeback_counter;
+extern int l3_number_stale_cachelines;
 /**
  * A basic cache interface. Implements some common functions for speed.
  */
@@ -907,6 +915,8 @@ class BaseCache : public ClockedObject
     /** Number of hit for all accesses. */
     Stats::Formula overallHits;
     int memrefs_cache_flush=0;
+    int memrefs_to_l2_cache_flush=0;
+    int memrefs_to_l3_cache_flush=0;
     /** Number of misses per thread for each type of command.
         @sa Packet::Command */
     Stats::Vector misses[MemCmd::NUM_MEM_CMDS];
@@ -1252,9 +1262,21 @@ class BaseCache : public ClockedObject
                 writeback_counter=0;
                 number_stale_cachelines=0;
         }
+        if (memrefs_to_l2_cache_flush==0) {
+                l2_writeback_counter=0;
+                l2_number_stale_cachelines=0;
+        }
+        if (memrefs_to_l3_cache_flush==0) {
+                l3_writeback_counter=0;
+                l3_number_stale_cachelines=0;
+        }
         misses[pkt->cmdToIndex()][pkt->req->masterId()]++;
         if (L1dcache_flush)
                 memrefs_cache_flush++;
+        else if (L2cache_flush)
+                memrefs_to_l2_cache_flush++;
+        else if (L3cache_flush)
+                memrefs_to_l3_cache_flush++;
 //        if (pkt->req->isRequestSpeculativeLoad)
 //	   speculative_misses[pkt->cmdToIndex()][pkt->req->masterId()]++;
         pkt->req->incAccessDepth();
@@ -1266,6 +1288,8 @@ class BaseCache : public ClockedObject
     }
 
     bool L1dcache_flush=0;
+    bool L2cache_flush=0;
+    bool L3cache_flush=0;
 
     void incHitCount(PacketPtr pkt)
     {
@@ -1280,6 +1304,28 @@ class BaseCache : public ClockedObject
                         writeback_counter=0;
                         number_stale_cachelines=0;
                         memrefs_cache_flush=0;
+                }
+        }
+        else if (L2cache_flush) {
+                memrefs_to_l2_cache_flush++;
+                if (memrefs_to_l2_cache_flush > 100000) {
+                    cache_flush();
+                    l2_writeback_flush.push_back(l2_writeback_counter);
+                    l2_stale_cachelines.push_back(l2_number_stale_cachelines);
+                    l2_writeback_counter=0;
+                    l2_number_stale_cachelines=0;
+                    memrefs_to_l2_cache_flush=0;
+                }
+        }
+        else if (L3cache_flush) {
+                memrefs_to_l3_cache_flush++;
+                if (memrefs_to_l3_cache_flush > 100000) {
+                    cache_flush();
+                    l3_writeback_flush.push_back(l3_writeback_counter);
+                    l3_stale_cachelines.push_back(l3_number_stale_cachelines);
+                    l3_writeback_counter=0;
+                    l3_number_stale_cachelines=0;
+                    memrefs_to_l3_cache_flush=0;
                 }
         }
     }

@@ -2,6 +2,10 @@
 using namespace std;
 std::vector<std::vector<lifetime_record>> lifetimes_of_hash_entries;
 std::vector<bool> hash_entries_used;
+std::vector<std::vector<lifetime_record>> l2_lifetimes_of_hash_entries;
+std::vector<bool> l2_hash_entries_used;
+std::vector<std::vector<lifetime_record>> l3_lifetimes_of_hash_entries;
+std::vector<bool> l3_hash_entries_used;
 
 // Function to return the next random number
 int getNum(vector<int>& v)
@@ -151,6 +155,64 @@ ASDT_entry::update_active_synonym_vector(uint64_t VPN, uint64_t CR3){
   synonym_VPN.push_back(VPN);
 }
 
+l2_l3_structure::l2_l3_structure(string name, uint64_t region_size){
+  m_name = name;
+  m_region_size = region_size;
+
+  bool isl2 = false;
+  bool isl3 = false;
+
+  if ( m_name.find("l2cache") != string::npos ){
+        isl2=true;
+  }
+  if ( m_name.find("l3cache") != string::npos ){
+        isl3=true;
+  }
+
+  if (isl2) {
+    m_hash_lookup_table_size = 8;
+    m_size_of_hash_function_list = 8;
+    l2_lifetimes_of_hash_entries.resize(m_hash_lookup_table_size);
+    l2_hash_entries_used.resize(m_hash_lookup_table_size);
+  }
+  else if (isl3) {
+    m_hash_lookup_table_size = 8;
+    m_size_of_hash_function_list = 8;
+    l3_lifetimes_of_hash_entries.resize(m_hash_lookup_table_size);
+    l3_hash_entries_used.resize(m_hash_lookup_table_size);
+  }
+
+  for (int i = 0;i<m_hash_lookup_table_size;i++){
+    hash_entries_used.at(i) = false;
+    hash_function_lookup_table_entry temp;
+    //invalidate this entry.Made valid when referenced
+    //first time and assigned a hash function to use.
+    temp.invalidate();
+    //set the entry number in the hash lookup
+    //table.
+    temp.set_entry_number(i);
+    hash_lookup_table.push_back(temp);
+  }
+  std::cout<<"Hash function lookup table size is "<<
+          hash_lookup_table.size();
+  //for all entries in the list of hash functions, assign
+  //a random constant to xor with. Figure out how we can do this.
+  for (int i = 0;i<m_size_of_hash_function_list;i++)
+  {
+     hashing_functions_table_entry temp;
+     //9-ints for hash scheme
+     vector<int> scheme = generateRandom(17);
+     temp.set_constant_to_xor_with(scheme);
+     cout<<"Random numbers used for " <<i<<": "<<endl;
+     vector<int> scheme_ = temp.get_constant_to_xor_with();
+     for (int i=0; i<scheme_.size(); i++)
+        cout << scheme_[i] << endl;
+     temp.set_of_lines_using_entry(0);
+     list_of_all_hashing_functions.push_back(temp);
+  }
+  std::cout<<"Hashing functions table entry size is "<<
+          list_of_all_hashing_functions.size();
+}
 
 VC_structure::VC_structure(string name,
                            uint64_t region_size,
@@ -195,13 +257,13 @@ VC_structure::VC_structure(string name,
     asdt_way = 16;
     //have this hash lookup table for
     //data cache alone.
-    m_hash_lookup_table_size = 64 ;
-    m_size_of_hash_function_list = 64;
+    m_hash_lookup_table_size = 8 ;
+    m_size_of_hash_function_list = 8;
   }else{
     asdt_set = 8;
     asdt_way = 16;
-    m_hash_lookup_table_size = 0;
-    m_size_of_hash_function_list = 0;
+    m_hash_lookup_table_size = 8;
+    m_size_of_hash_function_list = 8;
   }
 
   m_ASDT_SA_way_size = asdt_way;
@@ -301,6 +363,177 @@ VC_structure::VC_structure(string name,
   SLB_48 = new SLB(48);
 
   //Stats::registerDumpCallback(new VC_structure_Callback(this));
+}
+//krati l2_l3_structure functions
+
+void
+l2_l3_structure::set_hash_entry_to_use(int index_of_entry, uint64_t
+                _hash_entry_to_use)
+{
+   hash_function_lookup_table_entry &temp =
+           hash_lookup_table.at(index_of_entry);
+   return temp.set_hash_entry_to_use(_hash_entry_to_use);
+}
+
+int
+l2_l3_structure::get_hash_lookup_table_size()
+{
+ return m_hash_lookup_table_size;
+}
+
+
+void l2_l3_structure::set_hash_entry_to_use_helper(int index_of_entry){
+
+        int random_number_to_xor_with = rand()%m_size_of_hash_function_list;
+#ifdef Smurthy_debug
+        printf("Setting random number to xor (%d) for index (%d)\n",
+                        random_number_to_xor_with,index_of_entry);
+#endif
+        return set_hash_entry_to_use(index_of_entry,
+                        random_number_to_xor_with);
+}
+
+uint64_t
+l2_l3_structure::get_hash_entry_to_use(int index_of_entry)
+{
+  return hash_lookup_table.at(index_of_entry).get_hash_entry_to_use();
+}
+
+bool
+l2_l3_structure::get_notRecycled(int index_of_entry)
+{
+  return hash_lookup_table.at(index_of_entry).get_notRecycled();
+}
+
+void
+l2_l3_structure::set_notRecycled()
+{
+  for (int i=0; i< m_hash_lookup_table_size; i++) {
+        hash_lookup_table.at(i).set_notRecycled();
+  }
+  return;
+}
+
+
+
+void
+l2_l3_structure::hash_entry_to_use_inc_number_of_cache_lines(int
+                index_of_entry,int number_of_hashing_functions)
+{
+  int temp = index_of_entry;
+  int temp1 = number_of_hashing_functions;
+  return hash_lookup_table.at(temp).inc_number_of_cache_lines(temp1);
+}
+void
+l2_l3_structure::hash_entry_to_use_dec_number_of_cache_lines(int
+                index_of_entry)
+{
+  return hash_lookup_table.at(index_of_entry).dec_number_of_cache_lines();
+}
+bool
+l2_l3_structure::hash_entry_to_use_getValid(int index_of_entry)
+{
+  return hash_lookup_table.at(index_of_entry).getValid();
+}
+void
+l2_l3_structure::hash_entry_to_use_setValid(int index_of_entry)
+{
+  return hash_lookup_table.at(index_of_entry).setValid();
+}
+void
+l2_l3_structure::hash_entry_to_use_invalidate(int index_of_entry)
+{
+  return hash_lookup_table.at(index_of_entry).invalidate();
+}
+vector<int>
+l2_l3_structure::hashing_function_to_use_get_constant_to_xor_with(int
+                index_of_entry){
+   hashing_functions_table_entry &temp =
+           list_of_all_hashing_functions.at(index_of_entry);
+   return temp.get_constant_to_xor_with();
+  }
+void
+l2_l3_structure::hashing_function_to_use_set_constant_to_xor_with(int
+                index_of_entry, vector<int> _set_constant_to_xor_with){
+  hashing_functions_table_entry &temp =
+          list_of_all_hashing_functions.at(index_of_entry);
+  return temp.set_constant_to_xor_with(_set_constant_to_xor_with);
+}
+void
+l2_l3_structure::hashing_function_to_use_set_of_lines_using_entry(int
+                index_of_entry, int  _number_of_cache_lines){
+
+  hashing_functions_table_entry &temp =
+          list_of_all_hashing_functions.at(index_of_entry);
+  return temp.set_of_lines_using_entry(_number_of_cache_lines);
+}
+
+void
+l2_l3_structure::hashing_function_to_use_increment_number_of_lines_using_entry
+(int index_of_entry){
+
+    hashing_functions_table_entry &temp =
+            list_of_all_hashing_functions.at(index_of_entry);
+   return temp.increment_number_of_lines_using_entry();
+}
+void
+l2_l3_structure::hashing_function_to_use_decrement_number_of_lines_using_entry
+(int index_of_entry){
+    hashing_functions_table_entry &temp =
+            list_of_all_hashing_functions.at(index_of_entry);
+    return temp.decrement_number_of_lines_using_entry();
+}
+
+
+
+void
+l2_l3_structure::update_hash_table_entry( const Addr addr,
+                           bool allocate){
+
+  // physical page number (PPN)
+  uint64_t PPN = addr / get_region_size();
+#ifdef Smurthy_debug
+  printf("The PPN is %ld and address is %lld\n",PPN,addr.getAddress());
+  if (allocate)
+    printf("We have an allocate\n");
+  else
+    printf("No allocate\n");
+#endif
+
+  if ( allocate ){
+    // when a new cache line is allocated
+    //increment the number of cache lines at VPN^CR3
+    uint64_t index_into_hash_table = PPN & (m_hash_lookup_table_size-1);
+
+    //entry in the hash lookup table.
+#ifdef Smurthy_debug
+    printf("Incrementing number of cache lines for"
+                    "entry %lu\n",index_into_hash_table);
+#endif
+    hash_entry_to_use_inc_number_of_cache_lines(index_into_hash_table,
+                m_size_of_hash_function_list);
+
+  }else{
+
+    //decrement the number of cache lines at VPN^CR3
+    uint64_t index_into_hash_table = PPN & (m_hash_lookup_table_size-1);
+   // printf("The index into the hash table is %ld\n",index_into_hash_table);
+    //entry should be valid.
+    if (!(hash_entry_to_use_getValid(index_into_hash_table)))
+    {
+      cout <<"What?? This entry in the hash lookup table should be valid\n";
+      abort();
+    }
+    else
+    {
+#ifdef Smurthy_debug
+        printf("Decrementing number of cache lines for"
+                    "entry %lu\n",index_into_hash_table);
+#endif
+        hash_entry_to_use_dec_number_of_cache_lines(index_into_hash_table);
+    }
+  }
+  return;
 }
 
 //Ongal

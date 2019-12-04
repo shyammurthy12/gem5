@@ -205,11 +205,13 @@ class Cache : public BaseCache
 #ifdef Ongal_VC
 
     VC_structure *m_vc_structure; // virtual cache structures
+    l2_l3_structure *m_l2_l3_structure; // l2,l3 cache structures
 
     int64 m_num_accesses;         // num cache access count
 
     uint64_t prev_cr3;              // track cr3 for previous access
     bool   m_is_l1cache;
+    bool   m_is_l2_l3_cache;
     uint64_t m_region_size;
 
     int m_cache_num_sets;
@@ -220,6 +222,9 @@ class Cache : public BaseCache
     void set_is_l1cache( bool _m_is_l1cache){ m_is_l1cache = _m_is_l1cache; }
     bool get_is_l1cache(){ return m_is_l1cache; }
 
+    void set_is_l2_l3_cache( bool _m_is_l2_l3_cache)
+    { m_is_l2_l3_cache = _m_is_l2_l3_cache; }
+    bool get_is_l2_l3_cache(){ return m_is_l2_l3_cache; }
     // Find victims ASDT Set Associative Array
     // Additionally also return the leading virtual page as well as
     // the CR3 value.
@@ -513,6 +518,23 @@ class Cache : public BaseCache
       }
     }
 
+    void validate_l2_l3_hash_table(PacketPtr pkt) {
+        if (get_is_l2_l3_cache()) {
+                uint64_t PPN = pkt->getAddr() / (m_l2_l3_structure
+                        ->get_region_size());
+                uint64_t index_into_hash_lookup_table = PPN &
+                (m_vc_structure->get_hash_lookup_table_size()-1);
+
+                int temp = index_into_hash_lookup_table;
+                if (!m_l2_l3_structure->hash_entry_to_use_getValid(temp))
+                {
+                 m_l2_l3_structure->hash_entry_to_use_setValid(temp);
+                 m_l2_l3_structure->set_hash_entry_to_use_helper(temp);
+                }
+        }
+
+    }
+
     void Add_NEW_ASDT_map_entry(PacketPtr pkt){
 
       // do it only for L1 Virtual Cache
@@ -550,7 +572,6 @@ class Cache : public BaseCache
          m_vc_structure->set_hash_entry_to_use_helper(temp);
         }
       }
-
     }
 
   // This can be deleted never used.

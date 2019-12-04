@@ -235,8 +235,61 @@ public:
 };
 
 
+class l2_l3_structure{
 
+public:
+  l2_l3_structure(string name, uint64_t region_size);
 
+  void set_region_size( uint64_t region_size ){ m_region_size = region_size; }
+  uint64_t get_region_size(){ return m_region_size; }
+  void set_random_number_to_hash_with(uint32_t random_number)
+  { random_number_to_hash_with = random_number; }
+  uint32_t get_random_number_to_hash_with(){ return
+          random_number_to_hash_with;}
+  //hash lookup table operations
+  void set_hash_entry_to_use(int index_of_entry,
+                  uint64_t _hash_entry_to_use);
+  void set_hash_entry_to_use_helper(int index_of_entry);
+  uint64_t get_hash_entry_to_use(int index_of_entry);
+  bool get_notRecycled(int index_of_entry);
+  void set_notRecycled();
+  void hash_entry_to_use_inc_number_of_cache_lines(int index_of_entry,int
+                  number_of_hashing_functions);
+  void hash_entry_to_use_dec_number_of_cache_lines(int index_of_entry);
+  bool hash_entry_to_use_getValid(int index_of_entry);
+  void hash_entry_to_use_setValid(int index_of_entry);
+  void hash_entry_to_use_invalidate(int index_of_entry);
+
+  int get_hash_lookup_table_size();
+  void update_hash_table_entry(const Addr addr, bool allocate);
+  //hashing functions table entry
+
+  vector<int> hashing_function_to_use_get_constant_to_xor_with(int
+                  index_of_entry);
+  void hashing_function_to_use_set_constant_to_xor_with(int index_of_entry,
+                  vector<int> _set_constant_to_xor_with);
+  void hashing_function_to_use_set_of_lines_using_entry(int index_of_entry, int
+                  _number_of_cache_lines);
+  //pass in the number of hashing functions, so we can pick one out of the
+  //n at random.
+  void hashing_function_to_use_increment_number_of_lines_using_entry(int
+                  index_of_entry);
+  void hashing_function_to_use_decrement_number_of_lines_using_entry(int
+                  index_of_entry);
+  string name(){return m_name;}
+private:
+  string m_name;
+  uint64_t m_region_size;
+  uint32_t random_number_to_hash_with;
+  //hash_function_lookup_table
+  std::vector<hash_function_lookup_table_entry> hash_lookup_table;
+  //lookup table size
+  int m_hash_lookup_table_size;
+  //list of all hashing functions.
+  std::vector<hashing_functions_table_entry> list_of_all_hashing_functions;
+  //number of hash functions
+  int m_size_of_hash_function_list;
+};
 
 // data structure of an ASDT map
 class ASDT_entry{

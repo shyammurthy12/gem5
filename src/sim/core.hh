@@ -62,6 +62,10 @@ struct lifetime_record
 };
 extern std::vector<std::vector<lifetime_record>> lifetimes_of_hash_entries;
 extern std::vector<bool> hash_entries_used;
+extern std::vector<std::vector<lifetime_record>> l2_lifetimes_of_hash_entries;
+extern std::vector<bool> l2_hash_entries_used;
+extern std::vector<std::vector<lifetime_record>> l3_lifetimes_of_hash_entries;
+extern std::vector<bool> l3_hash_entries_used;
 /// The universal simulation clock.
 inline Tick curTick() { return _curEventQueue->getCurTick(); }
 

@@ -69,6 +69,14 @@ int number_stale_cachelines;
 vector<int> writeback_flush;
 vector<int> stale_cachelines;
 
+vector<int> l2_writeback_flush;
+vector<int> l2_stale_cachelines;
+int l2_writeback_counter;
+int l2_number_stale_cachelines;
+vector<int> l3_writeback_flush;
+vector<int> l3_stale_cachelines;
+int l3_writeback_counter;
+int l3_number_stale_cachelines;
 using namespace std;
 
 BaseCache::CacheSlavePort::CacheSlavePort(const std::string &_name,
@@ -129,6 +137,12 @@ BaseCache::BaseCache(const BaseCacheParams *p, unsigned blk_size)
 
     if (p->name.find("dcache") !=string::npos ) {
         L1dcache_flush=1;
+    }
+    if (p->name.find("l2cache") !=string::npos ) {
+        L2cache_flush=1;
+    }
+    if (p->name.find("l3cache") !=string::npos ) {
+        L3cache_flush=1;
     }
     if (prefetcher)
         prefetcher->setCache(this);
@@ -1459,6 +1473,7 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
                                           pkt->req->get_is_writable_page());
 
                 }
+
                 evictBlock(blk, writebacks);
             }
         }
@@ -1511,6 +1526,14 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
                   <<" CR3 "<<pkt->req->getCR3()<<endl;
          */
        }
+
+       else if (tags->get_l2_l3_structure() != NULL) {
+         tags->get_l2_l3_structure()->
+                 update_hash_table_entry(pkt->req->getPaddr(), true);
+         if (victim->isValid())
+                tags->get_l2_l3_structure()->
+                        update_hash_table_entry(victim->paddr, false);
+       }
        #endif
        // Insert new block at victimized entry
 
@@ -1547,6 +1570,14 @@ BaseCache::invalidateBlock(CacheBlk *blk)
                                             false);
          }
        }
+       else if (tags->get_l2_l3_structure() != NULL) {
+
+         if (blk->isValid()){
+           Addr repl_addr = blk->paddr;
+           tags->get_l2_l3_structure()->
+                   update_hash_table_entry(repl_addr, true);
+          }
+        }
        #endif
 
         tags->invalidate(blk);
@@ -1720,7 +1751,12 @@ BaseCache::partialFlushWritebackVisitor(CacheBlk &blk)
         packet.dataStatic(blk.data);
 
         memSidePort.sendFunctional(&packet);
-        writeback_counter++;
+        if (L1dcache_flush)
+                writeback_counter++;
+        if (L2cache_flush)
+                l2_writeback_counter++;
+        if (L3cache_flush)
+                l3_writeback_counter++;
         blk.status &= ~BlkDirty;
     }
 }
@@ -1735,6 +1771,12 @@ BaseCache::partialFlushInvalidateVisitor(CacheBlk &blk)
     if (blk.isValid() && blk.isHashRecycled()) {
         assert(!blk.isDirty());
         number_stale_cachelines++;
+        if (L1dcache_flush)
+                number_stale_cachelines++;
+        if (L2cache_flush)
+                l2_number_stale_cachelines++;
+        if (L3cache_flush)
+                l3_number_stale_cachelines++;
         invalidateBlock(&blk);
     }
     else if (blk.isValid() && !blk.isHashRecycled()) {
@@ -1765,7 +1807,12 @@ BaseCache::writebackVisitor(CacheBlk &blk)
         packet.dataStatic(blk.data);
 
         memSidePort.sendFunctional(&packet);
-        writeback_counter++;
+        if (L1dcache_flush)
+                writeback_counter++;
+        if (L2cache_flush)
+                l2_writeback_counter++;
+        if (L3cache_flush)
+                l3_writeback_counter++;
         blk.status &= ~BlkDirty;
     }
 }
@@ -1779,6 +1826,12 @@ BaseCache::invalidateVisitor(CacheBlk &blk)
 
     if (blk.isValid()) {
         assert(!blk.isDirty());
+        if (L1dcache_flush)
+                number_stale_cachelines++;
+        if (L2cache_flush)
+                l2_number_stale_cachelines++;
+        if (L3cache_flush)
+                l3_number_stale_cachelines++;
         invalidateBlock(&blk);
     }
 }

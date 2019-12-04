@@ -282,6 +282,55 @@ class BaseSetAssoc : public BaseTags
         return victim;
       }
     }
+     else if (get_l2_l3_structure() != NULL){
+       uint64_t Region_Size = get_l2_l3_structure()->get_region_size();
+
+       uint64_t PPN = addr/Region_Size;
+         vector<int> hash_scheme_for_xor;
+         uint64_t index_into_hash_lookup_table = PPN &
+                  (m_l2_l3_structure->get_hash_lookup_table_size()-1);
+
+#ifdef Smurthy_debug
+         printf("Index into the hash lookup table(findVictim) is %ld\n",
+                         index_into_hash_lookup_table);
+#endif
+         //if the entry in the hash lookup table is valid
+         int temp = index_into_hash_lookup_table;
+         if (get_l2_l3_structure()->hash_entry_to_use_getValid(temp))
+         {
+           //obtain the hash entry to use.
+           uint64_t hash_entry_to_use =
+                   get_l2_l3_structure()->get_hash_entry_to_use(temp);
+           //the hashing function table is always assumed
+           //to have a valid entry that can be used.
+   temp = hash_entry_to_use;
+   hash_scheme_for_xor =
+    get_l2_l3_structure()->
+    hashing_function_to_use_get_constant_to_xor_with(temp);
+
+         }
+         //absence of a valid entry, indicates
+         //a miss in the cache.
+         else
+         {
+            cout<<"What??. The entry should be valid when in findVictim()\n";
+            abort();
+         }
+
+         const std::vector<ReplaceableEntry*> entries =
+         indexingPolicy->getPossibleEntries_with_Vaddr(addr,
+                         hash_scheme_for_xor);
+                        //random_number_to_xor_with);
+
+        CacheBlk* victim;
+        victim = static_cast<CacheBlk*>(replacementPolicy->getVictim(
+                                entries));
+
+        // There is only one eviction for this replacement
+        evict_blks.push_back(victim);
+
+        return victim;
+    }
 #endif
 #endif
         // Get possible entries to be victimized

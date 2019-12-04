@@ -162,11 +162,18 @@ class BaseTags : public ClockedObject
 
 #ifdef Ongal_VC
     VC_structure *m_vc_structure; // virtual cache structures
+    l2_l3_structure *m_l2_l3_structure; // l2,l3 cache structures
     void set_VC_structure( VC_structure * pointer ){
             m_vc_structure = pointer;
     }
     VC_structure * get_VC_structure() const {
             return m_vc_structure;
+    }
+    void set_l2_l3_structure( l2_l3_structure * pointer ){
+            m_l2_l3_structure = pointer;
+    }
+    l2_l3_structure * get_l2_l3_structure() const {
+            return m_l2_l3_structure;
     }
     unsigned getBlockSize() const
     {

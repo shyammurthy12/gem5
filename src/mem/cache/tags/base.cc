@@ -155,6 +155,58 @@ indexingPolicy->getPossibleEntries_with_Vaddr(CPA_Vaddr,
 
       }
     }
+     else if (get_l2_l3_structure() != NULL){
+       uint64_t Region_Size = get_l2_l3_structure()->get_region_size();
+       uint64_t PPN = addr/Region_Size;
+
+         vector<int> hash_scheme_for_xor;
+         uint64_t index_into_hash_lookup_table = PPN &
+                  (m_l2_l3_structure->get_hash_lookup_table_size()-1);
+#ifdef Smurthy_debug
+         printf("Index into the hash lookup table(findBlock) is %ld\n",
+                         index_into_hash_lookup_table);
+#endif
+         //if the entry in the hash lookup table is valid
+         int temp = index_into_hash_lookup_table;
+         if (get_l2_l3_structure()->hash_entry_to_use_getValid(temp))
+         {
+           //obtain the hash entry to use.
+           uint64_t hash_entry_to_use =
+                   get_l2_l3_structure()->get_hash_entry_to_use(temp);
+           //the hashing function table is always assumed
+           //to have a valid entry that can be used.
+           int temp1 = hash_entry_to_use;
+           hash_scheme_for_xor =
+                   get_l2_l3_structure()->
+                   hashing_function_to_use_get_constant_to_xor_with(temp1);
+
+         }
+         //absence of a valid entry, indicates
+         //a miss in the cache.
+         else
+         {
+          return NULL;
+         }
+        const std::vector<ReplaceableEntry*> entries =
+indexingPolicy->getPossibleEntries_with_Vaddr(addr,
+                hash_scheme_for_xor);
+      // only leading virtual address
+      CacheBlk* target_block = NULL;
+     // Search for block
+     for (const auto& location : entries) {
+         CacheBlk* blk = static_cast<CacheBlk*>(location);
+         //if ((blk->vtag == extractTag(CPA_Vaddr))&& (CPA_CR3 == blk->cr3) &&
+         //part of the temporary hack
+         if ((blk->tag == addr/64)&&
+                 (blk->isValid()) &&
+             (blk->isSecure() == is_secure)) {
+             target_block =  blk;
+         }
+     }
+     return target_block;
+
+      }
+
 #endif
 #endif
 
@@ -306,6 +358,34 @@ BaseTags::insertBlock(const PacketPtr pkt, CacheBlk *blk)
            {
              blk->hashRecycled =
                    get_VC_structure()->get_notRecycled(temp);
+           }
+           //absence of a valid entry, indicates
+           //a miss in the cache.
+           else
+           {
+             std::cout<<"tags->insertblock(), should find a corresponding hash"
+                     "entry in a map";
+             abort();
+           }
+         }
+         else if (get_l2_l3_structure() != NULL){
+
+       uint64_t Region_Size = get_l2_l3_structure()->get_region_size();
+           // Access ASDT and get correct ASDT and CR3
+           uint64_t PPN = pkt->req->getPaddr()/Region_Size;
+           blk->tag = pkt->req->getPaddr()/64;
+           uint64_t index_into_hash_lookup_table = PPN &
+                  (m_l2_l3_structure->get_hash_lookup_table_size()-1);
+#ifdef Smurthy_debug
+           printf("Index into the hash lookup table(findBlock) is %ld\n",
+                         index_into_hash_lookup_table);
+#endif
+           //if the entry in the hash lookup table is valid
+           int temp = index_into_hash_lookup_table;
+           if (get_l2_l3_structure()->hash_entry_to_use_getValid(temp))
+           {
+             blk->hashRecycled =
+                   get_l2_l3_structure()->get_notRecycled(temp);
            }
            //absence of a valid entry, indicates
            //a miss in the cache.
