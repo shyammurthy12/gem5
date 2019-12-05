@@ -135,13 +135,13 @@ BaseCache::BaseCache(const BaseCacheParams *p, unsigned blk_size)
     tags->tagsInit();
 
 
-    if (p->name.find("dcache") !=string::npos ) {
-        L1dcache_flush=1;
-    }
-    if (p->name.find("l2cache") !=string::npos ) {
+   // if (p->name.find("dcache") !=string::npos ) {
+   //     L1dcache_flush=1;
+   // }
+    if (p->name.find("l2") !=string::npos ) {
         L2cache_flush=1;
     }
-    if (p->name.find("l3cache") !=string::npos ) {
+    if (p->name.find("l3") !=string::npos ) {
         L3cache_flush=1;
     }
     if (prefetcher)
@@ -1701,7 +1701,7 @@ BaseCache::partialFlushMemInvalidate()
 {
     tags->forEachBlk([this](CacheBlk &blk) {
                     partialFlushInvalidateVisitor(blk); });
-    tags->get_VC_structure()->set_notRecycled();
+    tags->get_l2_l3_structure()->set_notRecycled();
 }
 
 void
@@ -1751,8 +1751,8 @@ BaseCache::partialFlushWritebackVisitor(CacheBlk &blk)
         packet.dataStatic(blk.data);
 
         memSidePort.sendFunctional(&packet);
-        if (L1dcache_flush)
-                writeback_counter++;
+       // if (L1dcache_flush)
+       //         writeback_counter++;
         if (L2cache_flush)
                 l2_writeback_counter++;
         if (L3cache_flush)
@@ -1771,8 +1771,8 @@ BaseCache::partialFlushInvalidateVisitor(CacheBlk &blk)
     if (blk.isValid() && blk.isHashRecycled()) {
         assert(!blk.isDirty());
         number_stale_cachelines++;
-        if (L1dcache_flush)
-                number_stale_cachelines++;
+       // if (L1dcache_flush)
+       //         number_stale_cachelines++;
         if (L2cache_flush)
                 l2_number_stale_cachelines++;
         if (L3cache_flush)
@@ -1807,8 +1807,8 @@ BaseCache::writebackVisitor(CacheBlk &blk)
         packet.dataStatic(blk.data);
 
         memSidePort.sendFunctional(&packet);
-        if (L1dcache_flush)
-                writeback_counter++;
+       // if (L1dcache_flush)
+       //         writeback_counter++;
         if (L2cache_flush)
                 l2_writeback_counter++;
         if (L3cache_flush)
@@ -1826,8 +1826,8 @@ BaseCache::invalidateVisitor(CacheBlk &blk)
 
     if (blk.isValid()) {
         assert(!blk.isDirty());
-        if (L1dcache_flush)
-                number_stale_cachelines++;
+       // if (L1dcache_flush)
+       //         number_stale_cachelines++;
         if (L2cache_flush)
                 l2_number_stale_cachelines++;
         if (L3cache_flush)

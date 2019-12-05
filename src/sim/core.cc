@@ -204,7 +204,7 @@ doExitCleanup()
 //    printf("The maximum lifetime across all entries is %lu\n",
 //                    max_record_lifetime_across_all_entries);
 //    //printf("The value of the curTick is %lu\n",curTick());
-    printf("The number of memory instructions committed is %d\n",
+    printf("The number of memory instructions committed is %ld\n",
                     memRefCommits);
 //    for (int i=0; i<writeback_flush.size(); i++)
 //      printf("The number of extra writebacks are %d\n",writeback_flush[i]);

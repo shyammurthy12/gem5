@@ -1258,10 +1258,10 @@ class BaseCache : public ClockedObject
     void incMissCount(PacketPtr pkt)
     {
         assert(pkt->req->masterId() < system->maxMasters());
-        if (memrefs_cache_flush==0) {
-                writeback_counter=0;
-                number_stale_cachelines=0;
-        }
+       // if (memrefs_cache_flush==0) {
+       //         writeback_counter=0;
+       //         number_stale_cachelines=0;
+       // }
         if (memrefs_to_l2_cache_flush==0) {
                 l2_writeback_counter=0;
                 l2_number_stale_cachelines=0;
@@ -1271,9 +1271,9 @@ class BaseCache : public ClockedObject
                 l3_number_stale_cachelines=0;
         }
         misses[pkt->cmdToIndex()][pkt->req->masterId()]++;
-        if (L1dcache_flush)
-                memrefs_cache_flush++;
-        else if (L2cache_flush)
+       // if (L1dcache_flush)
+        //        memrefs_cache_flush++;
+        if (L2cache_flush)
                 memrefs_to_l2_cache_flush++;
         else if (L3cache_flush)
                 memrefs_to_l3_cache_flush++;
@@ -1295,20 +1295,21 @@ class BaseCache : public ClockedObject
     {
         assert(pkt->req->masterId() < system->maxMasters());
         hits[pkt->cmdToIndex()][pkt->req->masterId()]++;
-        if (L1dcache_flush) {
-                memrefs_cache_flush++;
-                if (memrefs_cache_flush > 100000) {
-                        cache_flush();
-                        writeback_flush.push_back(writeback_counter);
-                        stale_cachelines.push_back(number_stale_cachelines);
-                        writeback_counter=0;
-                        number_stale_cachelines=0;
-                        memrefs_cache_flush=0;
-                }
-        }
-        else if (L2cache_flush) {
+      //  if (L1dcache_flush) {
+      //          memrefs_cache_flush++;
+      //          if (memrefs_cache_flush > 100000) {
+      //                  cache_flush();
+      //                  writeback_flush.push_back(writeback_counter);
+      //                  stale_cachelines.push_back(number_stale_cachelines);
+      //                  writeback_counter=0;
+      //                  number_stale_cachelines=0;
+      //                  memrefs_cache_flush=0;
+      //          }
+      //  }
+        if (L2cache_flush) {
+
                 memrefs_to_l2_cache_flush++;
-                if (memrefs_to_l2_cache_flush > 100000) {
+                if (memrefs_to_l2_cache_flush > 10000) {
                     cache_flush();
                     l2_writeback_flush.push_back(l2_writeback_counter);
                     l2_stale_cachelines.push_back(l2_number_stale_cachelines);
@@ -1319,7 +1320,7 @@ class BaseCache : public ClockedObject
         }
         else if (L3cache_flush) {
                 memrefs_to_l3_cache_flush++;
-                if (memrefs_to_l3_cache_flush > 100000) {
+                if (memrefs_to_l3_cache_flush > 10) {
                     cache_flush();
                     l3_writeback_flush.push_back(l3_writeback_counter);
                     l3_stale_cachelines.push_back(l3_number_stale_cachelines);
