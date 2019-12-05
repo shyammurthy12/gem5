@@ -1701,7 +1701,10 @@ BaseCache::partialFlushMemInvalidate()
 {
     tags->forEachBlk([this](CacheBlk &blk) {
                     partialFlushInvalidateVisitor(blk); });
-    tags->get_VC_structure()->set_notRecycled();
+    if (L1dcache_flush)
+        tags->get_VC_structure()->set_notRecycled();
+    else if (L2cache_flush)
+        tags->get_l2_l3_structure()->set_notRecycled();
 }
 
 void

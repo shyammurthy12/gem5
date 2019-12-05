@@ -83,7 +83,7 @@
 
 using namespace std;
 using namespace TheISA;
-int memRefCommits;
+uint64_t memRefCommits;
 
 BaseSimpleCPU::BaseSimpleCPU(BaseSimpleCPUParams *p)
     : BaseCPU(p),

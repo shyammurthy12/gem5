@@ -1308,7 +1308,7 @@ class BaseCache : public ClockedObject
         }
         else if (L2cache_flush) {
                 memrefs_to_l2_cache_flush++;
-                if (memrefs_to_l2_cache_flush > 100000) {
+                if (memrefs_to_l2_cache_flush > 10000) {
                     cache_flush();
                     l2_writeback_flush.push_back(l2_writeback_counter);
                     l2_stale_cachelines.push_back(l2_number_stale_cachelines);
