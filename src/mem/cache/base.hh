@@ -1318,7 +1318,7 @@ class BaseCache : public ClockedObject
                     //l2_stale_cachelines.push_back
                     //(l2_number_stale_cachelines);
                     l2_fraction_stale_cachelines.push_back
-                (l2_number_stale_cachelines/l2_number_valid_cachelines);
+                ((float)l2_number_stale_cachelines/l2_number_valid_cachelines);
                     l2_writeback_counter=0;
                     l2_number_stale_cachelines=0;
                     l2_number_valid_cachelines=0;
