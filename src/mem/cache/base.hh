@@ -97,8 +97,10 @@ extern int writeback_counter;
 extern int number_stale_cachelines;
 extern vector<int> l2_writeback_flush;
 extern vector<int> l2_stale_cachelines;
+extern vector<float> l2_fraction_stale_cachelines;
 extern int l2_writeback_counter;
 extern int l2_number_stale_cachelines;
+extern int l2_number_valid_cachelines;
 extern vector<int> l3_writeback_flush;
 extern vector<int> l3_stale_cachelines;
 extern int l3_writeback_counter;
@@ -1265,6 +1267,7 @@ class BaseCache : public ClockedObject
         if (memrefs_to_l2_cache_flush==0) {
                 l2_writeback_counter=0;
                 l2_number_stale_cachelines=0;
+                l2_number_valid_cachelines=0;
         }
         if (memrefs_to_l3_cache_flush==0) {
                 l3_writeback_counter=0;
@@ -1312,9 +1315,13 @@ class BaseCache : public ClockedObject
                 if (memrefs_to_l2_cache_flush > 10000) {
                     cache_flush();
                     l2_writeback_flush.push_back(l2_writeback_counter);
-                    l2_stale_cachelines.push_back(l2_number_stale_cachelines);
+                    //l2_stale_cachelines.push_back
+                    //(l2_number_stale_cachelines);
+                    l2_fraction_stale_cachelines.push_back
+                (l2_number_stale_cachelines/l2_number_valid_cachelines);
                     l2_writeback_counter=0;
                     l2_number_stale_cachelines=0;
+                    l2_number_valid_cachelines=0;
                     memrefs_to_l2_cache_flush=0;
                 }
         }

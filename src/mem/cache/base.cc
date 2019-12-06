@@ -75,6 +75,8 @@ int l2_writeback_counter;
 int l2_number_stale_cachelines;
 vector<int> l3_writeback_flush;
 vector<int> l3_stale_cachelines;
+vector<float> l2_fraction_stale_cachelines;
+int l2_number_valid_cachelines;
 int l3_writeback_counter;
 int l3_number_stale_cachelines;
 using namespace std;
@@ -1768,16 +1770,19 @@ BaseCache::partialFlushInvalidateVisitor(CacheBlk &blk)
         warn_once("Invalidating dirty cache lines. " \
                   "Expect things to break.\n");
 
-    if (blk.isValid() && blk.isHashRecycled()) {
-        assert(!blk.isDirty());
-        number_stale_cachelines++;
-       // if (L1dcache_flush)
-       //         number_stale_cachelines++;
-        if (L2cache_flush)
-                l2_number_stale_cachelines++;
-        if (L3cache_flush)
-                l3_number_stale_cachelines++;
-        invalidateBlock(&blk);
+    if (blk.isValid()) {
+        l2_number_valid_cachelines++;
+        if (blk.isHashRecycled()) {
+                assert(!blk.isDirty());
+                number_stale_cachelines++;
+                // if (L1dcache_flush)
+                //         number_stale_cachelines++;
+                if (L2cache_flush)
+                        l2_number_stale_cachelines++;
+                if (L3cache_flush)
+                        l3_number_stale_cachelines++;
+                invalidateBlock(&blk);
+        }
     }
     else if (blk.isValid() && !blk.isHashRecycled()) {
             blk.hashRecycled=1;
