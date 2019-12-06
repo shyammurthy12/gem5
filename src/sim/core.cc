@@ -155,53 +155,54 @@ void
 doExitCleanup()
 {
     printf("Hello, end of simulation\n");
-    uint64_t max_record_lifetime_across_all_entries = 0;
-    for (int i = 0;i<lifetimes_of_hash_entries.size();i++)
-    {
-     if (hash_entries_used.at(i))
-     {
-       printf("We have %lu lifetime records for entry %d\n",
-              lifetimes_of_hash_entries.at(i).size(),
-                i);
-       if (!lifetimes_of_hash_entries.at(i).back().subtraction_done){
-         printf("The record for entry %d is still present\n",i);
-         //lifetimes_of_hash_entries.at(i).back().lifetime =
-         // curTick()-lifetimes_of_hash_entries.at(i).back().lifetime;
-         lifetimes_of_hash_entries.at(i).back().lifetime =
-          memRefCommits-lifetimes_of_hash_entries.at(i).back().lifetime;
-       }
-       int  max_subrecord;
-       max_subrecord = 0;
-       uint64_t max_subrecord_lifetime,max_epoch_id;
-       max_subrecord_lifetime = lifetimes_of_hash_entries.at(i).at(0).lifetime;
-       max_epoch_id = lifetimes_of_hash_entries.at(i).at(0).epoch_id;
-       for (int j = 0;j<lifetimes_of_hash_entries.at(i).size();j++)
-       {
-          if (lifetimes_of_hash_entries.at(i).at(j).lifetime >
-                          max_subrecord_lifetime)
-          {
-            max_subrecord_lifetime =
-                    lifetimes_of_hash_entries.at(i).at(j).lifetime;
-            max_epoch_id = lifetimes_of_hash_entries.at(i).at(j).epoch_id;
-            max_subrecord = j;
-          }
+   // uint64_t max_record_lifetime_across_all_entries = 0;
+   // for (int i = 0;i<lifetimes_of_hash_entries.size();i++)
+   // {
+   //  if (hash_entries_used.at(i))
+   //  {
+   //    printf("We have %lu lifetime records for entry %d\n",
+   //           lifetimes_of_hash_entries.at(i).size(),
+   //             i);
+   //    if (!lifetimes_of_hash_entries.at(i).back().subtraction_done){
+   //      printf("The record for entry %d is still present\n",i);
+   //      //lifetimes_of_hash_entries.at(i).back().lifetime =
+   //      // curTick()-lifetimes_of_hash_entries.at(i).back().lifetime;
+   //      lifetimes_of_hash_entries.at(i).back().lifetime =
+   //       memRefCommits-lifetimes_of_hash_entries.at(i).back().lifetime;
+   //    }
+   //    int  max_subrecord;
+   //    max_subrecord = 0;
+   //    uint64_t max_subrecord_lifetime,max_epoch_id;
+   //    max_subrecord_lifetime =
+   //    lifetimes_of_hash_entries.at(i).at(0).lifetime;
+   //    max_epoch_id = lifetimes_of_hash_entries.at(i).at(0).epoch_id;
+   //    for (int j = 0;j<lifetimes_of_hash_entries.at(i).size();j++)
+   //    {
+   //       if (lifetimes_of_hash_entries.at(i).at(j).lifetime >
+   //                       max_subrecord_lifetime)
+   //       {
+   //         max_subrecord_lifetime =
+   //                 lifetimes_of_hash_entries.at(i).at(j).lifetime;
+   //         max_epoch_id = lifetimes_of_hash_entries.at(i).at(j).epoch_id;
+   //         max_subrecord = j;
+   //       }
 
-          printf("The lifetime for entry %d and sub-record %d is "
-          "%lu and epoch-id is %lu\n",i,j,
-          lifetimes_of_hash_entries.at(i).at(j).lifetime,
-          lifetimes_of_hash_entries.at(i).at(j).epoch_id);
-       }
-       if (max_subrecord_lifetime > max_record_lifetime_across_all_entries)
-            max_record_lifetime_across_all_entries = max_subrecord_lifetime;
-       printf("The max-lifetime for entry %d and sub-record %d is "
-       "%lu and epoch-id is %lu\n",i,max_subrecord,
-       max_subrecord_lifetime,max_epoch_id);
-     }
-    }
-    printf("The maximum lifetime across all entries is %lu\n",
-                    max_record_lifetime_across_all_entries);
-    //printf("The value of the curTick is %lu\n",curTick());
-    printf("The number of instructions committed is %d\n",memRefCommits);
+   //       printf("The lifetime for entry %d and sub-record %d is "
+   //       "%lu and epoch-id is %lu\n",i,j,
+   //       lifetimes_of_hash_entries.at(i).at(j).lifetime,
+   //       lifetimes_of_hash_entries.at(i).at(j).epoch_id);
+   //    }
+   //    if (max_subrecord_lifetime > max_record_lifetime_across_all_entries)
+   //         max_record_lifetime_across_all_entries = max_subrecord_lifetime;
+   //    printf("The max-lifetime for entry %d and sub-record %d is "
+   //    "%lu and epoch-id is %lu\n",i,max_subrecord,
+   //    max_subrecord_lifetime,max_epoch_id);
+   //  }
+   // }
+   // printf("The maximum lifetime across all entries is %lu\n",
+   //                 max_record_lifetime_across_all_entries);
+   // //printf("The value of the curTick is %lu\n",curTick());
+   // printf("The number of instructions committed is %d\n",memRefCommits);
     exitCallbacks().process();
     exitCallbacks().clear();
 
