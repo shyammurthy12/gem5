@@ -39,6 +39,7 @@
 
 #include "arch/x86/tlb.hh"
 
+#include <algorithm>
 #include <cstring>
 #include <memory>
 
@@ -48,6 +49,7 @@
 #include "arch/x86/pagetable_walker.hh"
 #include "arch/x86/regs/misc.hh"
 #include "arch/x86/regs/msr.hh"
+#include "arch/x86/srft.hh"
 #include "arch/x86/x86_traits.hh"
 #include "base/trace.hh"
 #include "cpu/thread_context.hh"
@@ -57,8 +59,110 @@
 #include "sim/full_system.hh"
 #include "sim/process.hh"
 
-namespace X86ISA {
+int size_of_hash_function_list = 8;
+std::vector <std::vector<int>> list_of_all_hashing_functions;
+int L2_size = 4096;
 
+// Function to return the next random number
+int getNum(std::vector<int>& v)
+{
+
+    // Size of the vector
+    int n = v.size();
+
+    // Make sure the number is within
+    // the index range
+    int index = rand() % n;
+
+    // Get random number from the vector
+    int num = v[index];
+
+    // Remove the number from the vector
+    std::swap(v[index], v[n - 1]);
+    v.pop_back();
+
+    // Return the removed number
+    return num;
+}
+
+std::vector<int> generateRandom(int n)
+{
+        std::vector<int> v(n);
+        std::vector<int> scheme;
+    // Fill the vector with the values
+    // 1, 2, 3, ..., n
+    for (int i = 0; i < n; i++)
+        v[i] = i + 1;
+
+    // get a random number from the vector and print it
+    for (int i=0;i<9;i++) {
+        scheme.push_back(getNum(v)+14);
+    }
+    return scheme;
+}
+
+
+SRFT::SRFT(uint32_t size_) {
+        size = size_;
+        for (int i =0; i<size; i++) {
+                srf_table[i].isValid = false;
+                srf_table[i].counter = 0;
+        }
+}
+
+//TODO: coherence requests
+std::vector<int>
+SRFT::lookup(SRFTEntry &entry) {
+        entry.inc_counter();
+        return entry.hash_scheme;
+}
+
+void
+SRFT::insert(std::vector<int> scheme, SRFTEntry &entry) {
+        entry.hash_scheme = scheme;
+        entry.isValid = true;
+        entry.counter = 1;
+        entry.bit_vector.clear();
+        entry.bit_vector.assign(L2_size, false);
+}
+
+void
+SRFT::invalidate( SRFTEntry &entry) {
+        entry.isValid = false;
+        entry.counter = 0;
+        //invalidate cachelines
+        //entry.bit_vector
+}
+
+void
+SRFT::decrement_count( SRFTEntry &entry) {
+        if (entry.isValid) {
+                entry.dec_counter();
+                if (entry.counter==0) {
+                        std::vector<int> new_scheme =
+        list_of_all_hashing_functions[rand()%size_of_hash_function_list];
+                        entry.hash_scheme = new_scheme;
+                }
+        }
+}
+
+void
+SRFT::unset_bit_vector(SRFTEntry &entry, int index) {
+        if (!entry.bit_vector[index] || index > entry.bit_vector.size())
+                abort();
+        else
+                entry.bit_vector[index] = false;
+}
+
+void
+SRFT::set_bit_vector(SRFTEntry &entry, int index) {
+        if (entry.bit_vector[index] || index > entry.bit_vector.size())
+                abort();
+        else
+                entry.bit_vector[index] = true;
+}
+
+namespace X86ISA {
 TLB::TLB(const Params *p)
     : BaseTLB(p), configAddress(0), size(p->size),
       tlb(size), lruSeq(0)
@@ -68,11 +172,25 @@ TLB::TLB(const Params *p)
 
     for (int x = 0; x < size; x++) {
         tlb[x].trieHandle = NULL;
+        tlb[x].index = x;
         freeList.push_back(&tlb[x]);
     }
 
     walker = p->walker;
     walker->setTLB(this);
+
+    srft = new SRFT(this->size);
+    for (int i = 0;i<size_of_hash_function_list;i++)
+    {
+        //9-ints for hash scheme
+        std::vector<int> scheme = generateRandom(17);
+        std::cout<<"Random numbers used for " <<i<<": "<<std::endl;
+        for (int i=0; i<scheme.size(); i++)
+           std::cout << scheme[i] << std::endl;
+        list_of_all_hashing_functions.push_back(scheme);
+    }
+    std::cout<<"Hashing functions table entry size is "<<
+          list_of_all_hashing_functions.size();
 }
 
 void
@@ -90,6 +208,8 @@ TLB::evictLRU()
     assert(tlb[lru].trieHandle);
     trie.remove(tlb[lru].trieHandle);
     tlb[lru].trieHandle = NULL;
+    // invalidate corresponding cachelines in L2
+    srft->invalidate(srft->srf_table[lru]);
     freeList.push_back(&tlb[lru]);
 }
 
@@ -100,6 +220,9 @@ TLB::insert(Addr vpn, const TlbEntry &entry)
     TlbEntry *newEntry = trie.lookup(vpn);
     if (newEntry) {
         assert(newEntry->vaddr == vpn);
+        std::vector<int> scheme =
+     list_of_all_hashing_functions[rand()%size_of_hash_function_list];
+        srft->insert(scheme, srft->srf_table[newEntry->index]);
         return newEntry;
     }
 
@@ -114,6 +237,10 @@ TLB::insert(Addr vpn, const TlbEntry &entry)
     newEntry->vaddr = vpn;
     newEntry->trieHandle =
     trie.insert(vpn, TlbEntryTrie::MaxBits - entry.logBytes, newEntry);
+
+    std::vector<int> scheme =
+    list_of_all_hashing_functions[rand()%size_of_hash_function_list];
+    srft->insert(scheme, srft->srf_table[newEntry->index]);
     return newEntry;
 }
 
@@ -273,7 +400,7 @@ TLB::translate(const RequestPtr &req,
     Request::Flags flags = req->getFlags();
     int seg = flags & SegmentFlagMask;
     bool storeCheck = flags & (StoreCheck << FlagShift);
-
+    std::vector<int> hash_scheme;
     delayedResponse = false;
 
     // If this is true, we're dealing with a request to a non-memory address
@@ -407,7 +534,11 @@ TLB::translate(const RequestPtr &req,
 
             Addr paddr = entry->paddr | (vaddr & mask(entry->logBytes));
             DPRINTF(TLB, "Translated %#x -> %#x.\n", vaddr, paddr);
+            hash_scheme = srft->lookup(srft->srf_table[entry->index]);
             req->setPaddr(paddr);
+            req->req_hash_scheme = hash_scheme;
+            req->req_srft = srft;
+            req->req_srft_index = entry->index;
             if (entry->uncacheable)
                 req->setFlags(Request::UNCACHEABLE | Request::STRICT_ORDER);
         } else {
@@ -449,6 +580,12 @@ Walker *
 TLB::getWalker()
 {
     return walker;
+}
+
+SRFT *
+TLB::getSRFT()
+{
+    return srft;
 }
 
 void

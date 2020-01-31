@@ -55,10 +55,12 @@ namespace X86ISA
 {
     class Walker;
 
+
     class TLB : public BaseTLB
     {
       protected:
         friend class Walker;
+        friend class SRFT;
 
         typedef std::list<TlbEntry *> EntryList;
 
@@ -80,9 +82,10 @@ namespace X86ISA
         EntryList::iterator lookupIt(Addr va, bool update_lru = true);
 
         Walker * walker;
-
+        SRFT* srft;
       public:
         Walker *getWalker();
+        SRFT *getSRFT();
 
         void flushAll() override;
 

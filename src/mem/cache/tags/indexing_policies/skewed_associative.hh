@@ -162,6 +162,9 @@ class SkewedAssociative : public BaseIndexingPolicy
     std::vector<ReplaceableEntry*> getPossibleEntries(const Addr addr) const
                                                                    override;
 
+    std::vector<ReplaceableEntry*> getPossibleEntries_inL2(
+                    const PacketPtr pkt) const;
+
     /**
      * Regenerate an entry's address from its tag and assigned set and way.
      * Uses the inverse of the skewing function.

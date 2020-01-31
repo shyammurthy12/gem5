@@ -264,6 +264,53 @@ SectorTags::findVictim(Addr addr, const bool is_secure,
     return victim;
 }
 
+CacheBlk*
+SectorTags::findVictim_inL2(PacketPtr pkt, const bool is_secure,
+                       std::vector<CacheBlk*>& evict_blks) const
+{
+    // Get possible entries to be victimized
+    Addr addr = pkt->getAddr();
+    const std::vector<ReplaceableEntry*> sector_entries =
+        indexingPolicy->getPossibleEntries(addr);
+
+    // Check if the sector this address belongs to has been allocated
+    Addr tag = extractTag(addr);
+    SectorBlk* victim_sector = nullptr;
+    for (const auto& sector : sector_entries) {
+        SectorBlk* sector_blk = static_cast<SectorBlk*>(sector);
+        if ((tag == sector_blk->getTag()) && sector_blk->isValid() &&
+            (is_secure == sector_blk->isSecure())){
+            victim_sector = sector_blk;
+            break;
+        }
+    }
+
+    // If the sector is not present
+    if (victim_sector == nullptr){
+        // Choose replacement victim from replacement candidates
+        victim_sector = static_cast<SectorBlk*>(replacementPolicy->getVictim(
+                                                sector_entries));
+    }
+
+    // Get the entry of the victim block within the sector
+    SectorSubBlk* victim = victim_sector->blks[extractSectorOffset(addr)];
+
+    // Get evicted blocks. Blocks are only evicted if the sectors mismatch and
+    // the currently existing sector is valid.
+    if ((tag == victim_sector->getTag()) &&
+        (is_secure == victim_sector->isSecure())){
+        // It would be a hit if victim was valid, and upgrades do not call
+        // findVictim, so it cannot happen
+        assert(!victim->isValid());
+    } else {
+        // The whole sector must be evicted to make room for the new sector
+        for (const auto& blk : victim_sector->blks){
+            evict_blks.push_back(blk);
+        }
+    }
+
+    return victim;
+}
 int
 SectorTags::extractSectorOffset(Addr addr) const
 {

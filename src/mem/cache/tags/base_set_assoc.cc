@@ -75,7 +75,7 @@ BaseSetAssoc::tagsInit()
 
         // Associate a data chunk to the block
         blk->data = &dataBlks[blkSize*blk_index];
-
+        blk->blk_index = blk_index;
         // Associate a replacement data entry to the block
         blk->replacementData = replacementPolicy->instantiateEntry();
     }

@@ -157,7 +157,7 @@ class BaseTags : public ClockedObject
   public:
     typedef BaseTagsParams Params;
     BaseTags(const Params *p);
-
+    bool isL2;
     /**
      * Destructor.
      */
@@ -282,6 +282,9 @@ class BaseTags : public ClockedObject
     virtual CacheBlk* findVictim(Addr addr, const bool is_secure,
                                  std::vector<CacheBlk*>& evict_blks) const = 0;
 
+    virtual CacheBlk* findVictim_inL2(const PacketPtr pkt,
+                    const bool is_secure,
+                                 std::vector<CacheBlk*>& evict_blks) const = 0;
     /**
      * Access block and update replacement data. May not succeed, in which case
      * nullptr is returned. This has all the implications of a cache access and
@@ -310,6 +313,7 @@ class BaseTags : public ClockedObject
      * @param blk The block to update.
      */
     virtual void insertBlock(const PacketPtr pkt, CacheBlk *blk);
+    virtual void insertBlock_inL2(const PacketPtr pkt, CacheBlk *blk);
 
     /**
      * Regenerate the block address.

@@ -52,6 +52,7 @@
 
 #include <vector>
 
+#include "mem/packet.hh"
 #include "params/BaseIndexingPolicy.hh"
 #include "sim/sim_object.hh"
 
@@ -149,6 +150,8 @@ class BaseIndexingPolicy : public SimObject
     virtual std::vector<ReplaceableEntry*> getPossibleEntries(const Addr addr)
                                                                     const = 0;
 
+    virtual std::vector<ReplaceableEntry*> getPossibleEntries_inL2(
+                    const PacketPtr pkt) const = 0;
     /**
      * Regenerate an entry's address from its tag and assigned indexing bits.
      *

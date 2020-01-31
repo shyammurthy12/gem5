@@ -122,6 +122,9 @@ BaseCache::BaseCache(const BaseCacheParams *p, unsigned blk_size)
     tags->tagsInit();
     if (prefetcher)
         prefetcher->setCache(this);
+    if (p->name.find("l2") !=string::npos )
+        isL2=1;
+    else isL2=0;
 }
 
 BaseCache::~BaseCache()
@@ -1296,7 +1299,11 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
 
     // Find replacement victim
     std::vector<CacheBlk*> evict_blks;
-    CacheBlk *victim = tags->findVictim(addr, is_secure, evict_blks);
+    CacheBlk *victim;
+    if (isL2)
+        victim = tags->findVictim_inL2(pkt, is_secure, evict_blks);
+    else
+        victim = tags->findVictim(addr, is_secure, evict_blks);
 
     // It is valid to return nullptr if there is no victim
     if (!victim)
@@ -1349,7 +1356,10 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
     }
 
     // Insert new block at victimized entry
-    tags->insertBlock(pkt, victim);
+    if (isL2)
+        tags->insertBlock_inL2(pkt, victim);
+    else
+        tags->insertBlock(pkt, victim);
 
     return victim;
 }
@@ -1357,6 +1367,12 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
 void
 BaseCache::invalidateBlock(CacheBlk *blk)
 {
+    if (isL2) {
+        blk->blk_srft->unset_bit_vector(blk->blk_srft->srf_table
+                        [blk->blk_srft_index], blk->blk_index);
+        blk->blk_srft->decrement_count(blk->blk_srft->srf_table
+                        [blk->blk_srft_index]);
+    }
     // If handling a block present in the Tags, let it do its invalidation
     // process, which will update stats and invalidate the block itself
     if (blk != tempBlock) {

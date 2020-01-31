@@ -55,6 +55,7 @@
 #include <cassert>
 #include <climits>
 
+#include "arch/x86/srft.hh"
 #include "base/flags.hh"
 #include "base/logging.hh"
 #include "base/types.hh"
@@ -68,6 +69,7 @@
  * doesn't cause a problem with stats and is large enough to realistic
  * benchmarks (Linux/Android boot, BBench, etc.)
  */
+
 
 namespace ContextSwitchTaskId {
     enum TaskId {
@@ -595,6 +597,10 @@ class Request
         return _paddr;
     }
 
+    //hash scheme
+    std::vector<int> req_hash_scheme;
+    SRFT* req_srft;
+    int req_srft_index;
     /**
      * Time for the TLB/table walker to successfully translate this request.
      */

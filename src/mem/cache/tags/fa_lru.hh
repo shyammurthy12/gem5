@@ -225,6 +225,8 @@ class FALRU : public BaseTags
     CacheBlk* findVictim(Addr addr, const bool is_secure,
                          std::vector<CacheBlk*>& evict_blks) const override;
 
+    CacheBlk* findVictim_inL2(PacketPtr pkt, const bool is_secure,
+                         std::vector<CacheBlk*>& evict_blks) const override;
     /**
      * Insert the new block into the cache and update replacement data.
      *

@@ -180,6 +180,22 @@ class BaseSetAssoc : public BaseTags
         return victim;
     }
 
+    CacheBlk* findVictim_inL2(const PacketPtr pkt, const bool is_secure,
+                         std::vector<CacheBlk*>& evict_blks) const override
+    {
+        // Get possible entries to be victimized
+        const std::vector<ReplaceableEntry*> entries =
+            indexingPolicy->getPossibleEntries_inL2(pkt);
+
+        // Choose replacement victim from replacement candidates
+        CacheBlk* victim = static_cast<CacheBlk*>(replacementPolicy->getVictim(
+                                entries));
+
+        // There is only one eviction for this replacement
+        evict_blks.push_back(victim);
+
+        return victim;
+    }
     /**
      * Insert the new block into the cache and update replacement data.
      *

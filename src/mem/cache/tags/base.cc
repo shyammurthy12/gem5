@@ -125,6 +125,35 @@ BaseTags::insertBlock(const PacketPtr pkt, CacheBlk *blk)
     dataAccesses += 1;
 }
 
+void
+BaseTags::insertBlock_inL2(const PacketPtr pkt, CacheBlk *blk)
+{
+    assert(!blk->isValid());
+
+    // Previous block, if existed, has been removed, and now we have
+    // to insert the new one
+
+    // Deal with what we are bringing in
+    MasterID master_id = pkt->req->masterId();
+    assert(master_id < system->maxMasters());
+    occupancies[master_id]++;
+
+    // Insert block with tag, src master id and task id
+    blk->insert_inL2((pkt->getAddr())/64, pkt->isSecure(), master_id,
+                pkt->req->taskId(), pkt->req->req_srft,
+                pkt->req->req_srft_index);
+
+    // Check if cache warm up is done
+    if (!warmedUp && tagsInUse.value() >= warmupBound) {
+        warmedUp = true;
+        warmupCycle = curTick();
+    }
+
+    // We only need to write into one tag and one data block.
+    tagAccesses += 1;
+    dataAccesses += 1;
+}
+
 Addr
 BaseTags::extractTag(const Addr addr) const
 {

@@ -62,6 +62,24 @@ SetAssociative::extractSet(const Addr addr) const
     return (addr >> setShift) & setMask;
 }
 
+uint32_t
+SetAssociative::extractSet_inL2(const PacketPtr pkt) const
+{
+    Addr addr = pkt->getAddr();
+    std::vector<int> scheme = pkt->req->req_hash_scheme;
+    uint64_t num_to_xor_with=0;
+      for (int i=0; i<scheme.size(); i++) {
+        uint64_t temp = addr&(1<<scheme[i]);
+//	printf("%d, %lu, %lu",i, temp, (addr>>scheme[i])&0x01);
+        if (temp)
+                num_to_xor_with = (num_to_xor_with<<1) + 1;
+        else
+                num_to_xor_with = (num_to_xor_with<<1);
+//	printf("%lx\n", num_to_xor_with);
+      }
+      return (((addr >> setShift)^num_to_xor_with))&setMask;
+}
+
 Addr
 SetAssociative::regenerateAddr(const Addr tag, const ReplaceableEntry* entry)
                                                                         const
@@ -73,6 +91,12 @@ std::vector<ReplaceableEntry*>
 SetAssociative::getPossibleEntries(const Addr addr) const
 {
     return sets[extractSet(addr)];
+}
+
+std::vector<ReplaceableEntry*>
+SetAssociative::getPossibleEntries_inL2(const PacketPtr pkt) const
+{
+    return sets[extractSet_inL2(pkt)];
 }
 
 SetAssociative*

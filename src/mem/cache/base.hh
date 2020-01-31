@@ -1029,7 +1029,7 @@ class BaseCache : public ClockedObject
     ~BaseCache();
 
     void init() override;
-
+    bool isL2;
     Port &getPort(const std::string &if_name,
                   PortID idx=InvalidPortID) override;
 

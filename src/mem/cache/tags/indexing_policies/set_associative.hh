@@ -53,6 +53,7 @@
 #include <vector>
 
 #include "mem/cache/tags/indexing_policies/base.hh"
+#include "mem/packet.hh"
 #include "params/SetAssociative.hh"
 
 class ReplaceableEntry;
@@ -90,6 +91,7 @@ class SetAssociative : public BaseIndexingPolicy
      */
     uint32_t extractSet(const Addr addr) const;
 
+    uint32_t extractSet_inL2(const PacketPtr pkt) const;
   public:
     /**
      * Convenience typedef.
@@ -118,6 +120,8 @@ class SetAssociative : public BaseIndexingPolicy
     std::vector<ReplaceableEntry*> getPossibleEntries(const Addr addr) const
                                                                      override;
 
+    std::vector<ReplaceableEntry*> getPossibleEntries_inL2(const PacketPtr pkt)
+            const;
     /**
      * Regenerate an entry's address from its tag and assigned set and way.
      *

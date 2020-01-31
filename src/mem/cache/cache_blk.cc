@@ -68,7 +68,40 @@ CacheBlk::insert(const Addr tag, const bool is_secure,
     if (is_secure) {
         setSecure();
     }
+    // Validate block
+    setValid();
+}
 
+void
+CacheBlk::insert_inL2(const Addr tag, const bool is_secure,
+                 const int src_master_ID, const uint32_t task_ID,
+                 SRFT* req_srft, int req_srft_index)
+{
+    // Make sure that the block has been properly invalidated
+    assert(status == 0);
+
+    // Set block tag
+    this->tag = tag;
+
+    // Set source requestor ID
+    srcMasterId = src_master_ID;
+
+    // Set task ID
+    task_id = task_ID;
+
+    // Set insertion tick as current tick
+    tickInserted = curTick();
+
+    // Insertion counts as a reference to the block
+    refCount = 1;
+
+    // Set secure state
+    if (is_secure) {
+        setSecure();
+    }
+    blk_srft = req_srft;
+    blk_srft_index = req_srft_index;
+    blk_srft->set_bit_vector(blk_srft->srf_table[blk_srft_index], blk_index);
     // Validate block
     setValid();
 }

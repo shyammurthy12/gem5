@@ -208,6 +208,18 @@ FALRU::findVictim(Addr addr, const bool is_secure,
     return victim;
 }
 
+CacheBlk*
+FALRU::findVictim_inL2(PacketPtr pkt, const bool is_secure,
+                  std::vector<CacheBlk*>& evict_blks) const
+{
+    // The victim is always stored on the tail for the FALRU
+    FALRUBlk* victim = tail;
+
+    // There is only one eviction for this replacement
+    evict_blks.push_back(victim);
+
+    return victim;
+}
 void
 FALRU::insertBlock(const PacketPtr pkt, CacheBlk *blk)
 {

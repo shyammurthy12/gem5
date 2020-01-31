@@ -54,6 +54,7 @@
 #include <list>
 #include <string>
 
+#include "arch/x86/srft.hh"
 #include "base/printable.hh"
 #include "base/types.hh"
 #include "mem/cache/replacement_policies/base.hh"
@@ -122,7 +123,9 @@ class CacheBlk : public ReplaceableEntry
      * meaningful if the block is valid.
      */
     Tick tickInserted;
-
+    SRFT* blk_srft;
+    int blk_srft_index;
+    int blk_index;
   protected:
     /**
      * Represents that the indicated thread context has a "lock" on
@@ -302,6 +305,9 @@ class CacheBlk : public ReplaceableEntry
     virtual void insert(const Addr tag, const bool is_secure,
                         const int src_master_ID, const uint32_t task_ID);
 
+    virtual void insert_inL2(const Addr tag, const bool is_secure,
+                        const int src_master_ID, const uint32_t task_ID,
+                        SRFT* req_srft, int req_srft_index);
     /**
      * Track the fact that a local locked was issued to the
      * block. Invalidate any previous LL to the same address.

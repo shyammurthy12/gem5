@@ -67,7 +67,6 @@ namespace X86ISA
     {
         // The base of the physical page.
         Addr paddr;
-
         // The beginning of the virtual page this entry maps.
         Addr vaddr;
         // The size of the page this represents, in address bits.
@@ -91,7 +90,7 @@ namespace X86ISA
         bool noExec;
         // A sequence number to keep track of LRU.
         uint64_t lruSeq;
-
+        int index;
         TlbEntryTrie::Handle trieHandle;
 
         TlbEntry(Addr asn, Addr _vaddr, Addr _paddr,
