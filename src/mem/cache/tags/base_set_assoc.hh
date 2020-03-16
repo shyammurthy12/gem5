@@ -154,6 +154,37 @@ class BaseSetAssoc : public BaseTags
         return blk;
     }
 
+    CacheBlk* accessBlock_inL2(Addr addr, bool is_secure,
+                    Cycles &lat, PacketPtr pkt) override
+    {
+        CacheBlk *blk = findBlock_inL2(addr, is_secure, pkt);
+
+        // Access all tags in parallel, hence one in each way.  The data side
+        // either accesses all blocks in parallel, or one block sequentially on
+        // a hit.  Sequential access with a miss doesn't access data.
+        tagAccesses += allocAssoc;
+        if (sequentialAccess) {
+            if (blk != nullptr) {
+                dataAccesses += 1;
+            }
+        } else {
+            dataAccesses += allocAssoc;
+        }
+
+        // If a cache hit
+        if (blk != nullptr) {
+            // Update number of references to accessed block
+            blk->refCount++;
+
+            // Update replacement data of accessed block
+            replacementPolicy->touch(blk->replacementData);
+        }
+
+        // The tag lookup latency is the same for a hit or a miss
+        lat = lookupLatency;
+
+        return blk;
+    }
     /**
      * Find replacement victim based on address. The list of evicted blocks
      * only contains the victim.
@@ -185,7 +216,8 @@ class BaseSetAssoc : public BaseTags
     {
         // Get possible entries to be victimized
         const std::vector<ReplaceableEntry*> entries =
-            indexingPolicy->getPossibleEntries_inL2(pkt);
+            indexingPolicy->getPossibleEntries_inL2(pkt->getAddr(),
+                            pkt->req->req_hash_scheme);
 
         // Choose replacement victim from replacement candidates
         CacheBlk* victim = static_cast<CacheBlk*>(replacementPolicy->getVictim(

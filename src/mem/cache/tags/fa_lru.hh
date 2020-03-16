@@ -194,6 +194,8 @@ class FALRU : public BaseTags
      * Just a wrapper of above function to conform with the base interface.
      */
     CacheBlk* accessBlock(Addr addr, bool is_secure, Cycles &lat) override;
+    CacheBlk* accessBlock_inL2(Addr addr, bool is_secure, Cycles &lat,
+                    PacketPtr pkt) override;
 
     /**
      * Find the block in the cache, do not update the replacement data.
@@ -203,6 +205,8 @@ class FALRU : public BaseTags
      * @return Pointer to the cache block.
      */
     CacheBlk* findBlock(Addr addr, bool is_secure) const override;
+    CacheBlk* findBlock_inL2(Addr addr, bool is_secure, PacketPtr pkt)
+            const override;
 
     /**
      * Find a block given set and way.

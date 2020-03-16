@@ -63,10 +63,10 @@ SetAssociative::extractSet(const Addr addr) const
 }
 
 uint32_t
-SetAssociative::extractSet_inL2(const PacketPtr pkt) const
+SetAssociative::extractSet_inL2(const Addr addr, std::vector<int> scheme) const
 {
-    Addr addr = pkt->getAddr();
-    std::vector<int> scheme = pkt->req->req_hash_scheme;
+    //Addr address = addr;
+    //std::vector<int> scheme = pkt->req->req_hash_scheme;
     uint64_t num_to_xor_with=0;
       for (int i=0; i<scheme.size(); i++) {
         uint64_t temp = addr&(1<<scheme[i]);
@@ -94,9 +94,10 @@ SetAssociative::getPossibleEntries(const Addr addr) const
 }
 
 std::vector<ReplaceableEntry*>
-SetAssociative::getPossibleEntries_inL2(const PacketPtr pkt) const
+SetAssociative::getPossibleEntries_inL2(const Addr addr,
+                std::vector<int> scheme) const
 {
-    return sets[extractSet_inL2(pkt)];
+    return sets[extractSet_inL2(addr, scheme)];
 }
 
 SetAssociative*

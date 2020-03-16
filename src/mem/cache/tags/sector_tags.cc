@@ -166,6 +166,44 @@ SectorTags::accessBlock(Addr addr, bool is_secure, Cycles &lat)
     return blk;
 }
 
+CacheBlk*
+SectorTags::accessBlock_inL2(Addr addr, bool is_secure, Cycles &lat,
+                PacketPtr pkt)
+{
+    CacheBlk *blk = findBlock(addr, is_secure);
+
+    // Access all tags in parallel, hence one in each way.  The data side
+    // either accesses all blocks in parallel, or one block sequentially on
+    // a hit.  Sequential access with a miss doesn't access data.
+    tagAccesses += allocAssoc;
+    if (sequentialAccess) {
+        if (blk != nullptr) {
+            dataAccesses += 1;
+        }
+    } else {
+        dataAccesses += allocAssoc*numBlocksPerSector;
+    }
+
+    // If a cache hit
+    if (blk != nullptr) {
+        // Update number of references to accessed block
+        blk->refCount++;
+
+        // Get block's sector
+        SectorSubBlk* sub_blk = static_cast<SectorSubBlk*>(blk);
+        const SectorBlk* sector_blk = sub_blk->getSectorBlock();
+
+        // Update replacement data of accessed block, which is shared with
+        // the whole sector it belongs to
+        replacementPolicy->touch(sector_blk->replacementData);
+    }
+
+    // The tag lookup latency is the same for a hit or a miss
+    lat = lookupLatency;
+
+    return blk;
+}
+
 void
 SectorTags::insertBlock(const PacketPtr pkt, CacheBlk *blk)
 {
@@ -192,6 +230,33 @@ SectorTags::insertBlock(const PacketPtr pkt, CacheBlk *blk)
 
 CacheBlk*
 SectorTags::findBlock(Addr addr, bool is_secure) const
+{
+    // Extract sector tag
+    const Addr tag = extractTag(addr);
+
+    // The address can only be mapped to a specific location of a sector
+    // due to sectors being composed of contiguous-address entries
+    const Addr offset = extractSectorOffset(addr);
+
+    // Find all possible sector entries that may contain the given address
+    const std::vector<ReplaceableEntry*> entries =
+        indexingPolicy->getPossibleEntries(addr);
+
+    // Search for block
+    for (const auto& sector : entries) {
+        auto blk = static_cast<SectorBlk*>(sector)->blks[offset];
+        if (blk->getTag() == tag && blk->isValid() &&
+            blk->isSecure() == is_secure) {
+            return blk;
+        }
+    }
+
+    // Did not find block
+    return nullptr;
+}
+
+CacheBlk*
+SectorTags::findBlock_inL2(Addr addr, bool is_secure, PacketPtr pkt) const
 {
     // Extract sector tag
     const Addr tag = extractTag(addr);

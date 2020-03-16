@@ -77,24 +77,48 @@ BaseTags::findBlockBySetAndWay(int set, int way) const
 CacheBlk*
 BaseTags::findBlock(Addr addr, bool is_secure) const
 {
-    // Extract block tag
-    Addr tag = extractTag(addr);
+        // Extract block tag
+        Addr tag = extractTag(addr);
 
-    // Find possible entries that may contain the given address
-    const std::vector<ReplaceableEntry*> entries =
-        indexingPolicy->getPossibleEntries(addr);
+        // Find possible entries that may contain the given address
+        const std::vector<ReplaceableEntry*> entries =
+            indexingPolicy->getPossibleEntries(addr);
 
-    // Search for block
-    for (const auto& location : entries) {
-        CacheBlk* blk = static_cast<CacheBlk*>(location);
-        if ((blk->tag == tag) && blk->isValid() &&
-            (blk->isSecure() == is_secure)) {
-            return blk;
+        // Search for block
+        for (const auto& location : entries) {
+            CacheBlk* blk = static_cast<CacheBlk*>(location);
+            if ((blk->tag == tag) && blk->isValid() &&
+                (blk->isSecure() == is_secure)) {
+                return blk;
+            }
         }
-    }
 
-    // Did not find block
-    return nullptr;
+        // Did not find block
+        return nullptr;
+}
+
+CacheBlk*
+BaseTags::findBlock_inL2(Addr addr, bool is_secure, PacketPtr pkt) const
+{
+        // Extract block tag
+        Addr tag = addr >> 6;
+
+        // Find possible entries that may contain the given address
+        const std::vector<ReplaceableEntry*> entries =
+            indexingPolicy->getPossibleEntries_inL2(addr,
+                            pkt->req->req_hash_scheme);
+
+        // Search for block
+        for (const auto& location : entries) {
+            CacheBlk* blk = static_cast<CacheBlk*>(location);
+            if ((blk->tag == tag) && blk->isValid() &&
+                (blk->isSecure() == is_secure)) {
+                return blk;
+            }
+        }
+
+        // Did not find block
+        return nullptr;
 }
 
 void
@@ -138,10 +162,12 @@ BaseTags::insertBlock_inL2(const PacketPtr pkt, CacheBlk *blk)
     assert(master_id < system->maxMasters());
     occupancies[master_id]++;
 
+    std::cout << "In insertBlock: pkt=" << pkt->getAddr() << std::endl;
     // Insert block with tag, src master id and task id
-    blk->insert_inL2((pkt->getAddr())/64, pkt->isSecure(), master_id,
+    blk->insert_inL2((pkt->getAddr()), pkt->isSecure(), master_id,
                 pkt->req->taskId(), pkt->req->req_srft,
                 pkt->req->req_srft_index);
+    std::cout << "In insertBlock: done" << std::endl;
 
     // Check if cache warm up is done
     if (!warmedUp && tagsInUse.value() >= warmupBound) {

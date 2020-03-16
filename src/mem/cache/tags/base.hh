@@ -199,6 +199,8 @@ class BaseTags : public ClockedObject
      * @return Pointer to the cache block.
      */
     virtual CacheBlk *findBlock(Addr addr, bool is_secure) const;
+    virtual CacheBlk *findBlock_inL2(Addr addr, bool is_secure,
+                    PacketPtr pkt) const;
 
     /**
      * Find a block given set and way.
@@ -297,6 +299,8 @@ class BaseTags : public ClockedObject
      * @return Pointer to the cache block if found.
      */
     virtual CacheBlk* accessBlock(Addr addr, bool is_secure, Cycles &lat) = 0;
+    virtual CacheBlk* accessBlock_inL2(Addr addr, bool is_secure,
+                    Cycles &lat, PacketPtr pkt) = 0;
 
     /**
      * Generate the tag from the given address.

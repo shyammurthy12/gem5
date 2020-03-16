@@ -220,10 +220,10 @@ SkewedAssociative::getPossibleEntries(const Addr addr) const
 }
 
 std::vector<ReplaceableEntry*>
-SkewedAssociative::getPossibleEntries_inL2(const PacketPtr pkt) const
+SkewedAssociative::getPossibleEntries_inL2(const Addr addr,
+                std::vector<int> scheme) const
 {
     std::vector<ReplaceableEntry*> entries;
-    Addr addr = pkt->getAddr();
     // Parse all ways
     for (uint32_t way = 0; way < assoc; ++way) {
         // Apply hash to get set, and get way entry in it

@@ -172,6 +172,10 @@ BaseCache::CacheSlavePort::processSendRetry()
 Addr
 BaseCache::regenerateBlkAddr(CacheBlk* blk)
 {
+    if (isL2) {
+           // std::cout << blk->tag << std::endl;
+            return blk->tag;
+    }
     if (blk != tempBlock) {
         return tags->regenerateBlkAddr(blk);
     } else {
@@ -466,7 +470,13 @@ BaseCache::recvTimingResp(PacketPtr pkt)
     // the response is an invalidation
     assert(!mshr->wasWholeLineWrite || pkt->isInvalidate());
 
-    CacheBlk *blk = tags->findBlock(pkt->getAddr(), pkt->isSecure());
+    CacheBlk *blk;
+    if (isL2) {
+        blk = tags->findBlock_inL2(pkt->getAddr(), pkt->isSecure(), pkt);
+    }
+    else {
+        blk = tags->findBlock(pkt->getAddr(), pkt->isSecure());
+    }
 
     if (is_fill && !is_error) {
         DPRINTF(Cache, "Block for addr %#llx being updated in Cache\n",
@@ -627,7 +637,13 @@ BaseCache::functionalAccess(PacketPtr pkt, bool from_cpu_side)
 {
     Addr blk_addr = pkt->getBlockAddr(blkSize);
     bool is_secure = pkt->isSecure();
-    CacheBlk *blk = tags->findBlock(pkt->getAddr(), is_secure);
+    CacheBlk *blk;
+    if (isL2) {
+        blk = tags->findBlock_inL2(pkt->getAddr(), pkt->isSecure(), pkt);
+    }
+    else {
+        blk = tags->findBlock(pkt->getAddr(), pkt->isSecure());
+    }
     MSHR *mshr = mshrQueue.findMatch(blk_addr, is_secure);
 
     pkt->pushLabel(name());
@@ -775,6 +791,7 @@ BaseCache::getNextQueueEntry()
         PacketPtr pkt = prefetcher->getPacket();
         if (pkt) {
             Addr pf_addr = pkt->getBlockAddr(blkSize);
+            std::cout << "ALERT: PENDING CODE!!!!!!!!!!!!!" << std::endl;
             if (!tags->findBlock(pf_addr, pkt->isSecure()) &&
                 !mshrQueue.findMatch(pf_addr, pkt->isSecure()) &&
                 !writeBuffer.findMatch(pf_addr, pkt->isSecure())) {
@@ -936,7 +953,14 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
 
     // Access block in the tags
     Cycles tag_latency(0);
-    blk = tags->accessBlock(pkt->getAddr(), pkt->isSecure(), tag_latency);
+    if (isL2) {
+        blk = tags->accessBlock_inL2(pkt->getAddr(), pkt->isSecure(),
+                        tag_latency, pkt);
+    }
+    else {
+        blk = tags->accessBlock(pkt->getAddr(), pkt->isSecure(),
+                        tag_latency);
+    }
 
     DPRINTF(Cache, "%s for %s %s\n", __func__, pkt->print(),
             blk ? "hit " + blk->print() : "miss");
@@ -1211,6 +1235,7 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
         // better have read new data...
         assert(pkt->hasData() || pkt->cmd == MemCmd::InvalidateResp);
 
+    std::cout << "Allocating block " <<  std::endl;
         // need to do a replacement if allocating, otherwise we stick
         // with the temporary storage
         blk = allocate ? allocateBlock(pkt, writebacks) : nullptr;
@@ -1233,6 +1258,7 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
     // Block is guaranteed to be valid at this point
     assert(blk->isValid());
     assert(blk->isSecure() == is_secure);
+    //std::cout << addr << ", " << regenerateBlkAddr(blk) << std::endl;
     assert(regenerateBlkAddr(blk) == addr);
 
     blk->status |= BlkReadable;
@@ -1293,7 +1319,7 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
 {
     // Get address
     const Addr addr = pkt->getAddr();
-
+    std::cout << "In allocateBlock: addr=" << addr << std::endl;
     // Get secure bit
     const bool is_secure = pkt->isSecure();
 
@@ -1354,6 +1380,7 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
 
         replacements++;
     }
+    std::cout << "In allocateBlock: victim=" << victim->tag << std::endl;
 
     // Insert new block at victimized entry
     if (isL2)
@@ -1582,7 +1609,7 @@ BaseCache::sendMSHRQueuePacket(MSHR* mshr)
             writeAllocator->resetDelay(mshr->blkAddr);
         }
     }
-
+    std::cout << "ALERT: PENDING CODE!!!!!!!!" << std::endl;
     CacheBlk *blk = tags->findBlock(mshr->blkAddr, mshr->isSecure);
 
     // either a prefetch that is not present upstream, or a normal

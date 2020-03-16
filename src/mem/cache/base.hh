@@ -1143,10 +1143,12 @@ class BaseCache : public ClockedObject
     }
 
     bool inCache(Addr addr, bool is_secure) const {
-        return tags->findBlock(addr, is_secure);
+            std::cout << "ALERT: PENDING CODE!!!!!!!!!!" << std::endl;
+            return tags->findBlock(addr, is_secure);
     }
 
     bool hasBeenPrefetched(Addr addr, bool is_secure) const {
+            std::cout << "ALERT: PENDING CODE!!!!!!!!!!" << std::endl;
         CacheBlk *block = tags->findBlock(addr, is_secure);
         if (block) {
             return block->wasPrefetched();

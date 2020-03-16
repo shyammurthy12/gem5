@@ -99,11 +99,16 @@ CacheBlk::insert_inL2(const Addr tag, const bool is_secure,
     if (is_secure) {
         setSecure();
     }
+    std::cout << "In insert: srft stuff" << std::endl;
     blk_srft = req_srft;
+    std::cout << "In insert: srft stuff 1" << std::endl;
     blk_srft_index = req_srft_index;
+    std::cout << "In insert: srft stuff 2: index "<< blk_srft_index
+            << std::endl;
     blk_srft->set_bit_vector(blk_srft->srf_table[blk_srft_index], blk_index);
     // Validate block
     setValid();
+    std::cout << "In insert: done" << std::endl;
 }
 
 void

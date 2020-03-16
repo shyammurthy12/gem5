@@ -151,7 +151,7 @@ class BaseIndexingPolicy : public SimObject
                                                                     const = 0;
 
     virtual std::vector<ReplaceableEntry*> getPossibleEntries_inL2(
-                    const PacketPtr pkt) const = 0;
+                    const Addr addr, std::vector<int> scheme) const = 0;
     /**
      * Regenerate an entry's address from its tag and assigned indexing bits.
      *

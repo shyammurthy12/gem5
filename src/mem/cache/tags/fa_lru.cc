@@ -144,6 +144,12 @@ FALRU::accessBlock(Addr addr, bool is_secure, Cycles &lat)
 }
 
 CacheBlk*
+FALRU::accessBlock_inL2(Addr addr, bool is_secure, Cycles &lat, PacketPtr pkt)
+{
+    return accessBlock(addr, is_secure, lat, 0);
+}
+
+CacheBlk*
 FALRU::accessBlock(Addr addr, bool is_secure, Cycles &lat,
                    CachesMask *in_caches_mask)
 {
@@ -188,6 +194,24 @@ FALRU::findBlock(Addr addr, bool is_secure) const
     return blk;
 }
 
+CacheBlk*
+FALRU::findBlock_inL2(Addr addr, bool is_secure, PacketPtr pkt) const
+{
+    FALRUBlk* blk = nullptr;
+
+    Addr tag = extractTag(addr);
+    auto iter = tagHash.find(std::make_pair(tag, is_secure));
+    if (iter != tagHash.end()) {
+        blk = (*iter).second;
+    }
+
+    if (blk && blk->isValid()) {
+        assert(blk->tag == tag);
+        assert(blk->isSecure() == is_secure);
+    }
+
+    return blk;
+}
 ReplaceableEntry*
 FALRU::findBlockBySetAndWay(int set, int way) const
 {

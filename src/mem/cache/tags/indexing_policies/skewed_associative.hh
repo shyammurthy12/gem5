@@ -163,7 +163,7 @@ class SkewedAssociative : public BaseIndexingPolicy
                                                                    override;
 
     std::vector<ReplaceableEntry*> getPossibleEntries_inL2(
-                    const PacketPtr pkt) const;
+                    const Addr addr, std::vector<int> scheme) const;
 
     /**
      * Regenerate an entry's address from its tag and assigned set and way.

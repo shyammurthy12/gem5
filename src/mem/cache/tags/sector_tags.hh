@@ -125,6 +125,8 @@ class SectorTags : public BaseTags
      * @return Pointer to the cache block if found.
      */
     CacheBlk* accessBlock(Addr addr, bool is_secure, Cycles &lat) override;
+    CacheBlk* accessBlock_inL2(Addr addr, bool is_secure, Cycles &lat,
+                    PacketPtr pkt) override;
 
     /**
      * Insert the new block into the cache and update replacement data.
@@ -143,6 +145,8 @@ class SectorTags : public BaseTags
      * @return Pointer to the cache block if found.
      */
     CacheBlk* findBlock(Addr addr, bool is_secure) const override;
+    CacheBlk* findBlock_inL2(Addr addr, bool is_secure, PacketPtr pkt)
+            const override;
 
     /**
      * Find replacement victim based on address.

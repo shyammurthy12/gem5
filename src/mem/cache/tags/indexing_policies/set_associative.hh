@@ -91,7 +91,7 @@ class SetAssociative : public BaseIndexingPolicy
      */
     uint32_t extractSet(const Addr addr) const;
 
-    uint32_t extractSet_inL2(const PacketPtr pkt) const;
+    uint32_t extractSet_inL2(const Addr addr, std::vector<int> scheme) const;
   public:
     /**
      * Convenience typedef.
@@ -120,7 +120,8 @@ class SetAssociative : public BaseIndexingPolicy
     std::vector<ReplaceableEntry*> getPossibleEntries(const Addr addr) const
                                                                      override;
 
-    std::vector<ReplaceableEntry*> getPossibleEntries_inL2(const PacketPtr pkt)
+    std::vector<ReplaceableEntry*> getPossibleEntries_inL2(const Addr addr,
+                    std::vector<int> scheme)
             const;
     /**
      * Regenerate an entry's address from its tag and assigned set and way.

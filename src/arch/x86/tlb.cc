@@ -103,10 +103,12 @@ std::vector<int> generateRandom(int n)
 
 
 SRFT::SRFT(uint32_t size_) {
-        size = size_;
-        for (int i =0; i<size; i++) {
-                srf_table[i].isValid = false;
-                srf_table[i].counter = 0;
+        this->size = size_;
+        for (int i =0; i<(this->size); i++) {
+                SRFTEntry temp;
+                temp.isValid = false;
+                temp.counter = 0;
+                this->srf_table.push_back(temp);
         }
 }
 
@@ -119,18 +121,21 @@ SRFT::lookup(SRFTEntry &entry) {
 
 void
 SRFT::insert(std::vector<int> scheme, SRFTEntry &entry) {
+    //std::cout<<"Inserting SRFT entry"<<std::endl;
         entry.hash_scheme = scheme;
         entry.isValid = true;
         entry.counter = 1;
+    //std::cout<<"Inserting SRFT entry: bit vector"<<std::endl;
         entry.bit_vector.clear();
         entry.bit_vector.assign(L2_size, false);
+    //std::cout<<"Inserting SRFT entry: done"<<std::endl;
 }
 
 void
 SRFT::invalidate( SRFTEntry &entry) {
         entry.isValid = false;
         entry.counter = 0;
-        //invalidate cachelines
+        //invalidate cachelines in l2
         //entry.bit_vector
 }
 
@@ -156,8 +161,11 @@ SRFT::unset_bit_vector(SRFTEntry &entry, int index) {
 
 void
 SRFT::set_bit_vector(SRFTEntry &entry, int index) {
-        if (entry.bit_vector[index] || index > entry.bit_vector.size())
+    std::cout<<"In set bit vector: " << index <<std::endl;
+        if (entry.bit_vector[index] || index > entry.bit_vector.size()) {
+                std::cout<<"Aborting in srft"<<std::endl;
                 abort();
+        }
         else
                 entry.bit_vector[index] = true;
 }
@@ -174,12 +182,16 @@ TLB::TLB(const Params *p)
         tlb[x].trieHandle = NULL;
         tlb[x].index = x;
         freeList.push_back(&tlb[x]);
+    //std::cout<<freeList.back()->index<<std::endl;
+
     }
 
+    std::cout<<"TLB created"<<std::endl;
     walker = p->walker;
     walker->setTLB(this);
 
     srft = new SRFT(this->size);
+    std::cout<<"SRFT created"<<std::endl;
     for (int i = 0;i<size_of_hash_function_list;i++)
     {
         //9-ints for hash scheme
@@ -209,6 +221,7 @@ TLB::evictLRU()
     trie.remove(tlb[lru].trieHandle);
     tlb[lru].trieHandle = NULL;
     // invalidate corresponding cachelines in L2
+    std::cout << "TLB eviction" << std::endl;
     srft->invalidate(srft->srf_table[lru]);
     freeList.push_back(&tlb[lru]);
 }
@@ -222,6 +235,7 @@ TLB::insert(Addr vpn, const TlbEntry &entry)
         assert(newEntry->vaddr == vpn);
         std::vector<int> scheme =
      list_of_all_hashing_functions[rand()%size_of_hash_function_list];
+    std::cout<<"TLB: Inserting SRFT entry: " << newEntry->index <<std::endl;
         srft->insert(scheme, srft->srf_table[newEntry->index]);
         return newEntry;
     }
@@ -231,15 +245,18 @@ TLB::insert(Addr vpn, const TlbEntry &entry)
 
     newEntry = freeList.front();
     freeList.pop_front();
-
+    //std::cout<<"TLB: Inserting SRFT entry: " << newEntry->index <<std::endl;
+    int temp_index = newEntry->index;
     *newEntry = entry;
     newEntry->lruSeq = nextSeq();
     newEntry->vaddr = vpn;
+    newEntry->index = temp_index;
     newEntry->trieHandle =
     trie.insert(vpn, TlbEntryTrie::MaxBits - entry.logBytes, newEntry);
 
     std::vector<int> scheme =
     list_of_all_hashing_functions[rand()%size_of_hash_function_list];
+    std::cout<<"TLB: Inserting SRFT entry: " << newEntry->index <<std::endl;
     srft->insert(scheme, srft->srf_table[newEntry->index]);
     return newEntry;
 }
