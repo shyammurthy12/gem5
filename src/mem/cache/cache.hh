@@ -55,6 +55,7 @@
 #include <cstdint>
 #include <map>
 #include <unordered_set>
+#include <vector>
 
 #include "base/types.hh"
 #include "mem/cache/base.hh"
@@ -70,6 +71,42 @@ class BasePrefetcher;
 class CacheBlk;
 struct CacheParams;
 class MSHR;
+
+
+
+//each entry of this table contains the
+//last evicted tag corresponding to a single
+//cache set or a group of cache sets.
+
+class miss_classification_table_entry
+{
+public:
+  void set_evicted_tag(uint64_t _evicted_tag)
+  {
+    evicted_tag = _evicted_tag;
+  }
+  uint64_t get_evicted_tag()
+  {
+     return evicted_tag;
+  }
+  bool getValid()
+  {
+    return valid;
+  }
+  void setValid()
+  {
+    valid = true;
+  }
+ void invalidate()
+ {
+    valid = false;
+ }
+private:
+  uint64_t evicted_tag;
+  //entry validity bit.
+  bool valid;
+};
+
 
 /**
  * A coherent cache that can be arranged in flexible topologies.
@@ -195,6 +232,11 @@ class Cache : public BaseCache
     set<uint64_t> physical_pages_touched;
     //Ongal (redefinition to use some Cache class related
     //related functionality)
+
+    //vector of miss classification entries
+    //(this is the miss classification table)
+    vector<miss_classification_table_entry> miss_classification_table;
+
     CacheBlk *handleFill(PacketPtr pkt, CacheBlk *blk,
                          PacketList &writebacks, bool allocate);
 
@@ -213,7 +255,15 @@ class Cache : public BaseCache
     uint64_t m_region_size;
 
     int m_cache_num_sets;
+    uint64_t m_cache_size;
+    int m_block_size;
     int m_cache_assoc;
+
+    //this is a tunable parameter.
+    //This is specifies how many sets of the
+    //cache do we want to club into one group.
+    uint64_t grouping_factor;
+
 
     VC_structure *get_VC_Structure_ptr(){ return m_vc_structure; }
 
@@ -227,6 +277,7 @@ class Cache : public BaseCache
                     uint64_t* victim_VPN, uint64_t* victim_CR3);
     int find_victim_LRU(int set_index, uint64_t* victim_PPN);
 
+    uint64_t get_mct_index(Addr addr);
     /* unmap_vmas_Handler
        different from Demap_ASDT_Handler.
        based on the current linux implementation,

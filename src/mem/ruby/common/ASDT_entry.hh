@@ -604,10 +604,12 @@ private:
 
   //hash_function_lookup_table
   std::vector<hash_function_lookup_table_entry> hash_lookup_table;
+
   //lookup table size
   int m_hash_lookup_table_size;
   //list of all hashing functions.
   std::vector<hashing_functions_table_entry> list_of_all_hashing_functions;
+
   //number of hash functions
   int m_size_of_hash_function_list;
   // SS

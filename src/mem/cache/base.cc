@@ -1331,6 +1331,23 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
     return blk;
 }
 
+int64_t
+BaseCache:: getVictimAddressTag(const PacketPtr pkt)
+{
+    // Get address
+    const Addr addr = pkt->getAddr();
+    // Get secure bit
+    const bool is_secure = pkt->isSecure();
+    // Find replacement victim
+    std::vector<CacheBlk*> evict_blks;
+    CacheBlk *victim = tags->findVictim(addr, is_secure, evict_blks);
+    if (victim)
+       return victim->vtag;
+    else
+       return -1;
+}
+
+
 CacheBlk*
 BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
 {

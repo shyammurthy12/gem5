@@ -81,6 +81,20 @@ Cache::Cache(const CacheParams *p)
 
     m_cache_num_sets = numSets;
     m_cache_assoc = p->assoc;
+    m_cache_size = p->size;
+    m_block_size = 64;
+    //tunable parameter (if we want to
+    //maintain evicted block information
+    //at a coarser granularity)
+     grouping_factor = 1;
+    //invalidate all entries in the miss classification
+    //table
+    for (int i = 0;i<numSets/grouping_factor; i++){
+       miss_classification_table_entry temp;
+       temp.invalidate();
+       miss_classification_table.push_back(temp);
+    }
+
 
    // if ( p->name.find("dcache") != string::npos || p->name.find("icache") !=
    //                 string::npos ){
@@ -246,6 +260,9 @@ Cache::satisfyRequest(PacketPtr pkt, CacheBlk *blk,
 }
 
 
+
+
+
 #ifdef Ongal_VC
 #ifdef LateMemTrap
 bool
@@ -345,6 +362,20 @@ Cache::access_virtual_cache(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
 #endif
 #endif
 
+//compute the set number to feed to the miss
+//conflict table
+uint64_t Cache::get_mct_index(Addr addr)
+{
+   uint64_t numSets;
+   uint64_t setShift;
+   uint64_t setMask;
+   numSets = m_cache_size/(m_block_size*m_cache_assoc);
+   setShift = floorLog2(m_block_size);
+   setMask = (numSets-1);
+   return ((addr >> setShift) & setMask)/grouping_factor;
+
+}
+
 
 bool Cache::BaseCache_access_dup(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
                   PacketList &writebacks)
@@ -359,7 +390,6 @@ bool Cache::BaseCache_access_dup(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
     // Access block in the tags
     Cycles tag_latency(0);
     blk = tags->accessBlock(pkt->getAddr(), pkt->isSecure(), tag_latency);
-
     //smurthy
 //    if (pkt->isPacketFromLSQ)
 //        DPRINTF(Cache,"Packet come from LSQ\n");
@@ -471,11 +501,71 @@ bool Cache::BaseCache_access_dup(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
             Add_NEW_ASDT_map_entry(pkt);
             #endif
 
-            // need to do a replacement
-            blk = allocateBlock(pkt, writebacks);
+        uint64_t mct_index;
+        if (get_is_l1cache())
+        {
+        // printf("Cache miss handling (handleFill)\n");
+          //compute the setNumber for the packet
+          //to perform a lookup in the miss conflict table
+          //mct-entry valid, extract the prev evicted block address
+          //and additionally
+
+         uint64_t CPA_Vaddr = 0;
+         //obtain the physical address
+         if (tags->get_VC_structure() != NULL){
+
+          // Access ASDT and get correct ASDT and CR3
+          uint64_t Region_Size = tags->get_VC_structure()->get_region_size();
+          uint64_t PPN = pkt->req->getPaddr()/Region_Size;
+          uint64_t CPA_VPN = 0;
+          //uint64_t CPA_CR3 = 0;
+          ASDT_entry * ASDT_entry =
+                  tags->get_VC_structure()->access_matching_ASDT_map(PPN);
+
+          if (ASDT_entry != NULL){
+            CPA_VPN = ASDT_entry->get_virtual_page_number();
+            //CPA_CR3 = ASDT_entry->get_cr3();
+            // obtain the current permission of the leading virtual page
+            //is_writable_page = ASDT_entry->get_is_writable_page();
+          }else{
+            std::cout<<"tags->insertblock(), should find a corresponding ASDT"
+                    "entry in a map";
+            abort();
+          }
+          // update blk->vtag
+          CPA_Vaddr = (CPA_VPN * Region_Size) + (pkt->req->getPaddr()
+                          % Region_Size);
+        }
+        mct_index = get_mct_index(CPA_Vaddr);
+        if (miss_classification_table.at(mct_index).getValid()){
+           printf("The entry %ld is valid\n",mct_index);
+           printf("The miss block is %ld\n",CPA_Vaddr/64);
+           printf("The content of MCT is %ld\n",
+             miss_classification_table.at(mct_index).get_evicted_tag());
+           if (CPA_Vaddr/64 ==
+                  miss_classification_table.at(mct_index).get_evicted_tag())
+            {
+               printf("Conflict detected\n");
+            }
+          }
+        }
+
+          uint64_t victim_tag = getVictimAddressTag(pkt);
+          // need to do a replacement
+          blk = allocateBlock(pkt, writebacks);
+        if (get_is_l1cache())
+        {
+         if (blk)
+                 {
+            //validate the corresponding entry
+            miss_classification_table.at(mct_index).setValid();
+            printf("Inserting an entry in the miss conflict table at %ld and"
+                            "inserting %ld\n"
+                            ,mct_index,victim_tag);
+          miss_classification_table.at(mct_index).set_evicted_tag(victim_tag);
+         }
+        }
             if (!blk) {
-
-
                 // no replaceable block available: give up, fwd to next level.
                 incMissCount(pkt);
 
@@ -856,10 +946,68 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
         #endif
         Add_NEW_ASDT_map_entry(pkt);
         #endif
+        uint64_t mct_index;
+        if (get_is_l1cache())
+        {
+        // printf("Cache miss handling (handleFill)\n");
+          //compute the setNumber for the packet
+          //to perform a lookup in the miss conflict table
+          //mct-entry valid, extract the prev evicted block address
+          //and additionally
 
+         uint64_t CPA_Vaddr = 0;
+         //obtain the physical address
+         if (tags->get_VC_structure() != NULL){
 
+          // Access ASDT and get correct ASDT and CR3
+          uint64_t Region_Size = tags->get_VC_structure()->get_region_size();
+          uint64_t PPN = pkt->req->getPaddr()/Region_Size;
+          uint64_t CPA_VPN = 0;
+          //uint64_t CPA_CR3 = 0;
+          ASDT_entry * ASDT_entry =
+                  tags->get_VC_structure()->access_matching_ASDT_map(PPN);
+
+          if (ASDT_entry != NULL){
+            CPA_VPN = ASDT_entry->get_virtual_page_number();
+            //CPA_CR3 = ASDT_entry->get_cr3();
+            // obtain the current permission of the leading virtual page
+            //is_writable_page = ASDT_entry->get_is_writable_page();
+          }else{
+            std::cout<<"tags->insertblock(), should find a corresponding ASDT"
+                    "entry in a map";
+            abort();
+          }
+          // update blk->vtag
+          CPA_Vaddr = (CPA_VPN * Region_Size) + (pkt->req->getPaddr()
+                          % Region_Size);
+        }
+        mct_index = get_mct_index(CPA_Vaddr);
+        if (miss_classification_table.at(mct_index).getValid()){
+           printf("The entry %ld is valid\n",mct_index);
+           printf("The miss block is %ld\n",CPA_Vaddr/64);
+           printf("The content of MCT is %ld\n",
+              miss_classification_table.at(mct_index).get_evicted_tag());
+           if (CPA_Vaddr/64 ==
+              miss_classification_table.at(mct_index).get_evicted_tag())
+            {
+               printf("Conflict detected\n");
+            }
+          }
+        }
+        uint64_t victim_tag = getVictimAddressTag(pkt);
         blk = allocate ? allocateBlock(pkt, writebacks) : nullptr;
-
+        if (get_is_l1cache())
+        {
+         if (blk)
+         {
+            //validate the corresponding entry
+            miss_classification_table.at(mct_index).setValid();
+            printf("Inserting an entry in the miss conflict table"
+                            "at %ld and inserting %ld\n"
+                            ,mct_index,victim_tag);
+          miss_classification_table.at(mct_index).set_evicted_tag(victim_tag);
+         }
+        }
         if (!blk) {
             // No replaceable block or a mostly exclusive
             // cache... just use temporary storage to complete the

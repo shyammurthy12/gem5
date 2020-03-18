@@ -717,6 +717,8 @@ class BaseCache : public ClockedObject
      * @return the allocated block
      */
     CacheBlk *allocateBlock(const PacketPtr pkt, PacketList &writebacks);
+
+    int64_t getVictimAddressTag(const PacketPtr pkt);
     /**
      * Evict a cache block.
      *
