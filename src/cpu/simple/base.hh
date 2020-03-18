@@ -72,6 +72,7 @@ class ThreadContext;
 extern int memRefCommits;
 
 
+extern int memRefCommits;
 namespace TheISA
 {
     class DTB;

@@ -54,7 +54,7 @@
 #include "sim/probe/probe.hh"
 
 struct DerivO3CPUParams;
-extern int memRefCommits;
+//extern int memRefCommits;
 
 template <class>
 struct O3ThreadState;
