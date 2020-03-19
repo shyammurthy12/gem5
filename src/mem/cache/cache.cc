@@ -947,6 +947,10 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
         Add_NEW_ASDT_map_entry(pkt);
         #endif
         uint64_t mct_index;
+        bool conflict_detected = false;
+        uint64_t CPA_Vaddr = 0;
+        uint64_t CPA_VPN = 0;
+        uint64_t CPA_CR3 = 0;
         if (get_is_l1cache())
         {
         // printf("Cache miss handling (handleFill)\n");
@@ -955,9 +959,6 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
           //mct-entry valid, extract the prev evicted block address
           //and additionally
 
-         uint64_t CPA_Vaddr = 0;
-          uint64_t CPA_VPN = 0;
-          uint64_t CPA_CR3 = 0;
          //obtain the physical address
          if (tags->get_VC_structure() != NULL){
 
@@ -991,30 +992,34 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
               miss_classification_table.at(mct_index).get_evicted_tag())
             {
                printf("Conflict detected\n");
-               uint64_t index_into_hash_table =
-                        ((CPA_VPN)^(CPA_CR3))&
-                        (tags->get_VC_structure()->
-                         get_hash_lookup_table_size()-1);
-               int num_of_conflicts = tags->get_VC_structure()->
-        hash_entry_to_use_inc_conflict_misses(index_into_hash_table);
-               int num_of_total_cache_lines = tags->get_VC_structure()->
-        hash_entry_to_use_get_num_of_cache_lines(index_into_hash_table);
-               std::cout << "number of conflicts: " << num_of_conflicts
-                       << std::endl;
-               std::cout << "number of cachelines using this scheme: " <<
-                       num_of_total_cache_lines << std::endl;
-               std::cout << "conflicting scheme number: " <<
-                       index_into_hash_table << std::endl;
-               num_to_evict = num_of_total_cache_lines < 2*num_of_conflicts ?
-                       num_of_total_cache_lines : 2*num_of_conflicts;
-               // policy to evict cachelines - evict 2*num of conflicts
-               conflict_scheme_entry = index_into_hash_table;
-               evict_on_conflict_miss();
+               conflict_detected = true;
             }
          }
         }
         uint64_t victim_tag = getVictimAddressTag(pkt);
         blk = allocate ? allocateBlock(pkt, writebacks) : nullptr;
+        if (conflict_detected)
+        {
+           uint64_t index_into_hash_table =
+                    ((CPA_VPN)^(CPA_CR3))&
+                    (tags->get_VC_structure()->
+                     get_hash_lookup_table_size()-1);
+           int num_of_conflicts = tags->get_VC_structure()->
+        hash_entry_to_use_inc_conflict_misses(index_into_hash_table);
+           int num_of_total_cache_lines = tags->get_VC_structure()->
+        hash_entry_to_use_get_num_of_cache_lines(index_into_hash_table);
+           std::cout << "number of conflicts: " << num_of_conflicts
+                   << std::endl;
+           std::cout << "number of cachelines using this scheme: " <<
+                   num_of_total_cache_lines << std::endl;
+           std::cout << "conflicting scheme number: " <<
+                   index_into_hash_table << std::endl;
+           num_to_evict = num_of_total_cache_lines < 2*num_of_conflicts ?
+                   num_of_total_cache_lines : 2*num_of_conflicts;
+           // policy to evict cachelines - evict 2*num of conflicts
+           conflict_scheme_entry = index_into_hash_table;
+           evict_on_conflict_miss();
+        }
         if (get_is_l1cache())
         {
          if (blk)
