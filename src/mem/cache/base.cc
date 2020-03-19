@@ -1441,7 +1441,7 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
         }
     }
 
-    bool updated_asdt_for_allocated_block = false;
+    //bool updated_asdt_for_allocated_block = false;
     // The victim will be replaced by a new entry, so increase the replacement
     // counter if a valid block is being replaced
     if (replacement) {
@@ -1459,14 +1459,16 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
                 //make the update for the allocated block.
                 if (tags->get_VC_structure() != NULL)
                 {
-                  updated_asdt_for_allocated_block = true;
-                  tags->get_VC_structure()->update_ASDT(pkt->req->getVaddr(),
+                        if (!updated_asdt_for_allocated_block) {
+                                updated_asdt_for_allocated_block = true;
+                                tags->get_VC_structure()->update_ASDT(
+                                        pkt->req->getVaddr(),
                                           pkt->req->getPaddr(),
                                           pkt->req->getCR3(),
                                           true, &num_CPA_change,
                                           &num_CPA_change_check,
                                           pkt->req->get_is_writable_page());
-
+                        }
                 }
                 evictBlock(blk, writebacks);
             }

@@ -501,70 +501,72 @@ bool Cache::BaseCache_access_dup(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
             Add_NEW_ASDT_map_entry(pkt);
             #endif
 
-        uint64_t mct_index;
-        if (get_is_l1cache())
-        {
-        // printf("Cache miss handling (handleFill)\n");
-          //compute the setNumber for the packet
-          //to perform a lookup in the miss conflict table
-          //mct-entry valid, extract the prev evicted block address
-          //and additionally
-
-         uint64_t CPA_Vaddr = 0;
-         //obtain the physical address
-         if (tags->get_VC_structure() != NULL){
-
-          // Access ASDT and get correct ASDT and CR3
-          uint64_t Region_Size = tags->get_VC_structure()->get_region_size();
-          uint64_t PPN = pkt->req->getPaddr()/Region_Size;
-          uint64_t CPA_VPN = 0;
-          //uint64_t CPA_CR3 = 0;
-          ASDT_entry * ASDT_entry =
-                  tags->get_VC_structure()->access_matching_ASDT_map(PPN);
-
-          if (ASDT_entry != NULL){
-            CPA_VPN = ASDT_entry->get_virtual_page_number();
-            //CPA_CR3 = ASDT_entry->get_cr3();
-            // obtain the current permission of the leading virtual page
-            //is_writable_page = ASDT_entry->get_is_writable_page();
-          }else{
-            std::cout<<"tags->insertblock(), should find a corresponding ASDT"
-                    "entry in a map";
-            abort();
-          }
-          // update blk->vtag
-          CPA_Vaddr = (CPA_VPN * Region_Size) + (pkt->req->getPaddr()
-                          % Region_Size);
-        }
-        mct_index = get_mct_index(CPA_Vaddr);
-        if (miss_classification_table.at(mct_index).getValid()){
-           printf("The entry %ld is valid\n",mct_index);
-           printf("The miss block is %ld\n",CPA_Vaddr/64);
-           printf("The content of MCT is %ld\n",
-             miss_classification_table.at(mct_index).get_evicted_tag());
-           if (CPA_Vaddr/64 ==
-                  miss_classification_table.at(mct_index).get_evicted_tag())
-            {
-               printf("Conflict detected\n");
-            }
-          }
-        }
-
-          uint64_t victim_tag = getVictimAddressTag(pkt);
-          // need to do a replacement
+//        uint64_t mct_index;
+//        if (get_is_l1cache())
+//        {
+//        // printf("Cache miss handling (handleFill)\n");
+//          //compute the setNumber for the packet
+//          //to perform a lookup in the miss conflict table
+//          //mct-entry valid, extract the prev evicted block address
+//          //and additionally
+//
+//         uint64_t CPA_Vaddr = 0;
+//         //obtain the physical address
+//         if (tags->get_VC_structure() != NULL){
+//
+//          // Access ASDT and get correct ASDT and CR3
+//          uint64_t Region_Size = tags->get_VC_structure()->get_region_size();
+//          uint64_t PPN = pkt->req->getPaddr()/Region_Size;
+//          uint64_t CPA_VPN = 0;
+//          //uint64_t CPA_CR3 = 0;
+//          ASDT_entry * ASDT_entry =
+//                  tags->get_VC_structure()->access_matching_ASDT_map(PPN);
+//
+//          if (ASDT_entry != NULL){
+//            CPA_VPN = ASDT_entry->get_virtual_page_number();
+//            //CPA_CR3 = ASDT_entry->get_cr3();
+//            // obtain the current permission of the leading virtual page
+//            //is_writable_page = ASDT_entry->get_is_writable_page();
+//          }else{
+//            std::cout<<"tags->insertblock(), should find a"
+//            "corresponding ASDT"
+//                    "entry in a map";
+//            abort();
+//          }
+//          // update blk->vtag
+//          CPA_Vaddr = (CPA_VPN * Region_Size) + (pkt->req->getPaddr()
+//                          % Region_Size);
+//        }
+//        mct_index = get_mct_index(CPA_Vaddr);
+//        if (miss_classification_table.at(mct_index).getValid()){
+//           printf("The entry %ld is valid\n",mct_index);
+//           printf("The miss block is %ld\n",CPA_Vaddr/64);
+//           printf("The content of MCT is %ld\n",
+//             miss_classification_table.at(mct_index).get_evicted_tag());
+//           if (CPA_Vaddr/64 ==
+//                  miss_classification_table.at(mct_index).get_evicted_tag())
+//            {
+//               printf("Conflict detected\n");
+//            }
+//          }
+//        }
+//
+//          uint64_t victim_tag = getVictimAddressTag(pkt);
+//          // need to do a replacement
           blk = allocateBlock(pkt, writebacks);
-        if (get_is_l1cache())
-        {
-         if (blk)
-                 {
-            //validate the corresponding entry
-            miss_classification_table.at(mct_index).setValid();
-            printf("Inserting an entry in the miss conflict table at %ld and"
-                            "inserting %ld\n"
-                            ,mct_index,victim_tag);
-          miss_classification_table.at(mct_index).set_evicted_tag(victim_tag);
-         }
-        }
+//        if (get_is_l1cache())
+//        {
+//         if (blk)
+//                 {
+//            //validate the corresponding entry
+//            miss_classification_table.at(mct_index).setValid();
+//            printf("Inserting an entry in the miss conflict table at %ld and"
+//                            "inserting %ld\n"
+//                            ,mct_index,victim_tag);
+//          miss_classification_table.at(mct_index).set_evicted_tag(
+//          victim_tag);
+//         }
+//        }
             if (!blk) {
                 // no replaceable block available: give up, fwd to next level.
                 incMissCount(pkt);
@@ -933,6 +935,7 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
     assert(addr == pkt->getBlockAddr(blkSize));
     assert(!writeBuffer.findMatch(addr, is_secure));
 
+    updated_asdt_for_allocated_block = false;
     if (!blk) {
         // better have read new data...
         assert(pkt->hasData() || pkt->cmd == MemCmd::InvalidateResp);
@@ -1000,17 +1003,26 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                            (tags->get_VC_structure()->
                             get_hash_lookup_table_size()-1);
                   int num_of_conflicts = tags->get_VC_structure()->
-               hash_entry_to_use_inc_conflict_misses(index_into_hash_table);
+                  hash_entry_to_use_inc_conflict_misses(
+                                  index_into_hash_table);
                   int num_of_total_cache_lines = tags->get_VC_structure()->
-               hash_entry_to_use_get_num_of_cache_lines(index_into_hash_table);
+                  hash_entry_to_use_get_num_of_cache_lines(
+                                  index_into_hash_table);
                   std::cout << "number of conflicts: " << num_of_conflicts
                           << std::endl;
                   std::cout << "number of cachelines using this scheme: " <<
                           num_of_total_cache_lines << std::endl;
                   std::cout << "conflicting scheme number: " <<
                           index_into_hash_table << std::endl;
-                num_to_evict = num_of_total_cache_lines < 2*num_of_conflicts ?
-                          num_of_total_cache_lines : 2*num_of_conflicts;
+                  num_to_evict = num_of_total_cache_lines < 2*num_of_conflicts
+                          ? num_of_total_cache_lines : 2*num_of_conflicts;
+                  //increment scheme_counter for the new cacheline, so that
+                  // scheme is not invalidated before inserting the new line
+                  tags->get_VC_structure()->update_ASDT(CPA_Vaddr,
+                                          pkt->req->getPaddr(), CPA_CR3,
+                                          true, 0, 0,
+                                          pkt->req->get_is_writable_page());
+                  updated_asdt_for_allocated_block = true;
                   // policy to evict cachelines - evict 2*num of conflicts
                   conflict_scheme_entry = index_into_hash_table;
                   evict_on_conflict_miss();

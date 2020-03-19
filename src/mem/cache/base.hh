@@ -1124,6 +1124,7 @@ class BaseCache : public ClockedObject
         return blkSize;
     }
 
+    bool updated_asdt_for_allocated_block = false;
     const AddrRangeList &getAddrRanges() const { return addrRanges; }
 
     MSHR *allocateMissBuffer(PacketPtr pkt, Tick time, bool sched_send = true)
