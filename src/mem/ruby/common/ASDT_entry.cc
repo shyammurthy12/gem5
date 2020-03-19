@@ -369,6 +369,17 @@ VC_structure::hash_entry_to_use_dec_number_of_cache_lines(int index_of_entry)
 {
   return hash_lookup_table.at(index_of_entry).dec_number_of_cache_lines();
 }
+int
+VC_structure::hash_entry_to_use_inc_conflict_misses(int index_of_entry)
+{
+  return hash_lookup_table.at(index_of_entry).
+          increment_num_of_conflict_misses();
+}
+int
+VC_structure::hash_entry_to_use_get_num_of_cache_lines(int index_of_entry)
+{
+  return hash_lookup_table.at(index_of_entry).get_num_of_cache_lines();
+}
 bool
 VC_structure::hash_entry_to_use_getValid(int index_of_entry)
 {

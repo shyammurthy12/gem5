@@ -1253,11 +1253,11 @@ class BaseCache : public ClockedObject
                 exitSimLoop("A cache reached the maximum miss count");
         }
     }
+
     void incHitCount(PacketPtr pkt)
     {
         assert(pkt->req->masterId() < system->maxMasters());
         hits[pkt->cmdToIndex()][pkt->req->masterId()]++;
-
     }
 
     /**
@@ -1266,8 +1266,11 @@ class BaseCache : public ClockedObject
      * @return True if the cache is coalescing writes
      */
     bool coalesce() const;
+    int num_to_evict;
+    uint64_t conflict_scheme_entry;
 
-
+    bool evict_on_conflict_miss();
+    bool evict_on_conflict_miss_visitor(CacheBlk &blk);
     /**
      * Cache block visitor that writes back dirty cache blocks using
      * functional writes.

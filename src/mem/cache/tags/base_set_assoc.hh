@@ -379,6 +379,43 @@ class BaseSetAssoc : public BaseTags
         }
         return false;
     }
+
+    bool find_cacheline_to_evict(uint64_t conflict_scheme_entry) override {
+        for (CacheBlk& blk : blks) {
+                Addr VPN = blk.vtag/64;
+                uint64_t scheme_num = VPN & (get_VC_structure()
+                                ->get_hash_lookup_table_size()-1);
+                if (scheme_num == conflict_scheme_entry) {
+                        if (blk.isDirty() && blk.isValid()) {
+                                RequestPtr request;
+                                request = std::make_shared<Request>(
+                                   blk.paddr, blkSize, 0,
+                                   Request::funcMasterId);
+                                request->taskId(blk.task_id);
+                                if (blk.isSecure()) {
+                                    request->setFlags(Request::SECURE);
+                                }
+
+                                Packet packet(request, MemCmd::WriteReq);
+                                packet.dataStatic(blk.data);
+
+//				memSidePort.sendFunctional(&packet);
+                                blk.status &= ~BlkDirty;
+                                std::cout << "Blk writeback" << std::endl;
+                        }
+                        else if (blk.isValid()) {
+                                assert(!blk.isDirty());
+                                Addr repl_addr = blk.paddr;
+                                get_VC_structure()->update_ASDT( 0,
+                                repl_addr, 0,false, 0, 0,false);
+                                invalidate(&blk);
+                                std::cout << "Blk invalidated" << std::endl;
+                        }
+                        return true;
+                }
+        }
+        return false;
+    }
 };
 
 #endif //__MEM_CACHE_TAGS_BASE_SET_ASSOC_HH__

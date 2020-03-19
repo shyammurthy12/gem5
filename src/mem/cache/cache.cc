@@ -956,20 +956,20 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
           //and additionally
 
          uint64_t CPA_Vaddr = 0;
+          uint64_t CPA_VPN = 0;
+          uint64_t CPA_CR3 = 0;
          //obtain the physical address
          if (tags->get_VC_structure() != NULL){
 
           // Access ASDT and get correct ASDT and CR3
           uint64_t Region_Size = tags->get_VC_structure()->get_region_size();
           uint64_t PPN = pkt->req->getPaddr()/Region_Size;
-          uint64_t CPA_VPN = 0;
-          //uint64_t CPA_CR3 = 0;
           ASDT_entry * ASDT_entry =
                   tags->get_VC_structure()->access_matching_ASDT_map(PPN);
 
           if (ASDT_entry != NULL){
             CPA_VPN = ASDT_entry->get_virtual_page_number();
-            //CPA_CR3 = ASDT_entry->get_cr3();
+            CPA_CR3 = ASDT_entry->get_cr3();
             // obtain the current permission of the leading virtual page
             //is_writable_page = ASDT_entry->get_is_writable_page();
           }else{
@@ -980,9 +980,9 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
           // update blk->vtag
           CPA_Vaddr = (CPA_VPN * Region_Size) + (pkt->req->getPaddr()
                           % Region_Size);
-        }
-        mct_index = get_mct_index(CPA_Vaddr);
-        if (miss_classification_table.at(mct_index).getValid()){
+         }
+         mct_index = get_mct_index(CPA_Vaddr);
+         if (miss_classification_table.at(mct_index).getValid()){
            printf("The entry %ld is valid\n",mct_index);
            printf("The miss block is %ld\n",CPA_Vaddr/64);
            printf("The content of MCT is %ld\n",
@@ -991,8 +991,20 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
               miss_classification_table.at(mct_index).get_evicted_tag())
             {
                printf("Conflict detected\n");
+               uint64_t index_into_hash_table =
+                        ((CPA_VPN)^(CPA_CR3))&
+                        (tags->get_VC_structure()->
+                         get_hash_lookup_table_size()-1);
+               int num_of_conflicts = tags->get_VC_structure()->
+        hash_entry_to_use_inc_conflict_misses(index_into_hash_table);
+               int num_of_total_cache_lines = tags->get_VC_structure()->
+        hash_entry_to_use_get_num_of_cache_lines(index_into_hash_table);
+               num_to_evict = num_of_total_cache_lines > 2*num_of_conflicts ?
+                       num_of_total_cache_lines : 2*num_of_conflicts;
+               conflict_scheme_entry = index_into_hash_table;
+               evict_on_conflict_miss();
             }
-          }
+         }
         }
         uint64_t victim_tag = getVictimAddressTag(pkt);
         blk = allocate ? allocateBlock(pkt, writebacks) : nullptr;

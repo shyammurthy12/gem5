@@ -19,7 +19,6 @@
 
 //#include "mem/ruby/structures/CacheMemory.hh"
 class CacheMemory;
-
 using namespace std;
 
 class hash_function_lookup_table_entry{
@@ -152,6 +151,7 @@ public:
    //to some other value next time.
    hash_entry_to_use_set = false;
    number_of_cache_lines_using_this_entry = 0;
+   number_of_conflict_misses = 0;
  }
  void set_entry_number(int _entry_number)
  {
@@ -163,6 +163,15 @@ public:
   number_of_bits_shift = _number_of_bits_to_shift;
   epoch_id_mask = _epoch_id_mask;
  }
+ int increment_num_of_conflict_misses() {
+        number_of_conflict_misses++;
+        return number_of_conflict_misses;
+        //call function to evict cachelines(conflict_scheme=this scheme)
+ }
+ int get_num_of_cache_lines() {
+        return number_of_cache_lines_using_this_entry;
+ }
+
 private:
  //which entry in the hash function to use for
  //indexing.
@@ -182,6 +191,8 @@ private:
  //number of cache lines using this
  //entry
  uint64_t number_of_cache_lines_using_this_entry;
+ //conflict misses aused by this scheme
+ uint64_t number_of_conflict_misses;
  //entry validity bit.
  bool valid;
  //set entry number in the hash lookup table.
@@ -502,6 +513,8 @@ bool lookup_VC_structure( const Address addr,
   void hash_entry_to_use_inc_number_of_cache_lines(int index_of_entry,int
                   number_of_hashing_functions);
   void hash_entry_to_use_dec_number_of_cache_lines(int index_of_entry);
+  int hash_entry_to_use_inc_conflict_misses(int index_of_entry);
+  int hash_entry_to_use_get_num_of_cache_lines(int index_of_entry);
   bool hash_entry_to_use_getValid(int index_of_entry);
   void hash_entry_to_use_setValid(int index_of_entry);
   void hash_entry_to_use_invalidate(int index_of_entry);
