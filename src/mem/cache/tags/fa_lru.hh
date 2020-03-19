@@ -270,8 +270,8 @@ class FALRU : public BaseTags
         return false;
     }
 
-    bool find_cacheline_to_evict(uint64_t conflict_scheme_entry)
-            override{return false;}
+    PacketPtr find_cacheline_to_evict(uint64_t conflict_scheme_entry)
+            override{return NULL;}
   private:
     /**
      * Mechanism that allows us to simultaneously collect miss

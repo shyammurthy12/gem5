@@ -381,7 +381,8 @@ class BaseTags : public ClockedObject
      * @param visitor Visitor to call on each block.
      */
     virtual bool anyBlk(std::function<bool(CacheBlk &)> visitor) = 0;
-    virtual bool find_cacheline_to_evict(uint64_t conflict_scheme_entry) = 0;
+    virtual PacketPtr find_cacheline_to_evict(uint64_t
+                    conflict_scheme_entry) = 0;
 
   private:
     /**

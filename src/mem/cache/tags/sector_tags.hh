@@ -191,8 +191,8 @@ class SectorTags : public BaseTags
      * @param visitor Visitor to call on each block.
      */
     bool anyBlk(std::function<bool(CacheBlk &)> visitor) override;
-    bool find_cacheline_to_evict(uint64_t conflict_scheme_entry)
-            override{return false;}
+    PacketPtr find_cacheline_to_evict(uint64_t conflict_scheme_entry)
+            override{return NULL;}
 };
 
 #endif //__MEM_CACHE_TAGS_SECTOR_TAGS_HH__

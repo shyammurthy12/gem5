@@ -1672,7 +1672,11 @@ BaseCache::evict_on_conflict_miss()
     while (num_to_evict) {
     //	tags->anyBlk([this](CacheBlk &blk) {
     //	evict_on_conflict_miss_visitor(blk);});
-        tags->find_cacheline_to_evict(conflict_scheme_entry);
+        PacketPtr pkt = tags->find_cacheline_to_evict(conflict_scheme_entry);
+        if (pkt) {
+                printf("Writeback happened\n");
+                memSidePort.sendFunctional(pkt);
+        }
         num_to_evict--;
     }
     return true;

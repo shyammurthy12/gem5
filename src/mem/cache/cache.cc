@@ -999,8 +999,15 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
         hash_entry_to_use_inc_conflict_misses(index_into_hash_table);
                int num_of_total_cache_lines = tags->get_VC_structure()->
         hash_entry_to_use_get_num_of_cache_lines(index_into_hash_table);
-               num_to_evict = num_of_total_cache_lines > 2*num_of_conflicts ?
+               std::cout << "number of conflicts: " << num_of_conflicts
+                       << std::endl;
+               std::cout << "number of cachelines using this scheme: " <<
+                       num_of_total_cache_lines << std::endl;
+               std::cout << "conflicting scheme number: " <<
+                       index_into_hash_table << std::endl;
+               num_to_evict = num_of_total_cache_lines < 2*num_of_conflicts ?
                        num_of_total_cache_lines : 2*num_of_conflicts;
+               // policy to evict cachelines - evict 2*num of conflicts
                conflict_scheme_entry = index_into_hash_table;
                evict_on_conflict_miss();
             }

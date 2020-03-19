@@ -380,7 +380,8 @@ class BaseSetAssoc : public BaseTags
         return false;
     }
 
-    bool find_cacheline_to_evict(uint64_t conflict_scheme_entry) override {
+    PacketPtr find_cacheline_to_evict(uint64_t conflict_scheme_entry)
+            override {
         for (CacheBlk& blk : blks) {
                 Addr VPN = blk.vtag/64;
                 uint64_t scheme_num = VPN & (get_VC_structure()
@@ -396,12 +397,14 @@ class BaseSetAssoc : public BaseTags
                                     request->setFlags(Request::SECURE);
                                 }
 
-                                Packet packet(request, MemCmd::WriteReq);
-                                packet.dataStatic(blk.data);
+                                PacketPtr packet = new Packet(request,
+                                                MemCmd::WriteReq);
+                                packet->dataStatic(blk.data);
 
 //				memSidePort.sendFunctional(&packet);
                                 blk.status &= ~BlkDirty;
                                 std::cout << "Blk writeback" << std::endl;
+                                return packet;
                         }
                         else if (blk.isValid()) {
                                 assert(!blk.isDirty());
@@ -410,11 +413,13 @@ class BaseSetAssoc : public BaseTags
                                 repl_addr, 0,false, 0, 0,false);
                                 invalidate(&blk);
                                 std::cout << "Blk invalidated" << std::endl;
+                                return NULL;
                         }
-                        return true;
                 }
         }
-        return false;
+        printf("ERROR!!! Didnt find any cachelines!!!!!!!!!!!!!!!!!!");
+        abort();
+        return NULL;
     }
 };
 
