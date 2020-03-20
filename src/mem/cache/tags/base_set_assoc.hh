@@ -404,6 +404,10 @@ class BaseSetAssoc : public BaseTags
 //				memSidePort.sendFunctional(&packet);
                                 blk.status &= ~BlkDirty;
                                 std::cout << "Blk writeback" << std::endl;
+                                Addr repl_addr = blk.paddr;
+                                get_VC_structure()->update_ASDT( 0,
+                                repl_addr, 0,false, 0, 0,false);
+                                invalidate(&blk);
                                 return packet;
                         }
                         else if (blk.isValid()) {

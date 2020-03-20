@@ -100,6 +100,7 @@ public:
 #ifdef Smurthy_debug
         printf("Setting hash_entry to use %lu\n",hash_entry_to_use);
 #endif
+        printf("Setting hash_entry to use %lu\n",hash_entry_to_use);
         hash_entry_to_use_set = true;
       }
    }
@@ -127,6 +128,7 @@ public:
         epoch_id;
      lifetimes_of_hash_entries.at(entry_number).back().subtraction_done = true;
      valid = false;
+     number_of_conflict_misses = 0;
      hash_entry_to_use_set = false;
 #ifdef Smurthy_debug
      printf("Count of lines mapped to this entry has fallen to"
