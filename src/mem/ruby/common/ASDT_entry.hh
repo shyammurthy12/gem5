@@ -73,8 +73,6 @@ public:
       if (!valid)
         printf("Changing hash function\n");
 #endif
-      if (!valid)
-        printf("Changing hash function\n");
       valid = true;
       //need to choose a fresh random number from 0 to total
       //number of hash functions -1 we have.
@@ -102,7 +100,6 @@ public:
 #ifdef Smurthy_debug
         printf("Setting hash_entry to use %lu\n",hash_entry_to_use);
 #endif
-        printf("Setting hash_entry to use %lu\n",hash_entry_to_use);
         hash_entry_to_use_set = true;
       }
    }
