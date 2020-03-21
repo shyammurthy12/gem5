@@ -71,6 +71,10 @@
 #include "mem/request.hh"
 #include "params/Cache.hh"
 
+int policy = 1; // 0: remove min(cachelines,
+        //2*conflict misses from conflicting scheme)
+        // 1: remove scheme with max conflicts
+
 Cache::Cache(const CacheParams *p)
     : BaseCache(p, p->system->cacheLineSize()),
       doFastWrites(true)
@@ -986,7 +990,7 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                           % Region_Size);
          }
          mct_index = get_mct_index(CPA_Vaddr);
-         uint64_t victim_tag = getVictimAddressTag(pkt);
+         //uint64_t victim_tag = getVictimAddressTag(pkt);
          if (miss_classification_table.at(mct_index).getValid()){
            printf("The entry %ld is valid\n",mct_index);
            printf("The miss block is %ld\n",CPA_Vaddr/64);
@@ -1004,33 +1008,74 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                conflict_detected = true;
                if (conflict_detected)
                {
-                  uint64_t index_into_hash_table =
+                 switch(policy) {
+                   case 0: {
+                     uint64_t index_into_hash_table =
                            ((CPA_VPN)^(CPA_CR3))&
                            (tags->get_VC_structure()->
                             get_hash_lookup_table_size()-1);
-                  int num_of_conflicts = tags->get_VC_structure()->
-                  hash_entry_to_use_inc_conflict_misses(
+                     int num_of_conflicts = tags->get_VC_structure()->
+                     hash_entry_to_use_inc_conflict_misses(
                                   index_into_hash_table);
-                  int num_of_total_cache_lines = tags->get_VC_structure()->
-                  hash_entry_to_use_get_num_of_cache_lines(
+                     int num_of_total_cache_lines = tags->get_VC_structure()->
+                     hash_entry_to_use_get_num_of_cache_lines(
                                   index_into_hash_table);
-                  std::cout << "number of conflicts: " << num_of_conflicts
+                     std::cout << "number of conflicts: " << num_of_conflicts
                           << std::endl;
-                  std::cout << "number of cachelines using this scheme: " <<
+                     std::cout << "num of cachelines using this scheme: " <<
                           num_of_total_cache_lines << std::endl;
-                  std::cout << "conflicting scheme number: " <<
+                     std::cout << "conflicting scheme number: " <<
                           index_into_hash_table << std::endl;
-             num_to_evict = min(num_of_total_cache_lines,2*num_of_conflicts);
+                     num_to_evict = min(num_of_total_cache_lines,
+                                     2*num_of_conflicts);
                   //increment scheme_counter for the new cacheline, so that
                   // scheme is not invalidated before inserting the new line
-                  tags->get_VC_structure()->update_ASDT(CPA_Vaddr,
+                     tags->get_VC_structure()->update_ASDT(CPA_Vaddr,
                                           pkt->req->getPaddr(), CPA_CR3,
                                           true, 0, 0,
                                           pkt->req->get_is_writable_page());
-                  updated_asdt_for_allocated_block = true;
+                     updated_asdt_for_allocated_block = true;
                   // policy to evict cachelines - evict 2*num of conflicts
-                  conflict_scheme_entry = index_into_hash_table;
-                  //evict_on_conflict_miss();
+                     conflict_scheme_entry = index_into_hash_table;
+                     evict_on_conflict_miss();
+                   }
+                   case 1: {
+                     uint64_t index_into_hash_table =
+                           ((CPA_VPN)^(CPA_CR3))&
+                           (tags->get_VC_structure()->
+                            get_hash_lookup_table_size()-1);
+                     int maxElementIndex = std::max_element(
+                       list_of_scheme_conflict_counter.begin(),
+                       list_of_scheme_conflict_counter.end()) -
+                             list_of_scheme_conflict_counter.begin();
+                     int maxElement = *std::max_element(
+                       list_of_scheme_conflict_counter.begin(),
+                       list_of_scheme_conflict_counter.end());
+                     conflict_scheme_entry = maxElementIndex;
+                     std::cout << "conflicting scheme number: " <<
+                        index_into_hash_table << std::endl;
+                     std::cout << "evicting scheme number: " <<
+                        maxElementIndex << std::endl;
+                     std::cout << "evicting scheme number conflicts: "<<
+                        maxElement << std::endl;
+                     tags->get_VC_structure()->update_ASDT(CPA_Vaddr,
+                                        pkt->req->getPaddr(), CPA_CR3,
+                                        true, 0, 0,
+                                        pkt->req->get_is_writable_page());
+                     updated_asdt_for_allocated_block = true;
+                     num_to_evict = tags->get_VC_structure()->
+                        hash_entry_to_use_get_num_of_cache_lines(
+                                maxElementIndex);
+                     // evict all cachelines from this scheme --force recycle
+                     std::cout << "num of cachelines using this scheme: " <<
+                        num_to_evict << std::endl;
+                     evict_on_conflict_miss();
+                     std::cout << "num of cachelines after eviction: " <<
+                      tags->get_VC_structure()->
+                        hash_entry_to_use_get_num_of_cache_lines(
+                                maxElementIndex) << std::endl;
+                   }
+                 }
                }
             }
          }

@@ -2,6 +2,7 @@
 using namespace std;
 std::vector<std::vector<lifetime_record>> lifetimes_of_hash_entries;
 std::vector<bool> hash_entries_used;
+vector<int> list_of_scheme_conflict_counter;
 
 // Function to return the next random number
 int getNum(vector<int>& v)
@@ -212,6 +213,7 @@ VC_structure::VC_structure(string name,
     ASDT_SA_structure.push_back(temp);
   }
   lifetimes_of_hash_entries.resize(m_hash_lookup_table_size);
+  list_of_scheme_conflict_counter.resize(m_hash_lookup_table_size);
   hash_entries_used.resize(m_hash_lookup_table_size);
 
   //tunable parameters.
@@ -232,6 +234,7 @@ VC_structure::VC_structure(string name,
     hash_entries_used.at(i) = false;
   for (int i = 0; i<m_hash_lookup_table_size; i++){
     hash_function_lookup_table_entry temp;
+    list_of_scheme_conflict_counter.at(i) = 0;
     //invalidate this entry.Made valid when referenced
     //first time and assigned a hash function to use.
     temp.invalidate();
@@ -367,13 +370,20 @@ VC_structure::hash_entry_to_use_inc_number_of_cache_lines(int
 void
 VC_structure::hash_entry_to_use_dec_number_of_cache_lines(int index_of_entry)
 {
-  return hash_lookup_table.at(index_of_entry).dec_number_of_cache_lines();
+  hash_lookup_table.at(index_of_entry).dec_number_of_cache_lines();
+  if (hash_entry_to_use_get_num_of_cache_lines(index_of_entry)==0) {
+          list_of_scheme_conflict_counter.at(index_of_entry) = 0;
+          printf("Number of conflicts set to 0\n");
+  }
+  return;
 }
 int
 VC_structure::hash_entry_to_use_inc_conflict_misses(int index_of_entry)
 {
-  return hash_lookup_table.at(index_of_entry).
+  int conflicts =  hash_lookup_table.at(index_of_entry).
           increment_num_of_conflict_misses();
+  list_of_scheme_conflict_counter.at(index_of_entry) = conflicts;
+  return conflicts;
 }
 int
 VC_structure::hash_entry_to_use_get_num_of_cache_lines(int index_of_entry)

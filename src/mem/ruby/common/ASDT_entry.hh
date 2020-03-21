@@ -20,7 +20,7 @@
 //#include "mem/ruby/structures/CacheMemory.hh"
 class CacheMemory;
 using namespace std;
-
+extern vector<int> list_of_scheme_conflict_counter;
 class hash_function_lookup_table_entry{
 
 public:
@@ -73,6 +73,8 @@ public:
       if (!valid)
         printf("Changing hash function\n");
 #endif
+      if (!valid)
+        printf("Changing hash function\n");
       valid = true;
       //need to choose a fresh random number from 0 to total
       //number of hash functions -1 we have.
@@ -134,6 +136,8 @@ public:
      printf("Count of lines mapped to this entry has fallen to"
                      "zero and we need to set the constant again\n");
 #endif
+     printf("Count of lines mapped to this entry has fallen to"
+                     "zero and we need to set the constant again\n");
    }
  }
  bool getValid()
@@ -514,9 +518,9 @@ bool lookup_VC_structure( const Address addr,
   uint64_t get_epoch_id_validity_interval_to_use(int index_of_entry);
   void hash_entry_to_use_inc_number_of_cache_lines(int index_of_entry,int
                   number_of_hashing_functions);
+  int hash_entry_to_use_get_num_of_cache_lines(int index_of_entry);
   void hash_entry_to_use_dec_number_of_cache_lines(int index_of_entry);
   int hash_entry_to_use_inc_conflict_misses(int index_of_entry);
-  int hash_entry_to_use_get_num_of_cache_lines(int index_of_entry);
   bool hash_entry_to_use_getValid(int index_of_entry);
   void hash_entry_to_use_setValid(int index_of_entry);
   void hash_entry_to_use_invalidate(int index_of_entry);
