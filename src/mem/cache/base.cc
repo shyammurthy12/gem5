@@ -1331,6 +1331,26 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
     return blk;
 }
 
+//a helper function that tells us if
+//the victim block is a valid block or not
+bool
+BaseCache:: isVictimValid(const PacketPtr pkt)
+{
+
+    // Get address
+    const Addr addr = pkt->getAddr();
+    // Get secure bit
+    const bool is_secure = pkt->isSecure();
+    // Find replacement victim
+    std::vector<CacheBlk*> evict_blks;
+    CacheBlk *victim = tags->findVictim(addr, is_secure, evict_blks);
+    if (victim)
+       return true;
+    else
+       return false;
+}
+
+
 int64_t
 BaseCache:: getVictimAddressTag(const PacketPtr pkt)
 {

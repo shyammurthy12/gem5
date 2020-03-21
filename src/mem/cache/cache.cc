@@ -986,13 +986,19 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                           % Region_Size);
          }
          mct_index = get_mct_index(CPA_Vaddr);
+         uint64_t victim_tag = getVictimAddressTag(pkt);
          if (miss_classification_table.at(mct_index).getValid()){
            printf("The entry %ld is valid\n",mct_index);
            printf("The miss block is %ld\n",CPA_Vaddr/64);
            printf("The content of MCT is %ld\n",
               miss_classification_table.at(mct_index).get_evicted_tag());
-           if (CPA_Vaddr/64 ==
-              miss_classification_table.at(mct_index).get_evicted_tag())
+
+           uint64_t is_victim_valid = isVictimValid(pkt);
+           //only if there is a valid victim (cache set is full)
+           //is when we raise a conflict
+           if ((CPA_Vaddr/64 ==
+              miss_classification_table.at(mct_index).get_evicted_tag())&&
+                (is_victim_valid))
             {
                printf("Conflict detected\n");
                conflict_detected = true;
@@ -1014,8 +1020,7 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                           num_of_total_cache_lines << std::endl;
                   std::cout << "conflicting scheme number: " <<
                           index_into_hash_table << std::endl;
-                  num_to_evict = num_of_total_cache_lines < 2*num_of_conflicts
-                          ? num_of_total_cache_lines : 2*num_of_conflicts;
+             num_to_evict = min(num_of_total_cache_lines,2*num_of_conflicts);
                   //increment scheme_counter for the new cacheline, so that
                   // scheme is not invalidated before inserting the new line
                   tags->get_VC_structure()->update_ASDT(CPA_Vaddr,
@@ -1025,7 +1030,7 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                   updated_asdt_for_allocated_block = true;
                   // policy to evict cachelines - evict 2*num of conflicts
                   conflict_scheme_entry = index_into_hash_table;
-                  evict_on_conflict_miss();
+                  //evict_on_conflict_miss();
                }
             }
          }

@@ -718,6 +718,8 @@ class BaseCache : public ClockedObject
      */
     CacheBlk *allocateBlock(const PacketPtr pkt, PacketList &writebacks);
 
+
+    bool isVictimValid(const PacketPtr pkt);
     int64_t getVictimAddressTag(const PacketPtr pkt);
     /**
      * Evict a cache block.
