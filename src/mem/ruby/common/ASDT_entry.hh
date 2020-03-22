@@ -52,6 +52,7 @@ public:
 #ifdef Smurthy_debug
   printf("Setting hash_entry to use %lu\n",hash_entry_to_use);
 #endif
+  printf("Setting hash_entry to use (set_hash) %lu\n",hash_entry_to_use);
  }
  uint64_t get_hash_entry_to_use()
  {
@@ -100,6 +101,7 @@ public:
 #ifdef Smurthy_debug
         printf("Setting hash_entry to use %lu\n",hash_entry_to_use);
 #endif
+        printf("Setting hash_entry to use %lu\n",hash_entry_to_use);
         hash_entry_to_use_set = true;
       }
    }

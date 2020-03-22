@@ -71,7 +71,8 @@
 #include "mem/request.hh"
 #include "params/Cache.hh"
 
-int policy = 1; // 0: remove min(cachelines,
+int policy = 0;
+        // 0: remove min(cachelines,
         //2*conflict misses from conflicting scheme)
         // 1: remove scheme with max conflicts
 
@@ -412,6 +413,8 @@ bool Cache::BaseCache_access_dup(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
     }
     DPRINTF(Cache, "%s for %s %s\n", __func__, pkt->print(),
             blk ? "hit " + blk->print() : "miss");
+    if (!blk)
+        printf("It is a cache miss, 1st block of interest\n");
 
     if (pkt->req->isCacheMaintenance()) {
         // A cache maintenance operation is always forwarded to the
@@ -425,6 +428,8 @@ bool Cache::BaseCache_access_dup(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
         // takes into account the bus delay.
         lat = calculateTagOnlyLatency(pkt->headerDelay, tag_latency);
 
+       if (!blk)
+        printf("It is a cache miss, 2nd block of interest\n");
         return false;
     }
 
@@ -437,8 +442,12 @@ bool Cache::BaseCache_access_dup(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
         // generating CleanEvict and Writeback or simply CleanEvict and
         // CleanEvict almost simultaneously will be caught by snoops sent out
         // by crossbar.
+
         WriteQueueEntry *wb_entry = writeBuffer.findMatch(pkt->getAddr(),
                                                           pkt->isSecure());
+
+        if (!blk)
+           printf("It is a cache miss, 3rd block of interest\n");
         if (wb_entry) {
             assert(wb_entry->getNumTargets() == 1);
             PacketPtr wbPkt = wb_entry->getTarget()->pkt;
@@ -495,7 +504,7 @@ bool Cache::BaseCache_access_dup(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
         }
 
         if (!blk) {
-
+            printf("It is a cache miss, 4th block of interest\n");
             //if we miss in the cache, need
             //to make an allocation in the ASDT, if necessary.
             #ifdef Ongal_VC
@@ -723,6 +732,8 @@ bool Cache::BaseCache_access_dup(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
     // Can't satisfy access normally... either no block (blk == nullptr)
     // or have block but need writable
 
+    if (!blk)
+        printf("It is a cache miss, last block of interest\n");
     incMissCount(pkt);
 
     lat = calculateAccessLatency(blk, pkt->headerDelay, tag_latency);
@@ -940,6 +951,7 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
     assert(!writeBuffer.findMatch(addr, is_secure));
 
     updated_asdt_for_allocated_block = false;
+    bool asdt_invalidation_check_done = false;
     if (!blk) {
         // better have read new data...
         assert(pkt->hasData() || pkt->cmd == MemCmd::InvalidateResp);
@@ -947,12 +959,6 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
         // need to do a replacement if allocating, otherwise we stick
         // with the temporary storage
 
-        #ifdef Ongal_VC
-        #ifdef ASDT_Set_Associative_Array
-        ASDT_Invalidation_Check(pkt->req->getPaddr(), writebacks);
-        #endif
-        Add_NEW_ASDT_map_entry(pkt);
-        #endif
         uint64_t mct_index;
         bool conflict_detected = false;
         uint64_t CPA_Vaddr = 0;
@@ -980,34 +986,28 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
             CPA_CR3 = ASDT_entry->get_cr3();
             // obtain the current permission of the leading virtual page
             //is_writable_page = ASDT_entry->get_is_writable_page();
-          }else{
-            std::cout<<"tags->insertblock(), should find a corresponding ASDT"
-                    "entry in a map";
-            abort();
-          }
-          // update blk->vtag
-          CPA_Vaddr = (CPA_VPN * Region_Size) + (pkt->req->getPaddr()
+            // update blk->vtag
+            CPA_Vaddr = (CPA_VPN * Region_Size) + (pkt->req->getPaddr()
                           % Region_Size);
-         }
-         mct_index = get_mct_index(CPA_Vaddr);
-         //uint64_t victim_tag = getVictimAddressTag(pkt);
-         if (miss_classification_table.at(mct_index).getValid()){
-           printf("The entry %ld is valid\n",mct_index);
-           printf("The miss block is %ld\n",CPA_Vaddr/64);
-           printf("The content of MCT is %ld\n",
-              miss_classification_table.at(mct_index).get_evicted_tag());
+             mct_index = get_mct_index(CPA_Vaddr);
+             //uint64_t victim_tag = getVictimAddressTag(pkt);
+             if (miss_classification_table.at(mct_index).getValid()){
+               printf("The entry %ld is valid\n",mct_index);
+               printf("The miss block is %ld\n",CPA_Vaddr/64);
+               printf("The content of MCT is %ld\n",
+                  miss_classification_table.at(mct_index).get_evicted_tag());
 
-           uint64_t is_victim_valid = isVictimValid(pkt);
-           //only if there is a valid victim (cache set is full)
-           //is when we raise a conflict
-           if ((CPA_Vaddr/64 ==
-              miss_classification_table.at(mct_index).get_evicted_tag())&&
-                (is_victim_valid))
-            {
-               printf("Conflict detected\n");
-               conflict_detected = true;
-               if (conflict_detected)
-               {
+               uint64_t is_victim_valid = isVictimValid(pkt);
+               //only if there is a valid victim (cache set is full)
+               //is when we raise a conflict
+               if ((CPA_Vaddr/64 ==
+                  miss_classification_table.at(mct_index).get_evicted_tag())&&
+                    (is_victim_valid))
+                {
+                   printf("Conflict detected\n");
+                   conflict_detected = true;
+                   if (conflict_detected)
+                   {
                  switch(policy) {
                    case 0: {
                      uint64_t index_into_hash_table =
@@ -1028,70 +1028,125 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                           index_into_hash_table << std::endl;
                      num_to_evict = min(num_of_total_cache_lines,
                                      2*num_of_conflicts);
-                  //increment scheme_counter for the new cacheline, so that
-                  // scheme is not invalidated before inserting the new line
-                     tags->get_VC_structure()->update_ASDT(CPA_Vaddr,
-                                          pkt->req->getPaddr(), CPA_CR3,
-                                          true, 0, 0,
-                                          pkt->req->get_is_writable_page());
-                     updated_asdt_for_allocated_block = true;
-                  // policy to evict cachelines - evict 2*num of conflicts
-                     conflict_scheme_entry = index_into_hash_table;
-                     evict_on_conflict_miss();
-                   }
-                   case 1: {
-                     uint64_t index_into_hash_table =((CPA_VPN)^(CPA_CR3))&
-                           (tags->get_VC_structure()->
-                            get_hash_lookup_table_size()-1);
-                     tags->get_VC_structure()->
-                           hash_entry_to_use_inc_conflict_misses(
-                                  index_into_hash_table);
-                     int maxElementIndex = std::max_element(
-                       list_of_scheme_conflict_counter.begin(),
-                       list_of_scheme_conflict_counter.end()) -
-                             list_of_scheme_conflict_counter.begin();
-                     int maxElement = *std::max_element(
-                       list_of_scheme_conflict_counter.begin(),
-                       list_of_scheme_conflict_counter.end());
-                     if (maxElement && maxElementIndex!=index_into_hash_table){
-                       conflict_scheme_entry = maxElementIndex;
-                       std::cout << "conflicting scheme number: " <<
-                          index_into_hash_table << std::endl;
-                       std::cout << "evicting scheme number: " <<
-                          maxElementIndex << std::endl;
-                       std::cout << "evicting scheme number conflicts: "<<
-                          maxElement << std::endl;
-                       tags->get_VC_structure()->update_ASDT(CPA_Vaddr,
-                                          pkt->req->getPaddr(), CPA_CR3,
-                                          true, 0, 0,
-                                          pkt->req->get_is_writable_page());
-                       updated_asdt_for_allocated_block = true;
-                       num_to_evict = tags->get_VC_structure()->
-                          hash_entry_to_use_get_num_of_cache_lines(
-                                  maxElementIndex);
-                       // evict all cachelines from this scheme --force recycle
-                       std::cout << "num of cachelines using this scheme: " <<
+                     std::cout << "Number to evict: " <<
                           num_to_evict << std::endl;
-                       evict_on_conflict_miss();
-                       std::cout << "num of cachelines after eviction: " <<
-                        tags->get_VC_structure()->
-                          hash_entry_to_use_get_num_of_cache_lines(
-                                  maxElementIndex) << std::endl;
+                   //increment scheme_counter for the new cacheline, so that
+                  // scheme is not invalidated before inserting the new line
+                    // tags->get_VC_structure()->update_ASDT(CPA_Vaddr,
+                    //                      pkt->req->getPaddr(), CPA_CR3,
+                    //                      true, 0, 0,
+                    //                      pkt->req->get_is_writable_page());
+                    // updated_asdt_for_allocated_block = true;
+                  // policy to evict cachelines - evict 2*num of conflicts
+                         conflict_scheme_entry = index_into_hash_table;
+                         evict_on_conflict_miss();
+                       }
+                   break;
+                       case 1: {
+                         uint64_t index_into_hash_table =((CPA_VPN)^(CPA_CR3))&
+                               (tags->get_VC_structure()->
+                                get_hash_lookup_table_size()-1);
+                         tags->get_VC_structure()->
+                               hash_entry_to_use_inc_conflict_misses(
+                                      index_into_hash_table);
+                         int maxElementIndex = std::max_element(
+                           list_of_scheme_conflict_counter.begin(),
+                           list_of_scheme_conflict_counter.end()) -
+                                 list_of_scheme_conflict_counter.begin();
+                         int maxElement = *std::max_element(
+                           list_of_scheme_conflict_counter.begin(),
+                           list_of_scheme_conflict_counter.end());
+                     if (maxElement && maxElementIndex!=index_into_hash_table){
+                           conflict_scheme_entry = maxElementIndex;
+                           std::cout << "conflicting scheme number: " <<
+                              index_into_hash_table << std::endl;
+                           std::cout << "evicting scheme number: " <<
+                              maxElementIndex << std::endl;
+                           std::cout << "evicting scheme number conflicts: "<<
+                              maxElement << std::endl;
+                           num_to_evict = tags->get_VC_structure()->
+                              hash_entry_to_use_get_num_of_cache_lines(
+                                      maxElementIndex);
+                           // evict all cachelines
+                           // from this scheme --force recycle
+                        std::cout << "num of cachelines using this scheme: " <<
+                              num_to_evict << std::endl;
+                           evict_on_conflict_miss();
+                           std::cout << "num of cachelines after eviction: " <<
+                            tags->get_VC_structure()->
+                              hash_entry_to_use_get_num_of_cache_lines(
+                                      maxElementIndex) << std::endl;
+
+                         }
+                         else
+                                 printf("No eviction candidate found\n");
+                       }
+                   break;
                      }
-                     else
-                             printf("No eviction candidate found\n");
                    }
-                 }
-               }
+                }
+
+                 #ifdef Ongal_VC
+                 #ifdef ASDT_Set_Associative_Array
+                 ASDT_Invalidation_Check(pkt->req->getPaddr(), writebacks);
+                 #endif
+                 Add_NEW_ASDT_map_entry(pkt);
+                 #endif
+                 asdt_invalidation_check_done = true;
+                 tags->get_VC_structure()->update_ASDT(CPA_Vaddr,
+                                    pkt->req->getPaddr(), CPA_CR3,
+                                    true, 0, 0,
+                                    pkt->req->get_is_writable_page());
+                 updated_asdt_for_allocated_block = true;
+             }
             }
+            else{
+                //No ASDT entry for this address, do nothing.
+              }
          }
         }
-        uint64_t victim_tag = getVictimAddressTag(pkt);
+        uint64_t victim_tag;
+        if (!asdt_invalidation_check_done)
+        {
+          #ifdef Ongal_VC
+          #ifdef ASDT_Set_Associative_Array
+          ASDT_Invalidation_Check(pkt->req->getPaddr(), writebacks);
+          #endif
+          Add_NEW_ASDT_map_entry(pkt);
+          #endif
+          asdt_invalidation_check_done = true;
+        }
+        victim_tag = getVictimAddressTag(pkt);
         blk = allocate ? allocateBlock(pkt, writebacks) : nullptr;
         if (get_is_l1cache())
         {
          if (blk)
          {
+         //might have to re-trigger a computation of
+         //mct index, if the scheme changed.
+         if (tags->get_VC_structure() != NULL){
+
+          // Access ASDT and get correct ASDT and CR3
+          uint64_t Region_Size = tags->get_VC_structure()->get_region_size();
+          uint64_t PPN = pkt->req->getPaddr()/Region_Size;
+          ASDT_entry * ASDT_entry =
+                  tags->get_VC_structure()->access_matching_ASDT_map(PPN);
+
+          if (ASDT_entry != NULL){
+            CPA_VPN = ASDT_entry->get_virtual_page_number();
+            CPA_CR3 = ASDT_entry->get_cr3();
+            // obtain the current permission of the leading virtual page
+            //is_writable_page = ASDT_entry->get_is_writable_page();
+          }else{
+            std::cout<<"tags->insertblock(), should find a corresponding ASDT"
+                    "entry in a map";
+            abort();
+          }
+          // update blk->vtag
+          CPA_Vaddr = (CPA_VPN * Region_Size) + (pkt->req->getPaddr()
+                          % Region_Size);
+         }
+         mct_index = get_mct_index(CPA_Vaddr);
             //validate the corresponding entry
             miss_classification_table.at(mct_index).setValid();
             printf("Inserting an entry in the miss conflict table"
