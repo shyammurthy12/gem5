@@ -1036,7 +1036,7 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                     // updated_asdt_for_allocated_block = true;
                   // policy to evict cachelines - evict 2*num of conflicts
                          conflict_scheme_entry = index_into_hash_table;
-                         evict_on_conflict_miss();
+                        // evict_on_conflict_miss();
                        }
                    break;
                        case 1: {
@@ -1053,7 +1053,7 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                          int maxElement = *std::max_element(
                            list_of_scheme_conflict_counter.begin(),
                            list_of_scheme_conflict_counter.end());
-                     if (maxElement && maxElementIndex!=index_into_hash_table){
+                     if (maxElement){
                            conflict_scheme_entry = maxElementIndex;
                            std::cout << "conflicting scheme number: " <<
                               index_into_hash_table << std::endl;
@@ -1061,14 +1061,14 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                               maxElementIndex << std::endl;
                            std::cout << "evicting scheme number conflicts: "<<
                               maxElement << std::endl;
-                           num_to_evict = tags->get_VC_structure()->
+                           num_to_evict = min(tags->get_VC_structure()->
                               hash_entry_to_use_get_num_of_cache_lines(
-                                      maxElementIndex);
+                                      maxElementIndex), 2*maxElement);
                            // evict all cachelines
                            // from this scheme --force recycle
                         std::cout << "num of cachelines using this scheme: " <<
                               num_to_evict << std::endl;
-                           evict_on_conflict_miss();
+                          // evict_on_conflict_miss();
                            std::cout << "num of cachelines after eviction: " <<
                             tags->get_VC_structure()->
                               hash_entry_to_use_get_num_of_cache_lines(
@@ -1090,8 +1090,10 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                  hash_recycled = Add_NEW_ASDT_map_entry(pkt);
                  #endif
                  asdt_invalidation_check_done = true;
-                 if (hash_recycled)
-                   cout <<"Hash recycled"<<endl;
+                 if (hash_recycled) {
+                         num_schemes_recycled++;
+                  // cout <<"Hash recycled"<<endl;
+                 }
                  //are doing an ASDT invalidation check additionally here
                  //because we haven't updated the asdt entry to say
                  //this block exists. Evictions might remove all the other
@@ -1112,6 +1114,7 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
         uint64_t victim_tag;
         if (!asdt_invalidation_check_done)
         {
+          bool hash_recycled = false;
           #ifdef Ongal_VC
           #ifdef ASDT_Set_Associative_Array
           ASDT_Invalidation_Check(pkt->req->getPaddr(), writebacks);
@@ -1119,6 +1122,8 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
           Add_NEW_ASDT_map_entry(pkt);
           #endif
           asdt_invalidation_check_done = true;
+          if (hash_recycled)
+                 num_schemes_recycled++;
         }
         victim_tag = getVictimAddressTag(pkt);
         blk = allocate ? allocateBlock(pkt, writebacks) : nullptr;
