@@ -172,6 +172,11 @@ Cache::Cache(const CacheParams *p)
 
       num_page_info_change = 0;
 
+        num_conflict_misses = 0;
+        num_schemes_recycled = 0;
+        num_forced_writebacks = 0;
+        num_forced_invalidations = 0;
+
     } else {
       set_is_l1cache(false);
       std::cout<<" This cache is NOT L1Cache ";
@@ -998,6 +1003,7 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                     (is_victim_valid))
                 {
                    printf("Conflict detected\n");
+                   num_conflict_misses++; // stat for num of conflicts
                    conflict_detected = true;
                    if (conflict_detected)
                    {

@@ -1697,8 +1697,12 @@ BaseCache::evict_on_conflict_miss()
         PacketPtr pkt = tags->find_cacheline_to_evict(conflict_scheme_entry);
         if (pkt) {
                 printf("Writeback happened\n");
+                num_forced_writebacks++;
+                num_forced_invalidations++;
                 memSidePort.sendFunctional(pkt);
         }
+        else
+                num_forced_invalidations++;
         num_to_evict--;
     }
     return true;
@@ -2746,6 +2750,26 @@ BaseCache::regStats()
     num_page_info_change
         .name(name() + ".num_page_info_change")
         .desc("num of demap handling due to page info change")
+        ;
+
+    num_conflict_misses
+        .name(name() + ".num_conflict_misses")
+        .desc("num of conflict misses detected by MCT")
+        ;
+
+    num_schemes_recycled
+        .name(name() + ".num_schemes_recycled")
+        .desc("num of times schemes were recycled")
+        ;
+
+    num_forced_writebacks
+        .name(name() + ".num_forced_writebacks")
+        .desc("num of writebacks to penalize scheme")
+        ;
+
+    num_forced_invalidations
+        .name(name() + ".num_forced_invalidations")
+        .desc("num of invalidations to penalize scheme")
         ;
 
 #endif

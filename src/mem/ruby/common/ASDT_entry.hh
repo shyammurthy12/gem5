@@ -31,6 +31,7 @@ public:
   //this is the first cache line to be inserted
   //for a ASDT entry that we are just inserting.
   hash_entry_to_use_set = true;
+//  num_schemes_recycled++;
   hash_entry_to_use = _hash_entry_to_use;
   lifetime_record temp;
   //temp.lifetime = curTick();
@@ -103,6 +104,7 @@ public:
 #endif
         printf("Setting hash_entry to use %lu\n",hash_entry_to_use);
         hash_entry_to_use_set = true;
+        //num_schemes_recycled++;
       }
    }
    number_of_cache_lines_using_this_entry++;

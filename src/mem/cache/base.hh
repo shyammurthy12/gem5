@@ -1091,6 +1091,12 @@ class BaseCache : public ClockedObject
 
     Stats::Scalar num_page_info_change;
 
+    // conflict detection schemes
+    Stats::Scalar num_conflict_misses;
+    Stats::Scalar num_schemes_recycled;
+    Stats::Scalar num_forced_writebacks;
+    Stats::Scalar num_forced_invalidations;
+//TODO    Stats::Formula avg_lifetime_schemes;
 
 
 #endif
