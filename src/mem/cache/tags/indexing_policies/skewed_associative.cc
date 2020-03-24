@@ -197,6 +197,15 @@ SkewedAssociative::extractSet(const Addr addr, const uint32_t way) const
     return skew(addr >> setShift, way) & setMask;
 }
 
+
+
+uint32_t
+SkewedAssociative::extractSet_Vaddr_with_hashing(const Addr addr, vector<int>
+                hash_function_for_xor) const
+{
+    return 0;
+}
+
 Addr
 SkewedAssociative::regenerateAddr(const Addr tag,
                                   const ReplaceableEntry* entry) const

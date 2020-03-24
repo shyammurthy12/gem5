@@ -76,6 +76,59 @@ BaseTags::findBlockBySetAndWay(int set, int way) const
     return indexingPolicy->getEntry(set, way);
 }
 
+
+uint32_t
+BaseTags::getSetNumber(Addr addr) const
+{
+#ifdef Ongal_VC
+#ifdef VIVT
+     if (get_VC_structure() != NULL){
+
+       // No Corresponding ASDT entry?
+       uint64_t Region_Size = get_VC_structure()->get_region_size();
+       uint64_t PPN = addr/Region_Size;
+       ASDT_entry * ASDT_entry =
+               get_VC_structure()->access_matching_ASDT_map(PPN);
+       if (ASDT_entry != NULL){
+         Addr CPA_VPN   = ASDT_entry->get_virtual_page_number();
+         Addr CPA_Vaddr = (CPA_VPN * Region_Size) + (addr % Region_Size);
+         //uint32_t random_number_to_hash_with =
+         //        ASDT_entry->get_random_number_to_hash_with();
+         vector<int> hash_scheme_for_xor;
+         uint64_t CPA_CR3 = ASDT_entry->get_cr3();
+
+         uint64_t index_into_hash_lookup_table = (CPA_VPN^CPA_CR3)&
+                  (m_vc_structure->get_hash_lookup_table_size()-1);
+         //if the entry in the hash lookup table is valid
+         int temp = index_into_hash_lookup_table;
+         if (get_VC_structure()->hash_entry_to_use_getValid(temp))
+         {
+           //obtain the hash entry to use.
+           uint64_t hash_entry_to_use =
+                   get_VC_structure()->get_hash_entry_to_use(temp);
+           //the hashing function table is always assumed
+           //to have a valid entry that can be used.
+           int temp1 = hash_entry_to_use;
+    hash_scheme_for_xor =
+  get_VC_structure()->hashing_function_to_use_get_constant_to_xor_with(temp1);
+
+         }
+         return indexingPolicy->extractSet_Vaddr_with_hashing(CPA_Vaddr,
+                         hash_scheme_for_xor);
+     }
+     else{
+        cout <<" WHat?? Should not be herer" << endl;
+        abort(); //should not be here
+      }
+    }
+    else
+     abort();
+#endif
+#endif
+   return 0;
+}
+
+
 CacheBlk*
 BaseTags::findBlock(Addr addr, bool is_secure) const
 {

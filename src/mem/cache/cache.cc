@@ -371,14 +371,7 @@ Cache::access_virtual_cache(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
 //conflict table
 uint64_t Cache::get_mct_index(Addr addr)
 {
-   uint64_t numSets;
-   uint64_t setShift;
-   uint64_t setMask;
-   numSets = m_cache_size/(m_block_size*m_cache_assoc);
-   setShift = floorLog2(m_block_size);
-   setMask = (numSets-1);
-   return ((addr >> setShift) & setMask)/grouping_factor;
-
+ return tags->getSetNumber(addr);
 }
 
 
@@ -989,7 +982,7 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
             // update blk->vtag
             CPA_Vaddr = (CPA_VPN * Region_Size) + (pkt->req->getPaddr()
                           % Region_Size);
-             mct_index = get_mct_index(CPA_Vaddr);
+             mct_index = get_mct_index(pkt->req->getPaddr());
              //uint64_t victim_tag = getVictimAddressTag(pkt);
              if (miss_classification_table.at(mct_index).getValid()){
                printf("The entry %ld is valid\n",mct_index);
@@ -1093,6 +1086,11 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                  Add_NEW_ASDT_map_entry(pkt);
                  #endif
                  asdt_invalidation_check_done = true;
+                 //are doing an ASDT invalidation check additionally here
+                 //because we haven't updated the asdt entry to say
+                 //this block exists. Evictions might remove all the other
+                 //blocks from this page and we this asdt entry might get
+                 //invalidated in the interim
                  tags->get_VC_structure()->update_ASDT(CPA_Vaddr,
                                     pkt->req->getPaddr(), CPA_CR3,
                                     true, 0, 0,
@@ -1146,7 +1144,7 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
           CPA_Vaddr = (CPA_VPN * Region_Size) + (pkt->req->getPaddr()
                           % Region_Size);
          }
-         mct_index = get_mct_index(CPA_Vaddr);
+         mct_index = get_mct_index(pkt->req->getPaddr());
             //validate the corresponding entry
             miss_classification_table.at(mct_index).setValid();
             printf("Inserting an entry in the miss conflict table"

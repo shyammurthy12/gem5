@@ -106,7 +106,7 @@ SetAssociative::extractSet_Vaddr_with_hashing(Addr addr, vector<int>
                    (((addr >> setShift)^num_to_xor_with))&setMask);
 #endif
       //setting this to zero to disable hashing.
-     // num_to_xor_with = 0;
+      //num_to_xor_with = 0;
       return (((addr >> setShift)^num_to_xor_with))&setMask;
 }
 

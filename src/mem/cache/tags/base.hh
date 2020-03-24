@@ -222,6 +222,8 @@ class BaseTags : public ClockedObject
 
     virtual CacheBlk * findBlock_with_vaddr(Addr addr, Addr cr3, bool
                     is_secure) const;
+
+    virtual uint32_t getSetNumber(Addr addr) const;
     /**
      * Find a block given set and way.
      *

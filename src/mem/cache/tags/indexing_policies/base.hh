@@ -150,6 +150,8 @@ class BaseIndexingPolicy : public SimObject
                                                                     const = 0;
 
 
+    virtual uint32_t extractSet_Vaddr_with_hashing(Addr addr, vector<int>
+                    hash_function_for_xor) const = 0;
     virtual std::vector<ReplaceableEntry*> getPossibleEntries_with_Vaddr(const
                     Addr addr, vector<int> hash_scheme_for_xor) const = 0;
     /**
