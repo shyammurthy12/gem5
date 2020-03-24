@@ -403,7 +403,9 @@ class BaseSetAssoc : public BaseTags
 
 //				memSidePort.sendFunctional(&packet);
                                 blk.status &= ~BlkDirty;
+#ifdef Smurthy_debug
                                 std::cout << "Blk writeback" << std::endl;
+#endif
                                 Addr repl_addr = blk.paddr;
                                 get_VC_structure()->update_ASDT( 0,
                                 repl_addr, 0,false, 0, 0,false);
@@ -416,7 +418,9 @@ class BaseSetAssoc : public BaseTags
                                 get_VC_structure()->update_ASDT( 0,
                                 repl_addr, 0,false, 0, 0,false);
                                 invalidate(&blk);
+#ifdef Smurthy_debug
                                 std::cout << "Blk invalidated" << std::endl;
+#endif
                                 return NULL;
                         }
                 }

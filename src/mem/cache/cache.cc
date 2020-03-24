@@ -55,6 +55,7 @@
 #include "mem/cache/cache.hh"
 
 #include <cassert>
+#include <vector>
 
 #include "base/compiler.hh"
 #include "base/logging.hh"
@@ -71,10 +72,13 @@
 #include "mem/request.hh"
 #include "params/Cache.hh"
 
+using namespace std;
+
 int policy = 0;
         // 0: remove min(cachelines,
         //2*conflict misses from conflicting scheme)
         // 1: remove scheme with max conflicts
+
 
 Cache::Cache(const CacheParams *p)
     : BaseCache(p, p->system->cacheLineSize()),
@@ -411,8 +415,6 @@ bool Cache::BaseCache_access_dup(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
     }
     DPRINTF(Cache, "%s for %s %s\n", __func__, pkt->print(),
             blk ? "hit " + blk->print() : "miss");
-    if (!blk)
-        printf("It is a cache miss, 1st block of interest\n");
 
     if (pkt->req->isCacheMaintenance()) {
         // A cache maintenance operation is always forwarded to the
@@ -426,8 +428,6 @@ bool Cache::BaseCache_access_dup(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
         // takes into account the bus delay.
         lat = calculateTagOnlyLatency(pkt->headerDelay, tag_latency);
 
-       if (!blk)
-        printf("It is a cache miss, 2nd block of interest\n");
         return false;
     }
 
@@ -444,8 +444,6 @@ bool Cache::BaseCache_access_dup(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
         WriteQueueEntry *wb_entry = writeBuffer.findMatch(pkt->getAddr(),
                                                           pkt->isSecure());
 
-        if (!blk)
-           printf("It is a cache miss, 3rd block of interest\n");
         if (wb_entry) {
             assert(wb_entry->getNumTargets() == 1);
             PacketPtr wbPkt = wb_entry->getTarget()->pkt;
@@ -502,7 +500,6 @@ bool Cache::BaseCache_access_dup(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
         }
 
         if (!blk) {
-            printf("It is a cache miss, 4th block of interest\n");
             //if we miss in the cache, need
             //to make an allocation in the ASDT, if necessary.
             #ifdef Ongal_VC
@@ -730,8 +727,6 @@ bool Cache::BaseCache_access_dup(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
     // Can't satisfy access normally... either no block (blk == nullptr)
     // or have block but need writable
 
-    if (!blk)
-        printf("It is a cache miss, last block of interest\n");
     incMissCount(pkt);
 
     lat = calculateAccessLatency(blk, pkt->headerDelay, tag_latency);
@@ -990,11 +985,12 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
              mct_index = get_mct_index(pkt->req->getPaddr());
              //uint64_t victim_tag = getVictimAddressTag(pkt);
              if (miss_classification_table.at(mct_index).getValid()){
+             #ifdef  Smurthy_debug
                printf("The entry %ld is valid\n",mct_index);
                printf("The miss block is %ld\n",CPA_Vaddr/64);
                printf("The content of MCT is %ld\n",
-                  miss_classification_table.at(mct_index).get_evicted_tag());
-
+               miss_classification_table.at(mct_index).get_evicted_tag());
+            #endif
                uint64_t is_victim_valid = isVictimValid(pkt);
                //only if there is a valid victim (cache set is full)
                //is when we raise a conflict
@@ -1002,7 +998,9 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                   miss_classification_table.at(mct_index).get_evicted_tag())&&
                     (is_victim_valid))
                 {
+                  #ifdef Smurthy_debug
                    printf("Conflict detected\n");
+                  #endif
                    num_conflict_misses++; // stat for num of conflicts
                    conflict_detected = true;
                    if (conflict_detected)
@@ -1084,14 +1082,16 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                      }
                    }
                 }
-
+                 bool hash_recycled = false;
                  #ifdef Ongal_VC
                  #ifdef ASDT_Set_Associative_Array
                  ASDT_Invalidation_Check(pkt->req->getPaddr(), writebacks);
                  #endif
-                 Add_NEW_ASDT_map_entry(pkt);
+                 hash_recycled = Add_NEW_ASDT_map_entry(pkt);
                  #endif
                  asdt_invalidation_check_done = true;
+                 if (hash_recycled)
+                   cout <<"Hash recycled"<<endl;
                  //are doing an ASDT invalidation check additionally here
                  //because we haven't updated the asdt entry to say
                  //this block exists. Evictions might remove all the other
@@ -1153,10 +1153,12 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
          mct_index = get_mct_index(pkt->req->getPaddr());
             //validate the corresponding entry
             miss_classification_table.at(mct_index).setValid();
+#ifdef Smurthy_debug
             printf("Inserting an entry in the miss conflict table"
                             "at %ld and inserting %ld\n"
                             ,mct_index,victim_tag);
-          miss_classification_table.at(mct_index).set_evicted_tag(victim_tag);
+#endif
+         miss_classification_table.at(mct_index).set_evicted_tag(victim_tag);
          }
         }
         if (!blk) {

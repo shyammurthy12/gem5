@@ -237,6 +237,7 @@ class Cache : public BaseCache
     //(this is the miss classification table)
     vector<miss_classification_table_entry> miss_classification_table;
 
+    vector<bool> srft_entries_accessed;
     CacheBlk *handleFill(PacketPtr pkt, CacheBlk *blk,
                          PacketList &writebacks, bool allocate);
 
@@ -408,18 +409,20 @@ class Cache : public BaseCache
     }
 
     // ASDT eviction check
-    void ASDT_Invalidation_Check( uint64_t Paddr,
+    //return true if asdt entry is present to start with
+    bool ASDT_Invalidation_Check( uint64_t Paddr,
                                   PacketList &writebacks){
 
       // do it only for L1 Virtual Cache
       if ( get_is_l1cache() != true )
-        return ;
+        return true;
 
       // calculate physical page number (PPN)
       uint64_t PPN = Paddr / m_vc_structure->get_region_size();
 
       // find a corresponding entry in a map
       if ( m_vc_structure->find_matching_ASDT_map( PPN ) ){
+        return true;
         // do nothing
       }else{
         //have a stat to here that tells how many insertions we
@@ -561,14 +564,20 @@ class Cache : public BaseCache
         }
 
         m_vc_structure->allocate_ASDT_SA_entry(PPN, set_index, way_index);
+        //false because asdt entry was absent
+        //to start with and we needed an
+        //asdt insertion
+        return false;
       }
     }
 
-    void Add_NEW_ASDT_map_entry(PacketPtr pkt){
+   //return true if we added a new scheme as part of
+   //this function
+   bool Add_NEW_ASDT_map_entry(PacketPtr pkt){
 
       // do it only for L1 Virtual Cache
       if ( get_is_l1cache() != true )
-        return ;
+        return false;
 
       uint64_t PPN = pkt->getAddr() / m_vc_structure->get_region_size();
 #ifdef Smurthy_debug
@@ -599,9 +608,10 @@ class Cache : public BaseCache
         {
          m_vc_structure->hash_entry_to_use_setValid(temp);
          m_vc_structure->set_hash_entry_to_use_helper(temp);
+         return true;
         }
       }
-
+     return false;
     }
 
   // This can be deleted never used.

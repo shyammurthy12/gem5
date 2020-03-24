@@ -1728,12 +1728,14 @@ BaseCache::evict_on_conflict_miss_visitor(CacheBlk &blk) {
 
                         memSidePort.sendFunctional(&packet);
                         blk.status &= ~BlkDirty;
-                        std::cout << "Blk writeback" << std::endl;
+                       // std::cout << "Blk writeback" << std::endl;
                 }
                 else if (blk.isValid()) {
                         assert(!blk.isDirty());
                         invalidateBlock(&blk);
+#ifdef Smurthy_debug
                         std::cout << "Blk invalidated" << std::endl;
+#endif
                 }
                 return true;
         }
