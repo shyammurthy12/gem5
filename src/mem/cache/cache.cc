@@ -1036,7 +1036,7 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                     // updated_asdt_for_allocated_block = true;
                   // policy to evict cachelines - evict 2*num of conflicts
                          conflict_scheme_entry = index_into_hash_table;
-                        // evict_on_conflict_miss();
+                         //evict_on_conflict_miss();
                        }
                    break;
                        case 1: {
@@ -1119,7 +1119,7 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
           #ifdef ASDT_Set_Associative_Array
           ASDT_Invalidation_Check(pkt->req->getPaddr(), writebacks);
           #endif
-          Add_NEW_ASDT_map_entry(pkt);
+          hash_recycled = Add_NEW_ASDT_map_entry(pkt);
           #endif
           asdt_invalidation_check_done = true;
           if (hash_recycled)
