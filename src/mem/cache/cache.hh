@@ -62,6 +62,7 @@
 #include "mem/ongal_VC.hh"
 #include "mem/packet.hh"
 #include "mem/ruby/common/ASDT_entry.hh"
+#include "sim/core.hh"
 
 using namespace std;
 

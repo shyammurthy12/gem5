@@ -74,6 +74,9 @@
 
 using namespace std;
 
+
+map<uint64_t,uint64_t> set_number_conflicts;
+
 int policy = 5;
         // 0: remove min(cachelines,
         //2*conflict misses from conflicting scheme)
@@ -1004,6 +1007,11 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                   miss_classification_table.at(mct_index).get_evicted_tag())&&
                     (is_victim_valid))
                 {
+                  if (set_number_conflicts.find(mct_index) ==
+                                  set_number_conflicts.end())
+                     set_number_conflicts[mct_index] = 1;
+                  else
+                     set_number_conflicts[mct_index] += 1;
                   #ifdef Smurthy_debug
                    printf("Conflict detected\n");
                   #endif

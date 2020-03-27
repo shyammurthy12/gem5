@@ -154,6 +154,15 @@ registerExitCallback(Callback *callback)
 void
 doExitCleanup()
 {
+   for (std::map<uint64_t,uint64_t>::iterator iter =
+                   set_number_conflicts.begin();
+                   iter != set_number_conflicts.end(); ++iter)
+   {
+     uint64_t k =  iter->first;
+     //ignore value
+     uint64_t v = iter->second;
+     printf("Count for %lu is: %lu\n",k,v);
+   }
    // printf("Hello, end of simulation\n");
    // uint64_t max_record_lifetime_across_all_entries = 0;
    // for (int i = 0;i<lifetimes_of_hash_entries.size();i++)

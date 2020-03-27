@@ -38,6 +38,7 @@
  * information, output directory and exit events
  */
 
+#include <map>
 #include <string>
 #include <vector>
 
@@ -62,6 +63,8 @@ struct lifetime_record
 };
 extern std::vector<std::vector<lifetime_record>> lifetimes_of_hash_entries;
 extern std::vector<bool> hash_entries_used;
+extern std::map<uint64_t,uint64_t> set_number_conflicts;
+
 /// The universal simulation clock.
 inline Tick curTick() { return _curEventQueue->getCurTick(); }
 
