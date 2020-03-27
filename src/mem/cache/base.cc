@@ -1696,7 +1696,7 @@ BaseCache::evict_on_conflict_miss()
     //	evict_on_conflict_miss_visitor(blk);});
         PacketPtr pkt = tags->find_cacheline_to_evict(conflict_scheme_entry);
         if (pkt) {
-                printf("Writeback happened\n");
+           //     printf("Writeback happened\n");
                 num_forced_writebacks++;
                 num_forced_invalidations++;
                 memSidePort.sendFunctional(pkt);

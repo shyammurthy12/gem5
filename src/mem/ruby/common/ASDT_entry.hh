@@ -53,7 +53,7 @@ public:
 #ifdef Smurthy_debug
   printf("Setting hash_entry to use %lu\n",hash_entry_to_use);
 #endif
-  printf("Setting hash_entry to use (set_hash) %lu\n",hash_entry_to_use);
+//  printf("Setting hash_entry to use (set_hash) %lu\n",hash_entry_to_use);
  }
  uint64_t get_hash_entry_to_use()
  {
@@ -102,7 +102,6 @@ public:
 #ifdef Smurthy_debug
         printf("Setting hash_entry to use %lu\n",hash_entry_to_use);
 #endif
-        printf("Setting hash_entry to use %lu\n",hash_entry_to_use);
         hash_entry_to_use_set = true;
         //num_schemes_recycled++;
       }
@@ -137,8 +136,6 @@ public:
      printf("Count of lines mapped to this entry has fallen to"
                      "zero and we need to set the constant again\n");
 #endif
-     printf("Count of lines mapped to this entry has fallen to"
-                     "zero and we need to set the constant again\n");
    }
  }
  bool getValid()

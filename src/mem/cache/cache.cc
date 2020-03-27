@@ -74,11 +74,17 @@
 
 using namespace std;
 
-int policy = 0;
+int policy = 5;
         // 0: remove min(cachelines,
         //2*conflict misses from conflicting scheme)
         // 1: remove scheme with max conflicts
+        // 2: just increment conflicts, no evictions
+        // 3: remove min(cachelines,
+        //conflict misses from conflicting scheme)
+        // 4: remove scheme with max conflicts
+        // 5: remove scheme when max conflicts reaches a threshold
 
+int conflict_threshold = 200;
 
 Cache::Cache(const CacheParams *p)
     : BaseCache(p, p->system->cacheLineSize()),
@@ -1017,28 +1023,12 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                      int num_of_total_cache_lines = tags->get_VC_structure()->
                      hash_entry_to_use_get_num_of_cache_lines(
                                   index_into_hash_table);
-                     std::cout << "number of conflicts: " << num_of_conflicts
-                          << std::endl;
-                     std::cout << "num of cachelines using this scheme: " <<
-                          num_of_total_cache_lines << std::endl;
-                     std::cout << "conflicting scheme number: " <<
-                          index_into_hash_table << std::endl;
                      num_to_evict = min(num_of_total_cache_lines,
                                      2*num_of_conflicts);
-                     std::cout << "Number to evict: " <<
-                          num_to_evict << std::endl;
-                   //increment scheme_counter for the new cacheline, so that
-                  // scheme is not invalidated before inserting the new line
-                    // tags->get_VC_structure()->update_ASDT(CPA_Vaddr,
-                    //                      pkt->req->getPaddr(), CPA_CR3,
-                    //                      true, 0, 0,
-                    //                      pkt->req->get_is_writable_page());
-                    // updated_asdt_for_allocated_block = true;
-                  // policy to evict cachelines - evict 2*num of conflicts
                          conflict_scheme_entry = index_into_hash_table;
-                         //evict_on_conflict_miss();
+                         evict_on_conflict_miss();
                        }
-                   break;
+                       break;
                        case 1: {
                          uint64_t index_into_hash_table =((CPA_VPN)^(CPA_CR3))&
                                (tags->get_VC_structure()->
@@ -1055,30 +1045,90 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                            list_of_scheme_conflict_counter.end());
                      if (maxElement){
                            conflict_scheme_entry = maxElementIndex;
-                           std::cout << "conflicting scheme number: " <<
-                              index_into_hash_table << std::endl;
-                           std::cout << "evicting scheme number: " <<
-                              maxElementIndex << std::endl;
-                           std::cout << "evicting scheme number conflicts: "<<
-                              maxElement << std::endl;
                            num_to_evict = min(tags->get_VC_structure()->
                               hash_entry_to_use_get_num_of_cache_lines(
                                       maxElementIndex), 2*maxElement);
-                           // evict all cachelines
-                           // from this scheme --force recycle
-                        std::cout << "num of cachelines using this scheme: " <<
-                              num_to_evict << std::endl;
-                          // evict_on_conflict_miss();
-                           std::cout << "num of cachelines after eviction: " <<
-                            tags->get_VC_structure()->
-                              hash_entry_to_use_get_num_of_cache_lines(
-                                      maxElementIndex) << std::endl;
+                           evict_on_conflict_miss();
 
                          }
-                         else
-                                 printf("No eviction candidate found\n");
+                         //else
+                             //    printf("No eviction candidate found\n");
                        }
-                   break;
+                       break;
+                       case 2: {
+                         uint64_t index_into_hash_table =((CPA_VPN)^(CPA_CR3))&
+                               (tags->get_VC_structure()->
+                                get_hash_lookup_table_size()-1);
+                         tags->get_VC_structure()->
+                               hash_entry_to_use_inc_conflict_misses(
+                                      index_into_hash_table);
+                       }
+                       break;
+                   case 3: {
+                     uint64_t index_into_hash_table =
+                           ((CPA_VPN)^(CPA_CR3))&
+                           (tags->get_VC_structure()->
+                            get_hash_lookup_table_size()-1);
+                     int num_of_conflicts = tags->get_VC_structure()->
+                     hash_entry_to_use_inc_conflict_misses(
+                                  index_into_hash_table);
+                     int num_of_total_cache_lines = tags->get_VC_structure()->
+                     hash_entry_to_use_get_num_of_cache_lines(
+                                  index_into_hash_table);
+                     num_to_evict = min(num_of_total_cache_lines,
+                                     num_of_conflicts);
+                         conflict_scheme_entry = index_into_hash_table;
+                         evict_on_conflict_miss();
+                       }
+                       break;
+                       case 4: {
+                         uint64_t index_into_hash_table =((CPA_VPN)^(CPA_CR3))&
+                               (tags->get_VC_structure()->
+                                get_hash_lookup_table_size()-1);
+                         tags->get_VC_structure()->
+                               hash_entry_to_use_inc_conflict_misses(
+                                      index_into_hash_table);
+                         int maxElementIndex = std::max_element(
+                           list_of_scheme_conflict_counter.begin(),
+                           list_of_scheme_conflict_counter.end()) -
+                                 list_of_scheme_conflict_counter.begin();
+                         int maxElement = *std::max_element(
+                           list_of_scheme_conflict_counter.begin(),
+                           list_of_scheme_conflict_counter.end());
+                     if (maxElement){
+                           conflict_scheme_entry = maxElementIndex;
+                           num_to_evict = min(tags->get_VC_structure()->
+                              hash_entry_to_use_get_num_of_cache_lines(
+                                      maxElementIndex), maxElement);
+                           evict_on_conflict_miss();
+
+                         }
+                       }
+                       break;
+                       case 5: {
+                         uint64_t index_into_hash_table =((CPA_VPN)^(CPA_CR3))&
+                               (tags->get_VC_structure()->
+                                get_hash_lookup_table_size()-1);
+                         tags->get_VC_structure()->
+                               hash_entry_to_use_inc_conflict_misses(
+                                      index_into_hash_table);
+                         int maxElementIndex = std::max_element(
+                           list_of_scheme_conflict_counter.begin(),
+                           list_of_scheme_conflict_counter.end()) -
+                                 list_of_scheme_conflict_counter.begin();
+                         int maxElement = *std::max_element(
+                           list_of_scheme_conflict_counter.begin(),
+                           list_of_scheme_conflict_counter.end());
+                     if (maxElement > conflict_threshold){
+                           conflict_scheme_entry = maxElementIndex;
+                           num_to_evict = min(tags->get_VC_structure()->
+                              hash_entry_to_use_get_num_of_cache_lines(
+                                      maxElementIndex), maxElement);
+                           evict_on_conflict_miss();
+
+                         }
+                       }
+                       break;
                      }
                    }
                 }
