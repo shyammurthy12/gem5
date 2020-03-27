@@ -186,6 +186,7 @@ Cache::Cache(const CacheParams *p)
       num_page_info_change = 0;
 
         num_conflict_misses = 0;
+        num_unique_conflict_misses = 0;
         num_schemes_recycled = 0;
         num_forced_writebacks = 0;
         num_forced_invalidations = 0;
@@ -1016,15 +1017,21 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                    printf("Conflict detected\n");
                   #endif
                    num_conflict_misses++; // stat for num of conflicts
+
+                   uint64_t index_into_hash_table =
+                         ((CPA_VPN)^(CPA_CR3))&
+                         (tags->get_VC_structure()->
+                          get_hash_lookup_table_size()-1);
+                   bool isUniqueConflict = tags->get_VC_structure()->
+                   isUniqueConflictMiss(
+                                index_into_hash_table,CPA_Vaddr/64);
+                   if (isUniqueConflict)
+                     num_unique_conflict_misses++;
                    conflict_detected = true;
                    if (conflict_detected)
                    {
                  switch(policy) {
                    case 0: {
-                     uint64_t index_into_hash_table =
-                           ((CPA_VPN)^(CPA_CR3))&
-                           (tags->get_VC_structure()->
-                            get_hash_lookup_table_size()-1);
                      int num_of_conflicts = tags->get_VC_structure()->
                      hash_entry_to_use_inc_conflict_misses(
                                   index_into_hash_table);
@@ -1038,9 +1045,6 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                        }
                        break;
                        case 1: {
-                         uint64_t index_into_hash_table =((CPA_VPN)^(CPA_CR3))&
-                               (tags->get_VC_structure()->
-                                get_hash_lookup_table_size()-1);
                          tags->get_VC_structure()->
                                hash_entry_to_use_inc_conflict_misses(
                                       index_into_hash_table);
@@ -1064,19 +1068,12 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                        }
                        break;
                        case 2: {
-                         uint64_t index_into_hash_table =((CPA_VPN)^(CPA_CR3))&
-                               (tags->get_VC_structure()->
-                                get_hash_lookup_table_size()-1);
                          tags->get_VC_structure()->
                                hash_entry_to_use_inc_conflict_misses(
                                       index_into_hash_table);
                        }
                        break;
                    case 3: {
-                     uint64_t index_into_hash_table =
-                           ((CPA_VPN)^(CPA_CR3))&
-                           (tags->get_VC_structure()->
-                            get_hash_lookup_table_size()-1);
                      int num_of_conflicts = tags->get_VC_structure()->
                      hash_entry_to_use_inc_conflict_misses(
                                   index_into_hash_table);
@@ -1090,9 +1087,6 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                        }
                        break;
                        case 4: {
-                         uint64_t index_into_hash_table =((CPA_VPN)^(CPA_CR3))&
-                               (tags->get_VC_structure()->
-                                get_hash_lookup_table_size()-1);
                          tags->get_VC_structure()->
                                hash_entry_to_use_inc_conflict_misses(
                                       index_into_hash_table);
@@ -1114,9 +1108,6 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                        }
                        break;
                        case 5: {
-                         uint64_t index_into_hash_table =((CPA_VPN)^(CPA_CR3))&
-                               (tags->get_VC_structure()->
-                                get_hash_lookup_table_size()-1);
                          tags->get_VC_structure()->
                                hash_entry_to_use_inc_conflict_misses(
                                       index_into_hash_table);

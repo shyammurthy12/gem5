@@ -38,6 +38,8 @@ public:
   temp.lifetime = memRefCommits;
   temp.subtraction_done = false;
 
+  number_of_conflict_misses = 0;
+  set_of_unique_address_conflicts.clear();
   //Ongal
   //to indicate that this entry in the hash
   //lookup table has been used.
@@ -132,6 +134,7 @@ public:
      valid = false;
      number_of_conflict_misses = 0;
      hash_entry_to_use_set = false;
+     set_of_unique_address_conflicts.clear();
 #ifdef Smurthy_debug
      printf("Count of lines mapped to this entry has fallen to"
                      "zero and we need to set the constant again\n");
@@ -172,6 +175,19 @@ public:
         return number_of_conflict_misses;
         //call function to evict cachelines(conflict_scheme=this scheme)
  }
+
+ bool isUniqueConflictMiss(uint64_t addr){
+  if (set_of_unique_address_conflicts.find(addr)==
+         set_of_unique_address_conflicts.end())
+  {
+    set_of_unique_address_conflicts.insert(addr);
+    printf("Inserting address into unique table\n");
+    return true;
+  }
+  else
+    return false;
+}
+
  int get_num_of_cache_lines() {
         return number_of_cache_lines_using_this_entry;
  }
@@ -197,6 +213,11 @@ private:
  uint64_t number_of_cache_lines_using_this_entry;
  //conflict misses aused by this scheme
  uint64_t number_of_conflict_misses;
+
+ std::set<uint64_t> set_of_unique_address_conflicts;
+ //unique conflict misses caused by this scheme
+ uint64_t unique_conflict_misses;
+
  //entry validity bit.
  bool valid;
  //set entry number in the hash lookup table.
@@ -516,9 +537,15 @@ bool lookup_VC_structure( const Address addr,
   uint64_t get_epoch_id_validity_interval_to_use(int index_of_entry);
   void hash_entry_to_use_inc_number_of_cache_lines(int index_of_entry,int
                   number_of_hashing_functions);
+
+  bool
+  isUniqueConflictMiss(int index_of_entry,uint64_t addr);
+
   int hash_entry_to_use_get_num_of_cache_lines(int index_of_entry);
   void hash_entry_to_use_dec_number_of_cache_lines(int index_of_entry);
   int hash_entry_to_use_inc_conflict_misses(int index_of_entry);
+
+  void add_unique_address_to_conflict_list(uint64_t addr);
   bool hash_entry_to_use_getValid(int index_of_entry);
   void hash_entry_to_use_setValid(int index_of_entry);
   void hash_entry_to_use_invalidate(int index_of_entry);

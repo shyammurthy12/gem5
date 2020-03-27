@@ -385,6 +385,15 @@ VC_structure::hash_entry_to_use_inc_conflict_misses(int index_of_entry)
   list_of_scheme_conflict_counter.at(index_of_entry) = conflicts;
   return conflicts;
 }
+
+bool
+VC_structure::isUniqueConflictMiss(int index_of_entry,uint64_t addr)
+{
+  bool isUniqueConflict = hash_lookup_table.at(index_of_entry).
+          isUniqueConflictMiss(addr);
+  return isUniqueConflict;
+}
+
 int
 VC_structure::hash_entry_to_use_get_num_of_cache_lines(int index_of_entry)
 {

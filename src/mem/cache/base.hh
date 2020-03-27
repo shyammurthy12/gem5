@@ -1093,6 +1093,9 @@ class BaseCache : public ClockedObject
 
     // conflict detection schemes
     Stats::Scalar num_conflict_misses;
+    //num of unique conflict misses
+    Stats::Scalar num_unique_conflict_misses;
+
     Stats::Scalar num_schemes_recycled;
     Stats::Scalar num_forced_writebacks;
     Stats::Scalar num_forced_invalidations;

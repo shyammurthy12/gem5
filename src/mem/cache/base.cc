@@ -2759,6 +2759,11 @@ BaseCache::regStats()
         .desc("num of conflict misses detected by MCT")
         ;
 
+    num_unique_conflict_misses
+        .name(name() + ".num_unique_conflict_misses")
+        .desc("num of unique conflict misses (per lifetime of scheme)"
+                        " detected by MCT")
+        ;
     num_schemes_recycled
         .name(name() + ".num_schemes_recycled")
         .desc("num of times schemes were recycled")
