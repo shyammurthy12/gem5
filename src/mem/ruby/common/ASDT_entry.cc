@@ -192,11 +192,11 @@ VC_structure::VC_structure(string name,
   int asdt_way = 0;
 
   if (dcache){
-    asdt_set = 16
+    asdt_set = 16;
     asdt_way = 16;
     //have this hash lookup table for
     //data cache alone.
-    m_hash_lookup_table_size = 8;
+    m_hash_lookup_table_size =8;
     m_size_of_hash_function_list = 8;
   }else{
     asdt_set = 8;
