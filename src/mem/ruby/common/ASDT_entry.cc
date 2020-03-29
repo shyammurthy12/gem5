@@ -192,11 +192,11 @@ VC_structure::VC_structure(string name,
   int asdt_way = 0;
 
   if (dcache){
-    asdt_set = 16;
-    asdt_way = 16;
+    asdt_set = 8;
+    asdt_way = 8;
     //have this hash lookup table for
     //data cache alone.
-    m_hash_lookup_table_size = 8 ;
+    m_hash_lookup_table_size = 8;
     m_size_of_hash_function_list = 8;
   }else{
     asdt_set = 8;
@@ -373,7 +373,7 @@ VC_structure::hash_entry_to_use_dec_number_of_cache_lines(int index_of_entry)
   hash_lookup_table.at(index_of_entry).dec_number_of_cache_lines();
   if (hash_entry_to_use_get_num_of_cache_lines(index_of_entry)==0) {
           list_of_scheme_conflict_counter.at(index_of_entry) = 0;
-          printf("Number of conflicts set to 0\n");
+          //printf("Number of conflicts set to 0\n");
   }
   return;
 }
