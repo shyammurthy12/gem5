@@ -21,6 +21,7 @@
 class CacheMemory;
 using namespace std;
 extern vector<int> list_of_scheme_conflict_counter;
+extern vector<int> list_of_scheme_cacheline_counter;
 class hash_function_lookup_table_entry{
 
 public:

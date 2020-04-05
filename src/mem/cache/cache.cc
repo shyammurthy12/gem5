@@ -55,6 +55,7 @@
 #include "mem/cache/cache.hh"
 
 #include <cassert>
+#include <numeric>
 #include <vector>
 
 #include "base/compiler.hh"
@@ -77,7 +78,7 @@ using namespace std;
 
 map<uint64_t,uint64_t> set_number_conflicts;
 
-int policy = 5;
+int policy = 7;
         // 0: remove min(cachelines,
         //2*conflict misses from conflicting scheme)
         // 1: remove scheme with max conflicts
@@ -86,8 +87,12 @@ int policy = 5;
         //conflict misses from conflicting scheme)
         // 4: remove scheme with max conflicts
         // 5: remove scheme when max conflicts reaches a threshold
+        // 6: remove scheme when max conflicts reaches a threshold
+        // and num_cachelines < threshold
+        // 7: remove scheme when total conflicts reaches a threshold
 
-int conflict_threshold = 200;
+int conflict_threshold = 500;
+int cacheline_threshold = 20;
 
 Cache::Cache(const CacheParams *p)
     : BaseCache(p, p->system->cacheLineSize()),
@@ -1120,11 +1125,60 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                            list_of_scheme_conflict_counter.end());
                      if (maxElement > conflict_threshold){
                            conflict_scheme_entry = maxElementIndex;
-                           num_to_evict = min(tags->get_VC_structure()->
+                           num_to_evict = tags->get_VC_structure()->
                               hash_entry_to_use_get_num_of_cache_lines(
-                                      maxElementIndex), maxElement);
+                                      maxElementIndex);
                            evict_on_conflict_miss();
 
+                         }
+                       }
+                       break;
+                       case 6: {
+                         tags->get_VC_structure()->
+                               hash_entry_to_use_inc_conflict_misses(
+                                      index_into_hash_table);
+                         int maxElementIndex = std::max_element(
+                           list_of_scheme_conflict_counter.begin(),
+                           list_of_scheme_conflict_counter.end()) -
+                                 list_of_scheme_conflict_counter.begin();
+                         int maxElement = *std::max_element(
+                           list_of_scheme_conflict_counter.begin(),
+                           list_of_scheme_conflict_counter.end());
+                         int num_of_total_cache_lines = tags->
+                                 get_VC_structure()->
+                                  hash_entry_to_use_get_num_of_cache_lines(
+                                  maxElementIndex);
+
+                     if (maxElement > conflict_threshold &&
+                        num_of_total_cache_lines < cacheline_threshold){
+                           conflict_scheme_entry = maxElementIndex;
+                           num_to_evict = num_of_total_cache_lines;
+                           evict_on_conflict_miss();
+
+                         }
+                       }
+                       break;
+                       case 7: {
+                         tags->get_VC_structure()->
+                               hash_entry_to_use_inc_conflict_misses(
+                                      index_into_hash_table);
+                         int total_conflicts = std::accumulate(
+                                list_of_scheme_conflict_counter.begin(),
+                           list_of_scheme_conflict_counter.end(), 0);
+                         if (total_conflicts > conflict_threshold) {
+                                int minElementIndex = std::min_element(
+                                  list_of_scheme_cacheline_counter.begin(),
+                                  list_of_scheme_cacheline_counter.end()) -
+                                      list_of_scheme_cacheline_counter.begin();
+                                int minElement = *std::min_element(
+                                  list_of_scheme_cacheline_counter.begin(),
+                                  list_of_scheme_cacheline_counter.end());
+
+                                if (minElement < cacheline_threshold){
+                                  conflict_scheme_entry = minElementIndex;
+                                  num_to_evict = minElement;
+                                  evict_on_conflict_miss();
+                                }
                          }
                        }
                        break;

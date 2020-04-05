@@ -3,6 +3,7 @@ using namespace std;
 std::vector<std::vector<lifetime_record>> lifetimes_of_hash_entries;
 std::vector<bool> hash_entries_used;
 vector<int> list_of_scheme_conflict_counter;
+vector<int> list_of_scheme_cacheline_counter;
 
 // Function to return the next random number
 int getNum(vector<int>& v)
@@ -214,6 +215,7 @@ VC_structure::VC_structure(string name,
   }
   lifetimes_of_hash_entries.resize(m_hash_lookup_table_size);
   list_of_scheme_conflict_counter.resize(m_hash_lookup_table_size);
+  list_of_scheme_cacheline_counter.resize(m_hash_lookup_table_size);
   hash_entries_used.resize(m_hash_lookup_table_size);
 
   //tunable parameters.
@@ -235,6 +237,7 @@ VC_structure::VC_structure(string name,
   for (int i = 0; i<m_hash_lookup_table_size; i++){
     hash_function_lookup_table_entry temp;
     list_of_scheme_conflict_counter.at(i) = 0;
+    list_of_scheme_cacheline_counter.at(i) = 0;
     //invalidate this entry.Made valid when referenced
     //first time and assigned a hash function to use.
     temp.invalidate();
@@ -365,7 +368,10 @@ VC_structure::hash_entry_to_use_inc_number_of_cache_lines(int
 {
   int temp = index_of_entry;
   int temp1 = number_of_hashing_functions;
-  return hash_lookup_table.at(temp).inc_number_of_cache_lines(temp1);
+  hash_lookup_table.at(temp).inc_number_of_cache_lines(temp1);
+  list_of_scheme_cacheline_counter.at(index_of_entry) =
+          hash_entry_to_use_get_num_of_cache_lines(index_of_entry);
+  return;
 }
 void
 VC_structure::hash_entry_to_use_dec_number_of_cache_lines(int index_of_entry)
@@ -375,6 +381,8 @@ VC_structure::hash_entry_to_use_dec_number_of_cache_lines(int index_of_entry)
           list_of_scheme_conflict_counter.at(index_of_entry) = 0;
           //printf("Number of conflicts set to 0\n");
   }
+  list_of_scheme_cacheline_counter.at(index_of_entry) =
+          hash_entry_to_use_get_num_of_cache_lines(index_of_entry);
   return;
 }
 int
