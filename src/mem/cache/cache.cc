@@ -77,7 +77,6 @@ using namespace std;
 
 
 map<uint64_t,uint64_t> set_number_conflicts;
-
 int policy = 7;
         // 0: remove min(cachelines,
         //2*conflict misses from conflicting scheme)
@@ -91,8 +90,8 @@ int policy = 7;
         // and num_cachelines < threshold
         // 7: remove scheme when total conflicts reaches a threshold
 
-int conflict_threshold = 500;
-int cacheline_threshold = 20;
+int conflict_threshold = 1000;
+int cacheline_threshold = 50;
 
 Cache::Cache(const CacheParams *p)
     : BaseCache(p, p->system->cacheLineSize()),
@@ -126,7 +125,7 @@ Cache::Cache(const CacheParams *p)
 
       set_is_l1cache(true);
       std::cout<<" L1Cache is found ";
-
+      global_conflicts=0;
       prev_cr3 = 0;
       m_region_size = REGION_SIZE;
       m_num_accesses = 0;
@@ -1022,7 +1021,7 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                    printf("Conflict detected\n");
                   #endif
                    num_conflict_misses++; // stat for num of conflicts
-
+                   global_conflicts++;
                    uint64_t index_into_hash_table =
                          ((CPA_VPN)^(CPA_CR3))&
                          (tags->get_VC_structure()->
@@ -1162,10 +1161,11 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                          tags->get_VC_structure()->
                                hash_entry_to_use_inc_conflict_misses(
                                       index_into_hash_table);
-                         int total_conflicts = std::accumulate(
-                                list_of_scheme_conflict_counter.begin(),
-                           list_of_scheme_conflict_counter.end(), 0);
-                         if (total_conflicts > conflict_threshold) {
+                        // int total_conflicts = std::accumulate(
+                        //        list_of_scheme_conflict_counter.begin(),
+                        //   list_of_scheme_conflict_counter.end(), 0);
+                         if (global_conflicts > conflict_threshold) {
+                                 global_conflicts=0;
                                 int minElementIndex = std::min_element(
                                   list_of_scheme_cacheline_counter.begin(),
                                   list_of_scheme_cacheline_counter.end()) -

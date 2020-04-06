@@ -237,7 +237,7 @@ class Cache : public BaseCache
     //vector of miss classification entries
     //(this is the miss classification table)
     vector<miss_classification_table_entry> miss_classification_table;
-
+    int global_conflicts;
     vector<bool> srft_entries_accessed;
     CacheBlk *handleFill(PacketPtr pkt, CacheBlk *blk,
                          PacketList &writebacks, bool allocate);
