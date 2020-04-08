@@ -55,7 +55,7 @@ curWorkingDirectory = os.getcwd()
 def RunBenchmark(benchmark_name):
     runtype = '_test'
     runtype = \
-           '_VC_DSR_with_hashing_scheme_instruction_based_lifetime_1024_entry'
+           '_VC_DSR_64_srft_policy_7_800_20'
     checkpoint_dir = '_VC_DSR_O3CPU_squashed_load_analysis'
 #    runtype = '_pointer_chased_loads_ref'
     target_path = spec_home_directory + \
