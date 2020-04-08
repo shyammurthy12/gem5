@@ -1022,8 +1022,11 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                   #endif
                    num_conflict_misses++; // stat for num of conflicts
                    global_conflicts++;
+
+                   uint64_t virt_page = CPA_VPN^CPA_CR3;
+                   uint64_t hashed_virt_page = computeHash(virt_page);
                    uint64_t index_into_hash_table =
-                         ((CPA_VPN)^(CPA_CR3))&
+                         (hashed_virt_page)&
                          (tags->get_VC_structure()->
                           get_hash_lookup_table_size()-1);
                    bool isUniqueConflict = tags->get_VC_structure()->

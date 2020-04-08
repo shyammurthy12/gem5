@@ -147,6 +147,13 @@ registerExitCallback(Callback *callback)
     exitCallbacks().add(callback);
 }
 
+uint64_t
+computeHash(uint64_t addr)
+{
+   //cout<<"Address is " << addr<<endl;
+   return (addr^(addr>>28));
+  //return addr;
+}
 /**
  * Do C++ simulator exit processing.  Exported to Python to be invoked
  * when simulator terminates via Python's atexit mechanism.

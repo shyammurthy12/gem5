@@ -357,9 +357,11 @@ class Cache : public BaseCache
           uint64_t region_vaddr = VPN*m_vc_structure->get_region_size();
           //find the random number to xor with.
 
-          uint64_t index_into_hash_lookup_table = (VPN^matching_cr3)&
+          uint64_t virt_page = VPN^matching_cr3;
+          uint64_t hashed_virt_page = computeHash(virt_page);
+          uint64_t index_into_hash_lookup_table = (hashed_virt_page)&
                   (m_vc_structure->get_hash_lookup_table_size()-1);
-         // printf("Index into the hash lookup table is %ld\n",
+         // printf("Index into the hash lookup table is %ld\n",w
          // index_into_hash_lookup_table);
           //if the entry in the hash lookup table is valid
   if (m_vc_structure->hash_entry_to_use_getValid(index_into_hash_lookup_table))
@@ -518,8 +520,11 @@ class Cache : public BaseCache
                 //Invalidate block
                     //Ongal
                 //decrement the number of cache lines at VPN^CR3
+
+                uint64_t virt_page = victim_VPN^victim_CR3;
+                uint64_t hashed_virt_page = computeHash(virt_page);
                 uint64_t index_into_hash_table =
-                        ((victim_VPN)^(victim_CR3))&
+                        (hashed_virt_page)&
                         (m_vc_structure->get_hash_lookup_table_size()-1);
                // printf("The index into the hash table is
                // %ld\n",index_into_hash_table);
@@ -593,7 +598,10 @@ class Cache : public BaseCache
         m_vc_structure->add_new_ASDT_map(PPN, VPN, CR3);
         //upon insertion of the entry, set the corresponding
         //entry in the hash lookup table to valid
-        uint64_t index_into_hash_lookup_table = (VPN^CR3)&
+
+        uint64_t virt_page = VPN^CR3;
+        uint64_t hashed_virt_page = computeHash(virt_page);
+        uint64_t index_into_hash_lookup_table = (hashed_virt_page)&
         (m_vc_structure->get_hash_lookup_table_size()-1);
 
 #ifdef Smurthy_debug

@@ -528,9 +528,13 @@ VC_structure::update_ASDT( const Address addr,
 
     //Ongal
     //increment the number of cache lines at VPN^CR3
+
+    uint64_t virt_page =
+            (it->second->get_virtual_page_number())^(it->second->get_cr3());
+    uint64_t hashed_virt_page = computeHash(virt_page);
     uint64_t index_into_hash_table =
-            ((it->second->get_virtual_page_number())^
-            (it->second->get_cr3()))&(m_hash_lookup_table_size-1);
+            (hashed_virt_page)
+            &(m_hash_lookup_table_size-1);
 
     //Ongal
     //decrement the number of cache lines at VPN^CR3
@@ -561,9 +565,12 @@ VC_structure::update_ASDT( const Address addr,
 
     //Ongal
     //decrement the number of cache lines at VPN^CR3
+
+    uint64_t virt_page =
+            (it->second->get_virtual_page_number())^(it->second->get_cr3());
+    uint64_t hashed_virt_page = computeHash(virt_page);
     uint64_t index_into_hash_table =
-            ((it->second->get_virtual_page_number())^
-            (it->second->get_cr3()))&(m_hash_lookup_table_size-1);
+            (hashed_virt_page)&(m_hash_lookup_table_size-1);
    // printf("The index into the hash table is %ld\n",index_into_hash_table);
     //entry should be valid.
     if (!(hash_entry_to_use_getValid(index_into_hash_table)))

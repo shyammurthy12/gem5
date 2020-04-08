@@ -225,7 +225,9 @@ class BaseSetAssoc : public BaseTags
          vector<int> hash_scheme_for_xor;
          uint64_t CPA_CR3 = ASDT_entry->get_cr3();
 
-         uint64_t index_into_hash_lookup_table = (CPA_VPN^CPA_CR3)&
+         uint64_t virt_page = CPA_VPN^CPA_CR3;
+         uint64_t hashed_virt_page = computeHash(virt_page);
+         uint64_t index_into_hash_lookup_table = (hashed_virt_page)&
                   (m_vc_structure->get_hash_lookup_table_size()-1);
 
 #ifdef Smurthy_debug

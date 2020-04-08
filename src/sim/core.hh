@@ -125,6 +125,6 @@ void setOutputDir(const std::string &dir);
 class Callback;
 void registerExitCallback(Callback *callback);
 void doExitCleanup();
-
+uint64_t computeHash(uint64_t addr);
 
 #endif /* __SIM_CORE_HH__ */
