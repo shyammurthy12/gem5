@@ -77,21 +77,7 @@ using namespace std;
 
 
 map<uint64_t,uint64_t> set_number_conflicts;
-int policy = 7;
-        // 0: remove min(cachelines,
-        //2*conflict misses from conflicting scheme)
-        // 1: remove scheme with max conflicts
-        // 2: just increment conflicts, no evictions
-        // 3: remove min(cachelines,
-        //conflict misses from conflicting scheme)
-        // 4: remove scheme with max conflicts
-        // 5: remove scheme when max conflicts reaches a threshold
-        // 6: remove scheme when max conflicts reaches a threshold
-        // and num_cachelines < threshold
-        // 7: remove scheme when total conflicts reaches a threshold
 
-int conflict_threshold = 1000;
-int cacheline_threshold = 50;
 
 Cache::Cache(const CacheParams *p)
     : BaseCache(p, p->system->cacheLineSize()),
@@ -191,6 +177,7 @@ Cache::Cache(const CacheParams *p)
 
         num_conflict_misses = 0;
         num_unique_conflict_misses = 0;
+        num_of_inval_events_triggered = 0;
         num_schemes_recycled = 0;
         num_forced_writebacks = 0;
         num_forced_invalidations = 0;
@@ -1180,6 +1167,7 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                                 if (minElement < cacheline_threshold){
                                   conflict_scheme_entry = minElementIndex;
                                   num_to_evict = minElement;
+                                  num_of_inval_events_triggered++;
                                   evict_on_conflict_miss();
                                 }
                          }

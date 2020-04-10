@@ -151,8 +151,8 @@ uint64_t
 computeHash(uint64_t addr)
 {
    //cout<<"Address is " << addr<<endl;
-   return (addr^(addr>>28));
-  //return addr;
+   //return (addr^(addr>>28));
+  return addr;
 }
 /**
  * Do C++ simulator exit processing.  Exported to Python to be invoked
@@ -164,6 +164,26 @@ doExitCleanup()
    for (std::map<uint64_t,uint64_t>::iterator iter =
                    set_number_conflicts.begin();
                    iter != set_number_conflicts.end(); ++iter)
+   {
+     uint64_t k =  iter->first;
+     //ignore value
+     uint64_t v = iter->second;
+     printf("Count for %lu is: %lu\n",k,v);
+   }
+   printf("Printing invalidates histogram\n");
+   for (std::map<uint64_t,uint64_t>::iterator iter =
+                   histogram_of_invalidations.begin();
+                   iter != histogram_of_invalidations.end(); ++iter)
+   {
+     uint64_t k =  iter->first;
+     //ignore value
+     uint64_t v = iter->second;
+     printf("Count for %lu is: %lu\n",k,v);
+   }
+   printf("Printing writebacks histogram\n");
+   for (std::map<uint64_t,uint64_t>::iterator iter =
+                   histogram_of_writebacks.begin();
+                   iter != histogram_of_writebacks.end(); ++iter)
    {
      uint64_t k =  iter->first;
      //ignore value

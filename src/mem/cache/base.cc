@@ -66,6 +66,9 @@ class BaseSlavePort;
 
 using namespace std;
 
+std::map<uint64_t, uint64_t> histogram_of_invalidations;
+std::map<uint64_t, uint64_t> histogram_of_writebacks;
+
 BaseCache::CacheSlavePort::CacheSlavePort(const std::string &_name,
                                           BaseCache *_cache,
                                           const std::string &_label)
@@ -124,6 +127,19 @@ BaseCache::BaseCache(const BaseCacheParams *p, unsigned blk_size)
 
     if (prefetcher)
         prefetcher->setCache(this);
+    //initializing all histogram counters
+    //for invalidates and writebacks
+
+    conflict_threshold = 200;
+    cacheline_threshold = 50;
+    policy = 7;
+
+    for (int i = 1; i<cacheline_threshold; i++)
+    {
+      histogram_of_invalidations[i] = 0;
+      histogram_of_writebacks[i] = 0;
+    }
+
 
 }
 
@@ -1532,7 +1548,7 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
                                             pkt->req->get_is_writable_page());
            //at this point, we also need to update the hash lookup table
            //appropriately.
-           //decrement the counter, to indicate that we have one line lesser
+           //decrement the counter, to indicate that we have one line lessergg
            //from that page.
           // uint64_t index_into_hash_lookup_table = (CPA_VPN^CPA_CR3)&15;
 
@@ -1693,6 +1709,9 @@ BaseCache::writecleanBlk(CacheBlk *blk, Request::Flags dest, PacketId id)
 bool
 BaseCache::evict_on_conflict_miss()
 {
+
+   int writebacks_triggered_on_this_event = 0;
+   int invalidation_triggered_on_this_event = 0;
     while (num_to_evict) {
     //	tags->anyBlk([this](CacheBlk &blk) {
     //	evict_on_conflict_miss_visitor(blk);});
@@ -1701,12 +1720,20 @@ BaseCache::evict_on_conflict_miss()
            //     printf("Writeback happened\n");
                 num_forced_writebacks++;
                 num_forced_invalidations++;
+                writebacks_triggered_on_this_event++;
+                invalidation_triggered_on_this_event++;
                 memSidePort.sendFunctional(pkt);
         }
-        else
+        else{
                 num_forced_invalidations++;
+                invalidation_triggered_on_this_event++;
+        }
         num_to_evict--;
     }
+    if (writebacks_triggered_on_this_event)
+        histogram_of_writebacks[writebacks_triggered_on_this_event]+=1;
+    if (invalidation_triggered_on_this_event)
+        histogram_of_invalidations[invalidation_triggered_on_this_event]+=1;
     return true;
 }
 
@@ -2765,6 +2792,10 @@ BaseCache::regStats()
         .name(name() + ".num_unique_conflict_misses")
         .desc("num of unique conflict misses (per lifetime of scheme)"
                         " detected by MCT")
+        ;
+   num_of_inval_events_triggered
+        .name(name() + ".num_of_inval_events_triggered")
+        .desc("num of inval events triggerred")
         ;
     num_schemes_recycled
         .name(name() + ".num_schemes_recycled")

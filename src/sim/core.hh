@@ -65,6 +65,11 @@ extern std::vector<std::vector<lifetime_record>> lifetimes_of_hash_entries;
 extern std::vector<bool> hash_entries_used;
 extern std::map<uint64_t,uint64_t> set_number_conflicts;
 
+//count of the absolute number of invalidations or writebacks
+//on each eviction event.
+extern std::map<uint64_t, uint64_t> histogram_of_invalidations;
+extern std::map<uint64_t, uint64_t> histogram_of_writebacks;
+
 /// The universal simulation clock.
 inline Tick curTick() { return _curEventQueue->getCurTick(); }
 

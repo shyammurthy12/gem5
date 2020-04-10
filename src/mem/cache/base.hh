@@ -105,6 +105,22 @@ class BaseCache : public ClockedObject
     };
 
   public:
+
+    int conflict_threshold;
+    int cacheline_threshold;
+
+    int policy;
+        // 0: remove min(cachelines,
+        //2*conflict misses from conflicting scheme)
+        // 1: remove scheme with max conflicts
+        // 2: just increment conflicts, no evictions
+        // 3: remove min(cachelines,
+        //conflict misses from conflicting scheme)
+        // 4: remove scheme with max conflicts
+        // 5: remove scheme when max conflicts reaches a threshold
+        // 6: remove scheme when max conflicts reaches a threshold
+        // and num_cachelines < threshold
+        // 7: remove scheme when total conflicts reaches a threshold
     /**
      * Reasons for caches to be blocked.
      */
@@ -1095,6 +1111,11 @@ class BaseCache : public ClockedObject
     Stats::Scalar num_conflict_misses;
     //num of unique conflict misses
     Stats::Scalar num_unique_conflict_misses;
+
+    //number of invalidation events triggered
+    //number of times the policy called
+    //evict_cache_lines
+    Stats::Scalar num_of_inval_events_triggered;
 
     Stats::Scalar num_schemes_recycled;
     Stats::Scalar num_forced_writebacks;
