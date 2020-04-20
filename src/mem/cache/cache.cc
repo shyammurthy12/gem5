@@ -1004,9 +1004,9 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                      set_number_conflicts[mct_index] = 1;
                   else
                      set_number_conflicts[mct_index] += 1;
-                  if (mct_index == 118 || mct_index == 119)
-                    cout <<"MCT index is:" << mct_index<< " and the virtual"
-                            "address is "<< CPA_Vaddr<<endl;
+                 // if (mct_index == 118 || mct_index == 119)
+                 //   cout <<"MCT index is:" << mct_index<< " and the virtual"
+                 //           "address is "<< CPA_Vaddr<<endl;
 
                   #ifdef Smurthy_debug
                    printf("Conflict detected\n");
