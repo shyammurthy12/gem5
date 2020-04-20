@@ -1004,6 +1004,10 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                      set_number_conflicts[mct_index] = 1;
                   else
                      set_number_conflicts[mct_index] += 1;
+                  if (mct_index == 118 || mct_index == 119)
+                    cout <<"MCT index is:" << mct_index<< " and the virtual"
+                            "address is "<< CPA_Vaddr<<endl;
+
                   #ifdef Smurthy_debug
                    printf("Conflict detected\n");
                   #endif
@@ -1154,7 +1158,7 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                         // int total_conflicts = std::accumulate(
                         //        list_of_scheme_conflict_counter.begin(),
                         //   list_of_scheme_conflict_counter.end(), 0);
-                         if (global_conflicts > conflict_threshold) {
+                         if ((global_conflicts % conflict_threshold==0)) {
                                  global_conflicts=0;
                                 int minElementIndex = std::min_element(
                                   list_of_scheme_cacheline_counter.begin(),

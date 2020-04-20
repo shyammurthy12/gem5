@@ -94,7 +94,12 @@ BaseTags::getSetNumber(Addr addr) const
          Addr CPA_Vaddr = (CPA_VPN * Region_Size) + (addr % Region_Size);
          //uint32_t random_number_to_hash_with =
          //        ASDT_entry->get_random_number_to_hash_with();
+#ifdef RANDOM_CONSTANTS
+         uint32_t constant_to_xor_with = 0;
+#endif
+#ifdef ADDRESS_BASED_SCHEMES
          vector<int> hash_scheme_for_xor;
+#endif
          uint64_t CPA_CR3 = ASDT_entry->get_cr3();
 
 
@@ -112,12 +117,24 @@ BaseTags::getSetNumber(Addr addr) const
            //the hashing function table is always assumed
            //to have a valid entry that can be used.
            int temp1 = hash_entry_to_use;
+
+#ifdef ADDRESS_BASED_SCHEMES
     hash_scheme_for_xor =
-  get_VC_structure()->hashing_function_to_use_get_constant_to_xor_with(temp1);
+#endif
+#ifdef RANDOM_CONSTANTS
+    constant_to_xor_with =
+#endif
+   get_VC_structure()->hashing_function_to_use_get_constant_to_xor_with(temp1);
 
          }
+#ifdef ADDRESS_BASED_SCHEMES
          return indexingPolicy->extractSet_Vaddr_with_hashing(CPA_Vaddr,
                          hash_scheme_for_xor);
+#endif
+#ifdef RANDOM_CONSTANTS
+         return indexingPolicy->extractSet_Vaddr_with_hashing(CPA_Vaddr,
+                         constant_to_xor_with);
+#endif
      }
      else{
         cout <<" WHat?? Should not be herer" << endl;
@@ -156,7 +173,12 @@ BaseTags::findBlock(Addr addr, bool is_secure) const
          Addr CPA_Vaddr = (CPA_VPN * Region_Size) + (addr % Region_Size);
          //uint32_t random_number_to_hash_with =
          //        ASDT_entry->get_random_number_to_hash_with();
+#ifdef ADDRESS_BASED_SCHEMES
          vector<int> hash_scheme_for_xor;
+#endif
+#ifdef RANDOM_CONSTANTS
+         uint32_t constant_to_xor_with = 0;
+#endif
          uint64_t CPA_CR3 = ASDT_entry->get_cr3();
 
          uint64_t virt_page = CPA_VPN^CPA_CR3;
@@ -177,8 +199,13 @@ BaseTags::findBlock(Addr addr, bool is_secure) const
            //the hashing function table is always assumed
            //to have a valid entry that can be used.
            int temp1 = hash_entry_to_use;
-    hash_scheme_for_xor =
-  get_VC_structure()->hashing_function_to_use_get_constant_to_xor_with(temp1);
+#ifdef ADDRESS_BASED_SCHEMES
+  hash_scheme_for_xor =
+#endif
+#ifdef RANDOM_CONSTANTS
+    constant_to_xor_with =
+#endif
+   get_VC_structure()->hashing_function_to_use_get_constant_to_xor_with(temp1);
 
          }
          //absence of a valid entry, indicates
@@ -195,7 +222,12 @@ BaseTags::findBlock(Addr addr, bool is_secure) const
 #endif
         const std::vector<ReplaceableEntry*> entries =
 indexingPolicy->getPossibleEntries_with_Vaddr(CPA_Vaddr,
+#ifdef RANDOM_CONSTANTS
+                constant_to_xor_with);
+#endif
+#ifdef ADDRESS_BASED_SCHEMES
                 hash_scheme_for_xor);
+#endif
       // only leading virtual address
       CacheBlk* target_block = NULL;
      // Search for block
@@ -240,8 +272,14 @@ indexingPolicy->getPossibleEntries_with_Vaddr(CPA_Vaddr,
 
 #ifdef Ongal_VC
 CacheBlk*
+#ifdef ADDRESS_BASED_SCHEMES
 BaseTags::findBlock_vaddr(Addr addr, Addr cr3, vector<int>
                 hash_scheme_for_xor) const
+#endif
+#ifdef RANDOM_CONSTANTS
+BaseTags::findBlock_vaddr(Addr addr, Addr cr3, uint32_t
+                random_number_to_xor_with) const
+#endif
 {
 
     // Extract block tag
@@ -249,7 +287,12 @@ BaseTags::findBlock_vaddr(Addr addr, Addr cr3, vector<int>
     // Find possible entries that may contain the given address
     const std::vector<ReplaceableEntry*> entries =
         indexingPolicy->getPossibleEntries_with_Vaddr(addr,
+#ifdef RANDOM_CONSTANTS
+                        random_number_to_xor_with);
+#endif
+#ifdef ADDRESS_BASED_SCHEMES
                         hash_scheme_for_xor);
+#endif
 
     // Search for block
     for (const auto& location : entries) {
@@ -274,9 +317,14 @@ BaseTags::findBlock_with_vaddr(Addr addr, Addr cr3, bool is_secure) const
     // Find possible entries that may contain the given address
     //This implementation is broken, but does not get used.
     //Change this later on, when we turn on LateMemTrap.
-    vector<int> v{0};
+    //vector<int> v{0};
     const std::vector<ReplaceableEntry*> entries =
-        indexingPolicy->getPossibleEntries_with_Vaddr(addr,v);
+#ifdef RANDOM_CONSTANTS
+       indexingPolicy->getPossibleEntries_with_Vaddr(addr,0);
+#endif
+#ifdef ADDRESS_BASED_SCHEMES
+       indexingPolicy->getPossibleEntries_with_Vaddr(addr,v);
+#endif
 
     // Search for block
     for (const auto& location : entries) {

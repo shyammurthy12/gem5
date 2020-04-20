@@ -52,8 +52,10 @@
 
 #include <vector>
 
+#include "mem/ongal_VC.hh"
 #include "params/BaseIndexingPolicy.hh"
 #include "sim/sim_object.hh"
+
 using namespace std;
 class ReplaceableEntry;
 
@@ -150,10 +152,23 @@ class BaseIndexingPolicy : public SimObject
                                                                     const = 0;
 
 
+#ifdef ADDRESS_BASED_SCHEMES
     virtual uint32_t extractSet_Vaddr_with_hashing(Addr addr, vector<int>
                     hash_function_for_xor) const = 0;
+#endif
+
+#ifdef RANDOM_CONSTANTS
+    virtual uint32_t extractSet_Vaddr_with_hashing(Addr addr, uint32_t
+                    hash_function_for_xor) const = 0;
+#endif
+#ifdef ADDRESS_BASED_SCHEMES
     virtual std::vector<ReplaceableEntry*> getPossibleEntries_with_Vaddr(const
-                    Addr addr, vector<int> hash_scheme_for_xor) const = 0;
+         Addr addr, vector<int> hash_scheme_for_xor) const = 0;
+#endif
+#ifdef RANDOM_CONSTANTS
+    virtual std::vector<ReplaceableEntry*> getPossibleEntries_with_Vaddr(const
+          Addr addr, uint32_t random_constant_to_xor_with) const = 0;
+#endif
     /**
      * Regenerate an entry's address from its tag and assigned indexing bits.
      *

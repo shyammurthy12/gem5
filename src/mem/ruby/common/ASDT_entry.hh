@@ -235,17 +235,36 @@ private:
 class hashing_functions_table_entry
 {
 private:
+
+#ifdef RANDOM_CONSTANTS
+  uint64_t constant_to_xor_with;
+#endif
+#ifdef ADDRESS_BASED_SCHEMES
   vector<int> hash_scheme;
-  //uint64_t constant_to_xor_with;
+#endif
   int count_of_lines_using_entry;
   //when this entry falls to zero, we can use a new
   //hash function from our list of function.
 public:
+
+#ifdef RANDOM_CONSTANTS
+  uint64_t get_constant_to_xor_with(){
+    return constant_to_xor_with;
+  }
+#endif
+#ifdef ADDRESS_BASED_SCHEMES
   vector<int> get_constant_to_xor_with(){
     return hash_scheme;
   }
+#endif
+#ifdef RANDOM_CONSTANTS
+  void set_constant_to_xor_with(uint64_t _set_constant_to_xor_with){
+    constant_to_xor_with = _set_constant_to_xor_with;
+#endif
+#ifdef ADDRESS_BASED_SCHEMES
   void set_constant_to_xor_with(vector<int> _set_constant_to_xor_with){
     hash_scheme = _set_constant_to_xor_with;
+#endif
   }
   void set_of_lines_using_entry(int _number_of_cache_lines){
      count_of_lines_using_entry = _number_of_cache_lines;
@@ -554,10 +573,21 @@ bool lookup_VC_structure( const Address addr,
   int get_hash_lookup_table_size();
   //hashing functions table entry
 
+#ifdef RANDOM_CONSTANTS
+  uint64_t hashing_function_to_use_get_constant_to_xor_with(int
+                  index_of_entry);
+#endif
+#ifdef ADDRESS_BASED_SCHEMES
   vector<int> hashing_function_to_use_get_constant_to_xor_with(int
                   index_of_entry);
+#endif
   void hashing_function_to_use_set_constant_to_xor_with(int index_of_entry,
+#ifdef RANDOM_CONSTANTS
+                  uint64_t _set_constant_to_xor_with);
+#endif
+#ifdef ADDRESS_BASED_SCHEMES
                   vector<int> _set_constant_to_xor_with);
+#endif
   void hashing_function_to_use_set_of_lines_using_entry(int index_of_entry, int
                   _number_of_cache_lines);
   //pass in the number of hashing functions, so we can pick one out of the

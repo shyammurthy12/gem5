@@ -5,6 +5,7 @@ std::vector<bool> hash_entries_used;
 vector<int> list_of_scheme_conflict_counter;
 vector<int> list_of_scheme_cacheline_counter;
 
+#ifdef ADDRESS_BASED_SCHEMES
 // Function to return the next random number
 int getNum(vector<int>& v)
 {
@@ -43,6 +44,7 @@ vector<int> generateRandom(int n)
     }
     return scheme;
 }
+#endif
 
 ASDT_entry::ASDT_entry(uint64_t VPN, uint64_t CR3, int num_lines_per_region,
                 uint64_t lru_count){
@@ -197,8 +199,8 @@ VC_structure::VC_structure(string name,
     asdt_way = 16;
     //have this hash lookup table for
     //data cache alone.
-    m_hash_lookup_table_size =8;
-    m_size_of_hash_function_list = 8;
+    m_hash_lookup_table_size =16;
+    m_size_of_hash_function_list = 16;
   }else{
     asdt_set = 8;
     asdt_way = 16;
@@ -258,6 +260,13 @@ VC_structure::VC_structure(string name,
   for (int i = 0;i<m_size_of_hash_function_list;i++)
   {
      hashing_functions_table_entry temp;
+#ifdef RANDOM_CONSTANTS
+     //16-bit quantity to xor with.
+     temp.set_constant_to_xor_with(rand()%65535);
+     cout<<"Random numbers used for " <<i<<": "
+             <<temp.get_constant_to_xor_with()<<endl;
+#endif
+#ifdef ADDRESS_BASED_SCHEMES
      //9-ints for hash scheme
      vector<int> scheme = generateRandom(17);
      temp.set_constant_to_xor_with(scheme);
@@ -265,6 +274,7 @@ VC_structure::VC_structure(string name,
      vector<int> scheme_ = temp.get_constant_to_xor_with();
      for (int i=0; i<scheme_.size(); i++)
         cout << scheme_[i] << endl;
+#endif
      temp.set_of_lines_using_entry(0);
      list_of_all_hashing_functions.push_back(temp);
   }
@@ -422,7 +432,12 @@ VC_structure::hash_entry_to_use_invalidate(int index_of_entry)
 {
   return hash_lookup_table.at(index_of_entry).invalidate();
 }
+#ifdef ADDRESS_BASED_SCHEMES
 vector<int>
+#endif
+#ifdef RANDOM_CONSTANTS
+uint64_t
+#endif
 VC_structure::hashing_function_to_use_get_constant_to_xor_with(int
                 index_of_entry){
    hashing_functions_table_entry &temp =
@@ -431,7 +446,12 @@ VC_structure::hashing_function_to_use_get_constant_to_xor_with(int
   }
 void
 VC_structure::hashing_function_to_use_set_constant_to_xor_with(int
+#ifdef ADDRESS_BASED_SCHEMES
                 index_of_entry, vector<int> _set_constant_to_xor_with){
+#endif
+#ifdef RANDOM_CONSTANTS
+                index_of_entry, uint64_t _set_constant_to_xor_with){
+#endif
   hashing_functions_table_entry &temp =
           list_of_all_hashing_functions.at(index_of_entry);
   return temp.set_constant_to_xor_with(_set_constant_to_xor_with);

@@ -164,11 +164,22 @@ class SkewedAssociative : public BaseIndexingPolicy
                                                                    override;
 
 
+#ifdef RANDOM_CONSTANTS
+    uint32_t extractSet_Vaddr_with_hashing(Addr addr, uint32_t
+                    hash_function_for_xor) const
+             override;
+
+    std::vector<ReplaceableEntry*> getPossibleEntries_with_Vaddr(const Addr
+                    addr, uint32_t hash_scheme_for_xor) const override;
+#endif
+#ifdef ADDRESS_BASED_SCHEMES
     uint32_t extractSet_Vaddr_with_hashing(Addr addr, vector<int>
                     hash_function_for_xor) const
              override;
+
     std::vector<ReplaceableEntry*> getPossibleEntries_with_Vaddr(const Addr
                     addr, vector<int> hash_scheme_for_xor) const override;
+#endif
     /**
      * Regenerate an entry's address from its tag and assigned set and way.
      * Uses the inverse of the skewing function.

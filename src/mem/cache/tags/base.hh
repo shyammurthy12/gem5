@@ -217,9 +217,14 @@ class BaseTags : public ClockedObject
     virtual CacheBlk *findBlock(Addr addr, bool is_secure) const;
 
     //Ongal
+#ifdef RANDOM_CONSTANTS
+    virtual CacheBlk * findBlock_vaddr(Addr addr, Addr cr3, uint32_t
+                    random_number_to_xor_with) const;
+#endif
+#ifdef ADDRESS_BASED_SCHEMES
     virtual CacheBlk * findBlock_vaddr(Addr addr, Addr cr3, vector<int>
                     hash_scheme_for_xor) const;
-
+#endif
     virtual CacheBlk * findBlock_with_vaddr(Addr addr, Addr cr3, bool
                     is_secure) const;
 

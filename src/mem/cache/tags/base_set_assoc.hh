@@ -221,8 +221,12 @@ class BaseSetAssoc : public BaseTags
        }else{
          Addr CPA_VPN   = ASDT_entry->get_virtual_page_number();
          Addr CPA_Vaddr = (CPA_VPN * Region_Size) + (addr % Region_Size);
-        // uint32_t random_number_to_xor_with = 0;
+#ifdef RANDOM_CONSTANTS
+         uint32_t random_number_to_xor_with = 0;
+#endif
+#ifdef ADDRESS_BASED_SCHEMES
          vector<int> hash_scheme_for_xor;
+#endif
          uint64_t CPA_CR3 = ASDT_entry->get_cr3();
 
          uint64_t virt_page = CPA_VPN^CPA_CR3;
@@ -244,7 +248,12 @@ class BaseSetAssoc : public BaseTags
            //the hashing function table is always assumed
            //to have a valid entry that can be used.
    temp = hash_entry_to_use;
+#ifdef RANDOM_CONSTANTS
+   random_number_to_xor_with =
+#endif
+#ifdef ADDRESS_BASED_SCHEMES
    hash_scheme_for_xor =
+#endif
     get_VC_structure()->hashing_function_to_use_get_constant_to_xor_with(temp);
 
          }
@@ -263,9 +272,14 @@ class BaseSetAssoc : public BaseTags
          #endif
 
          const std::vector<ReplaceableEntry*> entries =
+#ifdef ADDRESS_BASED_SCHEMES
          indexingPolicy->getPossibleEntries_with_Vaddr(CPA_Vaddr,
                          hash_scheme_for_xor);
-                        //random_number_to_xor_with);
+#endif
+#ifdef RANDOM_CONSTANTS
+         indexingPolicy->getPossibleEntries_with_Vaddr(CPA_Vaddr,
+                         random_number_to_xor_with);
+#endif
 
         CacheBlk* victim;
         if (get_VC_structure()!=NULL)

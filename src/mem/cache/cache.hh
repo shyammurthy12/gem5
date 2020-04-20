@@ -340,7 +340,9 @@ class Cache : public BaseCache
       // invalidate the entry in the map
       // flush ART/SS in the method
       bool found = false;
+      #ifdef ADDRESS_BASED_SCHEMES
       vector<int> hash_scheme_for_xor{0};
+      #endif
       do{
 
         found = m_vc_structure->invalidate_ASDT_with_VPN(VPN, &matching_cr3,
@@ -372,9 +374,14 @@ class Cache : public BaseCache
             //the hashing function table is always assumed
             //to have a valid entry that can be used.
            int temp = hash_entry_to_use;
+#ifdef RANDOM_CONSTANTS
+           random_number_to_hash_with =
+        m_vc_structure->hashing_function_to_use_get_constant_to_xor_with(temp);
+#endif
+#ifdef ADDRESS_BASED_SCHEMES
            hash_scheme_for_xor = m_vc_structure->
       hashing_function_to_use_get_constant_to_xor_with(temp);
-
+#endif
           }
           else
            cout<<"What?? Entry should be valid. In Demap_ASDT_Handler\n";
@@ -384,7 +391,12 @@ class Cache : public BaseCache
             uint64_t line_vaddr = region_vaddr + (line_index*line_size);
             // find a block
             CacheBlk *blk = tags->findBlock_vaddr(line_vaddr, matching_cr3,
+#ifdef RANDOM_CONSTANTS
+                            random_number_to_hash_with);
+#endif
+#ifdef ADDRESS_BASED_SCHEMES
                             hash_scheme_for_xor);
+#endif
 
             if (blk && blk->isValid()) {
               // if it is dirty, put it in a write back buffer

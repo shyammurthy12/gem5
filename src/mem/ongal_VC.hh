@@ -6,6 +6,9 @@
 #define VIVT     // user virtually index and virtually tagged cache design
 #define SS_HASH  // to use a hash to manage SS. Page Number + ASID
 #define REGION_SIZE 4096 // Analysis and ASDT Granularity
+#define RANDOM_CONSTANTS 1
+//#define ADDRESS_BASED_SCHEMES 0
+
 
 /* Kernel Optimization */
 /*

@@ -198,10 +198,16 @@ SkewedAssociative::extractSet(const Addr addr, const uint32_t way) const
 }
 
 
-
+#ifdef ADDRESS_BASED_SCHEMES
 uint32_t
 SkewedAssociative::extractSet_Vaddr_with_hashing(const Addr addr, vector<int>
                 hash_function_for_xor) const
+#endif
+#ifdef RANDOM_CONSTANTS
+uint32_t
+SkewedAssociative::extractSet_Vaddr_with_hashing(const Addr addr, uint32_t
+                hash_function_for_xor) const
+#endif
 {
     return 0;
 }
@@ -230,9 +236,16 @@ SkewedAssociative::getPossibleEntries(const Addr addr) const
 }
 
 //Ongal
+#ifdef RANDOM_CONSTANTS
+std::vector<ReplaceableEntry*>
+SkewedAssociative::getPossibleEntries_with_Vaddr(const Addr addr, uint32_t
+                random_constant_to_xor_with) const
+#endif
+#ifdef ADDRESS_BASED_SCHEMES
 std::vector<ReplaceableEntry*>
 SkewedAssociative::getPossibleEntries_with_Vaddr(const Addr addr, vector<int>
                 hash_scheme_for_xor) const
+#endif
 {
     std::vector<ReplaceableEntry*> entries;
 

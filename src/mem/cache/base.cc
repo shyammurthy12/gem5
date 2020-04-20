@@ -131,8 +131,8 @@ BaseCache::BaseCache(const BaseCacheParams *p, unsigned blk_size)
     //for invalidates and writebacks
 
     conflict_threshold = 200;
-    cacheline_threshold = 50;
-    policy = 7;
+    cacheline_threshold = 20;
+    policy = 2;
 
     for (int i = 1; i<cacheline_threshold; i++)
     {
