@@ -64,6 +64,7 @@ struct lifetime_record
 extern std::vector<std::vector<lifetime_record>> lifetimes_of_hash_entries;
 extern std::vector<bool> hash_entries_used;
 extern std::map<uint64_t,uint64_t> set_number_conflicts;
+extern std::map<uint64_t,uint64_t> set_number_misses;
 
 //count of the absolute number of invalidations or writebacks
 //on each eviction event.

@@ -152,8 +152,8 @@ computeHash(uint64_t addr)
 {
    //cout<<"Address is " << addr<<endl;
 //   return (addr^(addr<<9));
-  //return addr/8; //2way cache
-  return addr/4; //4way cache
+  return addr/8; //2way cache
+  //return addr/4; //4way cache
 }
 /**
  * Do C++ simulator exit processing.  Exported to Python to be invoked
@@ -162,35 +162,44 @@ computeHash(uint64_t addr)
 void
 doExitCleanup()
 {
+   //for (std::map<uint64_t,uint64_t>::iterator iter =
+   //                set_number_conflicts.begin();
+   //                iter != set_number_conflicts.end(); ++iter)
+   //{
+   //  uint64_t k =  iter->first;
+   //  //ignore value
+   //  uint64_t v = iter->second;
+   //  printf("Count for %lu is: %lu\n",k,v);
+   //}
    for (std::map<uint64_t,uint64_t>::iterator iter =
-                   set_number_conflicts.begin();
-                   iter != set_number_conflicts.end(); ++iter)
+                   set_number_misses.begin();
+                   iter != set_number_misses.end(); ++iter)
    {
      uint64_t k =  iter->first;
      //ignore value
      uint64_t v = iter->second;
      printf("Count for %lu is: %lu\n",k,v);
    }
-   printf("Printing invalidates histogram\n");
-   for (std::map<uint64_t,uint64_t>::iterator iter =
-                   histogram_of_invalidations.begin();
-                   iter != histogram_of_invalidations.end(); ++iter)
-   {
-     uint64_t k =  iter->first;
-     //ignore value
-     uint64_t v = iter->second;
-     printf("Count for %lu is: %lu\n",k,v);
-   }
-   printf("Printing writebacks histogram\n");
-   for (std::map<uint64_t,uint64_t>::iterator iter =
-                   histogram_of_writebacks.begin();
-                   iter != histogram_of_writebacks.end(); ++iter)
-   {
-     uint64_t k =  iter->first;
-     //ignore value
-     uint64_t v = iter->second;
-     printf("Count for %lu is: %lu\n",k,v);
-   }
+   //printf("Printing invalidates histogram\n");
+   //for (std::map<uint64_t,uint64_t>::iterator iter =
+   //                histogram_of_invalidations.begin();
+   //                iter != histogram_of_invalidations.end(); ++iter)
+   //{
+   //  uint64_t k =  iter->first;
+   //  //ignore value
+   //  uint64_t v = iter->second;
+   //  printf("Count for %lu is: %lu\n",k,v);
+   //}
+   //printf("Printing writebacks histogram\n");
+   //for (std::map<uint64_t,uint64_t>::iterator iter =
+   //                histogram_of_writebacks.begin();
+   //                iter != histogram_of_writebacks.end(); ++iter)
+   //{
+   //  uint64_t k =  iter->first;
+   //  //ignore value
+   //  uint64_t v = iter->second;
+   //  printf("Count for %lu is: %lu\n",k,v);
+   //}
    // printf("Hello, end of simulation\n");
    // uint64_t max_record_lifetime_across_all_entries = 0;
    // for (int i = 0;i<lifetimes_of_hash_entries.size();i++)

@@ -77,6 +77,7 @@ using namespace std;
 
 
 map<uint64_t,uint64_t> set_number_conflicts;
+map<uint64_t,uint64_t> set_number_misses;
 
 
 Cache::Cache(const CacheParams *p)
@@ -984,6 +985,11 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
             CPA_Vaddr = (CPA_VPN * Region_Size) + (pkt->req->getPaddr()
                           % Region_Size);
              mct_index = get_mct_index(pkt->req->getPaddr());
+             if (set_number_misses.find(mct_index) ==
+                           set_number_misses.end())
+                 set_number_misses[mct_index] = 1;
+             else
+                 set_number_misses[mct_index] += 1;
              //uint64_t victim_tag = getVictimAddressTag(pkt);
              if (miss_classification_table.at(mct_index).getValid()){
              #ifdef  Smurthy_debug

@@ -179,7 +179,7 @@ VC_structure::VC_structure(string name,
     //setting the seed for us to perform the
     //xor with.
 
-    srand(0);
+    srand(2);
     dcache = true;
   }
 
@@ -200,8 +200,8 @@ VC_structure::VC_structure(string name,
     asdt_way = 16;
     //have this hash lookup table for
     //data cache alone.
-    m_hash_lookup_table_size =16;
-    m_size_of_hash_function_list = 16;
+    m_hash_lookup_table_size = 16;
+    m_size_of_hash_function_list =512;
   }else{
     asdt_set = 8;
     asdt_way = 16;
