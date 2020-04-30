@@ -40,7 +40,8 @@ vector<int> generateRandom(int n)
 
     // get a random number from the vector and print it
     for (int i=0;i<9;i++) {
-        scheme.push_back(getNum(v)+14);
+        scheme.push_back(getNum(v)+14); // tag bits
+        //scheme.push_back(getNum(v)+5); //index bits
     }
     return scheme;
 }

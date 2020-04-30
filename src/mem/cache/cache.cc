@@ -1069,6 +1069,13 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                          tags->get_VC_structure()->
                                hash_entry_to_use_inc_conflict_misses(
                                       index_into_hash_table);
+//			 if (global_conflicts>conflict_threshold) {
+//				 global_conflicts=0;
+//		for (int i=0;i<list_of_scheme_cacheline_counter.size(); i++) {
+//			std::cout << "Scheme " << i <<": "<<
+//			list_of_scheme_cacheline_counter[i] <<std::endl;
+//				}
+//			 }
                        }
                        break;
                    case 3: {

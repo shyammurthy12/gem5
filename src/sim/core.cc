@@ -151,8 +151,9 @@ uint64_t
 computeHash(uint64_t addr)
 {
    //cout<<"Address is " << addr<<endl;
-   //return (addr^(addr>>28));
-  return addr;
+//   return (addr^(addr<<9));
+  //return addr/8; //2way cache
+  return addr/4; //4way cache
 }
 /**
  * Do C++ simulator exit processing.  Exported to Python to be invoked
