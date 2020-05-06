@@ -79,7 +79,8 @@ using namespace std;
 map<uint64_t,uint64_t> set_number_conflicts;
 map<uint64_t,uint64_t> set_number_misses;
 map<uint64_t,uint64_t> set_number_misses_for_eviction;
-
+uint64_t l1cache_size;
+int l1cache_assoc;
 
 Cache::Cache(const CacheParams *p)
     : BaseCache(p, p->system->cacheLineSize()),
@@ -114,6 +115,8 @@ Cache::Cache(const CacheParams *p)
       set_is_l1cache(true);
       std::cout<<" L1Cache is found ";
       global_conflicts=0;
+      l1cache_size = p->size;
+      l1cache_assoc = p->assoc;
       prev_cr3 = 0;
       m_region_size = REGION_SIZE;
       m_num_accesses = 0;

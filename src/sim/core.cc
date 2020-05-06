@@ -30,10 +30,9 @@
  * Authors: Nathan Binkert
  *          Steve Reinhardt
  */
-
-
 #include "sim/core.hh"
 
+#include <cmath>
 #include <iostream>
 #include <string>
 
@@ -150,10 +149,15 @@ registerExitCallback(Callback *callback)
 uint64_t
 computeHash(uint64_t addr)
 {
-   //cout<<"Address is " << addr<<endl;
-//   return (addr^(addr<<9));
-  return addr/8; //2way cache
-  //return addr/4; //4way cache
+        int num_sets = l1cache_size/(l1cache_assoc*64);
+        int set_bits = log2(num_sets);
+        int shift_bits = set_bits - 6;
+        if (shift_bits > 0){
+        //	printf("shift_bits = %d\n",shift_bits);
+                return addr >> shift_bits;
+        }
+        else
+                return addr;
 }
 /**
  * Do C++ simulator exit processing.  Exported to Python to be invoked
