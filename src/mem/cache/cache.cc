@@ -78,6 +78,7 @@ using namespace std;
 
 map<uint64_t,uint64_t> set_number_conflicts;
 map<uint64_t,uint64_t> set_number_misses;
+map<uint64_t,uint64_t> set_number_misses_for_eviction;
 
 
 Cache::Cache(const CacheParams *p)
@@ -990,6 +991,11 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                  set_number_misses[mct_index] = 1;
              else
                  set_number_misses[mct_index] += 1;
+             if (set_number_misses_for_eviction.find(mct_index) ==
+                           set_number_misses_for_eviction.end())
+                 set_number_misses_for_eviction[mct_index] = 1;
+             else
+                 set_number_misses_for_eviction[mct_index] += 1;
              //uint64_t victim_tag = getVictimAddressTag(pkt);
              if (miss_classification_table.at(mct_index).getValid()){
              #ifdef  Smurthy_debug
@@ -1187,6 +1193,52 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                                   num_of_inval_events_triggered++;
                                   evict_on_conflict_miss();
                                 }
+                         }
+                       }
+                       break;
+                       case 8: {
+                         tags->get_VC_structure()->
+                               hash_entry_to_use_inc_conflict_misses(
+                                      index_into_hash_table);
+                         int total_misses = std::accumulate(
+                                std::begin(set_number_misses_for_eviction),
+                           std::end(set_number_misses_for_eviction), 0, [](
+                const std::uint64_t previous, const std::pair<const
+        std::uint64_t, std::uint64_t>& p){return previous +p.second;});
+                         int avg_misses_per_set =
+                        total_misses/set_number_misses_for_eviction.size();
+                printf("avg misses per set = %d\n", avg_misses_per_set);
+                         bool hot_set_found = 0;
+                        for (std::map<uint64_t,uint64_t>::iterator iter =
+                                set_number_misses_for_eviction.begin();
+                        iter != set_number_misses_for_eviction.end(); ++iter){
+                           if (iter->second > avg_misses_per_set) {
+                printf("misses on set no. %lu = %lu\n",
+                                iter->first, iter->second);
+                                   //1 hotset at a time or multiple hotsets?
+                                int minElementIndex = std::min_element(
+                                  list_of_scheme_cacheline_counter.begin(),
+                                  list_of_scheme_cacheline_counter.end()) -
+                                      list_of_scheme_cacheline_counter.begin();
+                                int minElement = *std::min_element(
+                                  list_of_scheme_cacheline_counter.begin(),
+                                  list_of_scheme_cacheline_counter.end());
+
+                           if (minElement && minElement < cacheline_threshold){
+                         printf("minElement = %d\n", minElement);
+                                  hot_set_found=1;
+                                  conflict_scheme_entry = minElementIndex;
+                                  num_to_evict = minElement;
+                                  num_of_inval_events_triggered++;
+                                  evict_on_conflict_miss();
+                                 // break;
+                                }
+                           }
+
+                         }
+                         if (hot_set_found) {
+                         //make all set_number_misses=0
+                           set_number_misses_for_eviction.clear();
                          }
                        }
                        break;
