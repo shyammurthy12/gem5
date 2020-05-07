@@ -321,6 +321,10 @@ class BaseTags : public ClockedObject
     virtual CacheBlk* findVictim(Addr addr, const bool is_secure,
                                  std::vector<CacheBlk*>& evict_blks) const = 0;
 
+
+    virtual bool checkIfMatchingSchemePresent(Addr addr,
+                        const bool is_secure,
+                         std::vector<CacheBlk*>& evict_blks) const = 0;
     /**
      * Access block and update replacement data. May not succeed, in which case
      * nullptr is returned. This has all the implications of a cache access and
@@ -338,6 +342,7 @@ class BaseTags : public ClockedObject
 #ifdef LateMemTrap
     virtual CacheBlk* access_VC_Block(PacketPtr pkt, bool is_secure,
                     Cycles &lat, int context_src);
+
 #endif
 #endif
 

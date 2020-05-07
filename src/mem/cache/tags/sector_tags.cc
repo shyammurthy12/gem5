@@ -219,6 +219,15 @@ SectorTags::findBlock(Addr addr, bool is_secure) const
     return nullptr;
 }
 
+
+bool
+SectorTags::checkIfMatchingSchemePresent(Addr addr, const bool is_secure,
+                     std::vector<CacheBlk*>& evict_blks) const
+{
+    return false;
+}
+
+
 CacheBlk*
 SectorTags::findVictim(Addr addr, const bool is_secure,
                        std::vector<CacheBlk*>& evict_blks) const

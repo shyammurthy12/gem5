@@ -737,6 +737,8 @@ class BaseCache : public ClockedObject
 
     bool isVictimValid(const PacketPtr pkt);
     int64_t getVictimAddressTag(const PacketPtr pkt);
+
+    bool isSchemePresentInSet(const PacketPtr pkt);
     /**
      * Evict a cache block.
      *
@@ -1111,6 +1113,11 @@ class BaseCache : public ClockedObject
     Stats::Scalar num_conflict_misses;
     //num of unique conflict misses
     Stats::Scalar num_unique_conflict_misses;
+
+    //num of misses which had same scheme blocks present in set
+    Stats::Scalar scheme_set_conflict;
+    //num of misses which evicted block with same scheme
+    Stats::Scalar scheme_conflict_with_block_evicted;
 
     //number of invalidation events triggered
     //number of times the policy called

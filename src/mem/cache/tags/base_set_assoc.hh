@@ -203,6 +203,106 @@ class BaseSetAssoc : public BaseTags
      * @param evict_blks Cache blocks to be evicted.
      * @return Cache block to be replaced.
      */
+    bool checkIfMatchingSchemePresent(Addr addr, const bool is_secure,
+                         std::vector<CacheBlk*>& evict_blks) const override
+    {
+#ifdef Ongal_VC
+#ifdef VIVT
+     if (get_VC_structure() != NULL){
+
+       // No Corresponding ASDT entry?
+       uint64_t Region_Size = get_VC_structure()->get_region_size();
+       uint64_t PPN = addr/Region_Size;
+       ASDT_entry * ASDT_entry =
+               get_VC_structure()->access_matching_ASDT_map(PPN);
+       uint64_t index_into_hash_lookup_table;
+       if (ASDT_entry == NULL){
+         return false;
+       }else{
+         Addr CPA_VPN   = ASDT_entry->get_virtual_page_number();
+         Addr CPA_Vaddr = (CPA_VPN * Region_Size) + (addr % Region_Size);
+#ifdef RANDOM_CONSTANTS
+         uint32_t random_number_to_xor_with = 0;
+#endif
+#ifdef ADDRESS_BASED_SCHEMES
+         vector<int> hash_scheme_for_xor;
+#endif
+         uint64_t CPA_CR3 = ASDT_entry->get_cr3();
+
+         uint64_t virt_page = CPA_VPN^CPA_CR3;
+         uint64_t hashed_virt_page = computeHash(virt_page);
+         index_into_hash_lookup_table = (hashed_virt_page)&
+                  (m_vc_structure->get_hash_lookup_table_size()-1);
+
+#ifdef Smurthy_debug
+         printf("Index into the hash lookup table(findVictim) is %ld\n",
+                         index_into_hash_lookup_table);
+#endif
+         //if the entry in the hash lookup table is valid
+         int temp = index_into_hash_lookup_table;
+         if (get_VC_structure()->hash_entry_to_use_getValid(temp))
+         {
+           //obtain the hash entry to use.
+           uint64_t hash_entry_to_use =
+                   get_VC_structure()->get_hash_entry_to_use(temp);
+           //the hashing function table is always assumed
+           //to have a valid entry that can be used.
+   temp = hash_entry_to_use;
+#ifdef RANDOM_CONSTANTS
+   random_number_to_xor_with =
+#endif
+#ifdef ADDRESS_BASED_SCHEMES
+   hash_scheme_for_xor =
+#endif
+    get_VC_structure()->hashing_function_to_use_get_constant_to_xor_with(temp);
+
+         }
+         //absence of a valid entry, indicates
+         //a miss in the cache.
+         else
+         {
+            cout<<"What??. The entry should be valid when in findVictim()\n";
+            abort();
+         }
+         #ifdef Smurthy_debug
+         printf("Find victim with addr: %lx vtag: %lx, cr3: %lu and Paddr:"
+                         "%lx\n",CPA_Vaddr,
+                         extractTag(CPA_Vaddr),
+                         CPA_CR3, addr);
+         #endif
+
+         const std::vector<ReplaceableEntry*> entries =
+#ifdef ADDRESS_BASED_SCHEMES
+         indexingPolicy->getPossibleEntries_with_Vaddr(CPA_Vaddr,
+                         hash_scheme_for_xor);
+#endif
+#ifdef RANDOM_CONSTANTS
+         indexingPolicy->getPossibleEntries_with_Vaddr(CPA_Vaddr,
+                         random_number_to_xor_with);
+#endif
+
+        bool isSchemeMatch = false;
+        for (const auto& entry: entries){
+            CacheBlk* blk = static_cast<CacheBlk*>(entry);
+            //printf("HELLO\n");
+            if (blk->isValid()){
+               //if any of the blocks in the set currently have the
+               //use the same scheme number
+               if ((blk->vtag&(m_vc_structure->get_hash_lookup_table_size()-1))
+                               ==index_into_hash_lookup_table){
+                  return true;
+              }
+            }
+        }
+        return isSchemeMatch;
+      }
+
+    }
+#endif
+#endif
+     //other caches return false
+     return false;
+    }
     CacheBlk* findVictim(Addr addr, const bool is_secure,
                          std::vector<CacheBlk*>& evict_blks) const override
     {

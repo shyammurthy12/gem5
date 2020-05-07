@@ -1383,6 +1383,19 @@ BaseCache:: getVictimAddressTag(const PacketPtr pkt)
        return -1;
 }
 
+bool
+BaseCache:: isSchemePresentInSet(const PacketPtr pkt)
+{
+    // Get address
+    const Addr addr = pkt->getAddr();
+    // Get secure bit
+    const bool is_secure = pkt->isSecure();
+    // Find replacement victim
+    std::vector<CacheBlk*> evict_blks;
+    bool isSchemePresent = tags->checkIfMatchingSchemePresent(addr, is_secure,
+                    evict_blks);
+    return isSchemePresent;
+}
 
 CacheBlk*
 BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
@@ -2787,7 +2800,14 @@ BaseCache::regStats()
         .name(name() + ".num_conflict_misses")
         .desc("num of conflict misses detected by MCT")
         ;
-
+    scheme_set_conflict
+        .name(name() + ".scheme_set_conflict")
+        .desc("num of misses which had block with same scheme in set")
+        ;
+    scheme_conflict_with_block_evicted
+        .name(name() + ".scheme_conflict_with_block_evicted")
+        .desc("num of misses which evicted block with same scheme")
+        ;
     num_unique_conflict_misses
         .name(name() + ".num_unique_conflict_misses")
         .desc("num of unique conflict misses (per lifetime of scheme)"

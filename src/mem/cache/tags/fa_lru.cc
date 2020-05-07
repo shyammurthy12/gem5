@@ -195,6 +195,13 @@ FALRU::findBlockBySetAndWay(int set, int way) const
     return &blks[way];
 }
 
+bool
+FALRU::checkIfMatchingSchemePresent(Addr addr, const bool is_secure,
+                     std::vector<CacheBlk*>& evict_blks) const
+{
+    return false;
+}
+
 CacheBlk*
 FALRU::findVictim(Addr addr, const bool is_secure,
                   std::vector<CacheBlk*>& evict_blks) const

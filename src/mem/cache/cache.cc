@@ -181,6 +181,8 @@ Cache::Cache(const CacheParams *p)
       num_page_info_change = 0;
 
         num_conflict_misses = 0;
+        scheme_set_conflict = 0;
+        scheme_conflict_with_block_evicted = 0;
         num_unique_conflict_misses = 0;
         num_of_inval_events_triggered = 0;
         num_schemes_recycled = 0;
@@ -963,6 +965,7 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
         uint64_t CPA_Vaddr = 0;
         uint64_t CPA_VPN = 0;
         uint64_t CPA_CR3 = 0;
+        uint64_t index_into_hash_table = 0;
         if (get_is_l1cache())
         {
         // printf("Cache miss handling (handleFill)\n");
@@ -1031,7 +1034,7 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
 
                    uint64_t virt_page = CPA_VPN^CPA_CR3;
                    uint64_t hashed_virt_page = computeHash(virt_page);
-                   uint64_t index_into_hash_table =
+                   index_into_hash_table =
                          (hashed_virt_page)&
                          (tags->get_VC_structure()->
                           get_hash_lookup_table_size()-1);
@@ -1292,6 +1295,30 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                  num_schemes_recycled++;
         }
         victim_tag = getVictimAddressTag(pkt);
+        uint64_t victim_index_into_hash_table = 0;
+        if (victim_tag!=-1 && tags->get_VC_structure() != NULL)
+            victim_index_into_hash_table =
+                             (victim_tag)&
+                             (tags->get_VC_structure()->
+                              get_hash_lookup_table_size()-1);
+
+        bool scheme_conflict_in_set;
+        //check if the address on which we misses shares
+        //the same scheme as any other block that is cached
+        //in the same set. This update is made only for
+        //VC-DSR
+        //printf("HELLO2\n");
+        scheme_conflict_in_set = isSchemePresentInSet(pkt);
+        if (scheme_conflict_in_set)
+            scheme_set_conflict++;
+        //check if the address on which we misses shares
+        //the same scheme the block we evicted.
+        //This update is made only for VC-DSR
+        if (victim_tag!=-1){
+        if ((tags->get_VC_structure() != NULL) &&
+                        (index_into_hash_table==victim_index_into_hash_table))
+             scheme_conflict_with_block_evicted++;
+        }
         blk = allocate ? allocateBlock(pkt, writebacks) : nullptr;
         if (get_is_l1cache())
         {
