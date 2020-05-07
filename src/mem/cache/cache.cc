@@ -1280,7 +1280,7 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
               }
          }
         }
-        uint64_t victim_tag;
+        int64_t victim_tag;
         if (!asdt_invalidation_check_done)
         {
           bool hash_recycled = false;
@@ -1296,9 +1296,11 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
         }
         victim_tag = getVictimAddressTag(pkt);
         uint64_t victim_index_into_hash_table = 0;
+        if (victim_tag == -1)
+            printf("Victim is -1\n");
         if (victim_tag!=-1 && tags->get_VC_structure() != NULL)
             victim_index_into_hash_table =
-                             (victim_tag)&
+                             ((uint64_t)victim_tag)&
                              (tags->get_VC_structure()->
                               get_hash_lookup_table_size()-1);
 
@@ -1316,8 +1318,9 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
         //This update is made only for VC-DSR
         if (victim_tag!=-1){
         if ((tags->get_VC_structure() != NULL) &&
-                        (index_into_hash_table==victim_index_into_hash_table))
+                        (index_into_hash_table==victim_index_into_hash_table)){
              scheme_conflict_with_block_evicted++;
+        }
         }
         blk = allocate ? allocateBlock(pkt, writebacks) : nullptr;
         if (get_is_l1cache())

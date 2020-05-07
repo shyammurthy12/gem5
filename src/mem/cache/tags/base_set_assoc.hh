@@ -301,7 +301,7 @@ class BaseSetAssoc : public BaseTags
 #endif
 #endif
      //other caches return false
-     return false;
+     return 0;
     }
     CacheBlk* findVictim(Addr addr, const bool is_secure,
                          std::vector<CacheBlk*>& evict_blks) const override
