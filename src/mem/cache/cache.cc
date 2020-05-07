@@ -1296,8 +1296,6 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
         }
         victim_tag = getVictimAddressTag(pkt);
         uint64_t victim_index_into_hash_table = 0;
-        if (victim_tag == -1)
-            printf("Victim is -1\n");
         if (victim_tag!=-1 && tags->get_VC_structure() != NULL)
             victim_index_into_hash_table =
                              ((uint64_t)victim_tag)&

@@ -1377,10 +1377,16 @@ BaseCache:: getVictimAddressTag(const PacketPtr pkt)
     // Find replacement victim
     std::vector<CacheBlk*> evict_blks;
     CacheBlk *victim = tags->findVictim(addr, is_secure, evict_blks);
-    if (victim)
+    if (victim->isValid())
+    {
+       //printf("Valid victim\n");
        return victim->vtag;
+    }
     else
+     {
+       //printf("Invalid victim\n");
        return -1;
+     }
 }
 
 bool

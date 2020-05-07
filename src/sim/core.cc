@@ -149,6 +149,8 @@ registerExitCallback(Callback *callback)
 uint64_t
 computeHash(uint64_t addr)
 {
+        //The address being passed is the virtual page number
+        //6 is being subtracted to account for this
         int num_sets = l1cache_size/(l1cache_assoc*64);
         int set_bits = log2(num_sets);
         int shift_bits = set_bits - 6;
