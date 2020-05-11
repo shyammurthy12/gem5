@@ -107,6 +107,7 @@ class BaseCache : public ClockedObject
   public:
 
     int conflict_threshold;
+    int miss_threshold;
     int cacheline_threshold;
 
     int policy;

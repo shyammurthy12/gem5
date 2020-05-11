@@ -1289,7 +1289,7 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                 const std::pair<const std::uint64_t, std::uint64_t>& p2 )
                            {return p1.second < p2.second;});
                            if ( set_num_with_max_misses.second >
-                                           1.5*avg_misses_per_set) {
+                                           avg_misses_per_set+miss_threshold) {
                                    //1 hotset at a time
                         uint64_t set_num = set_num_with_max_misses.first;
                         vector<uint64_t> misses_per_scheme =
@@ -1340,7 +1340,7 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                 const std::pair<const std::uint64_t, std::uint64_t>& p2 )
                            {return p1.second < p2.second;});
                            if ( set_num_with_max_misses.second >
-                                           1.5*avg_misses_per_set) {
+                                           avg_misses_per_set+miss_threshold) {
                                    //1 hotset at a time
                         uint64_t set_num = set_num_with_max_misses.first;
                         vector<uint64_t> misses_per_scheme =
@@ -1349,13 +1349,12 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                                  misses_per_scheme.begin(),
                                   misses_per_scheme.end()) -
                                       misses_per_scheme.begin();
-                                int maxMissElement = *std::max_element(
-                                  misses_per_scheme.begin(),
-                                  misses_per_scheme.end());
+                                int maxMiss_cachelines =
+                        list_of_scheme_cacheline_counter[maxMissIndex];
 
                                   hot_set_found=1;
                                   conflict_scheme_entry = maxMissIndex;
-                                  num_to_evict = maxMissElement;
+                                  num_to_evict = maxMiss_cachelines;
                                   num_of_inval_events_triggered++;
                                   evict_on_conflict_miss();
 
@@ -1389,7 +1388,7 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                 const std::pair<const std::uint64_t, std::uint64_t>& p2 )
                            {return p1.second < p2.second;});
                            if ( set_num_with_max_misses.second >
-                                           1.5*avg_misses_per_set) {
+                                           avg_misses_per_set+miss_threshold) {
                                    //1 hotset at a time
                         uint64_t set_num = set_num_with_max_misses.first;
                         vector<uint64_t> misses_per_scheme =
@@ -1456,7 +1455,7 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                 const std::pair<const std::uint64_t, std::uint64_t>& p2 )
                            {return p1.second < p2.second;});
                            if ( set_num_with_max_misses.second >
-                                           1.5*avg_misses_per_set) {
+                                           avg_misses_per_set+miss_threshold) {
                                    //1 hotset at a time
                         uint64_t set_num = set_num_with_max_misses.first;
                         vector<uint64_t> misses_per_scheme =
