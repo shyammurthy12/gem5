@@ -1015,7 +1015,8 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
              if (set_number_misses_per_scheme.find(mct_index) ==
                            set_number_misses_per_scheme.end()) {
                  set_number_misses_per_scheme[mct_index] =
-                         vector<uint64_t>(16);
+          vector<uint64_t>(
+                 tags->get_VC_structure()->get_hash_lookup_table_size(),0);
                  set_number_misses_per_scheme[mct_index]
                          [index_into_hash_table] = 1;
              }
@@ -1393,18 +1394,35 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                         uint64_t set_num = set_num_with_max_misses.first;
                         vector<uint64_t> misses_per_scheme =
                                 set_number_misses_per_scheme[set_num];
-                         int minElementIndex = std::min_element(
-                                 misses_per_scheme.begin(),
-                                  misses_per_scheme.end()) -
-                                      misses_per_scheme.begin();
-                                int minElement = *std::min_element(
-                                  misses_per_scheme.begin(),
-                                  misses_per_scheme.end());
+                         //int maxElementIndex = std::max_element(
+                         //        misses_per_scheme.begin(),
+                         //        misses_per_scheme.end()) -
+                         //             misses_per_scheme.begin();
+                         int maxElementIndex = 0;
+                         int secondMaxElementIndex = 0;
+                         //wint thirdMaxElementIndex = 0;
+                         for (int i = 0;i<16;i++)
+                         {
+                             if (misses_per_scheme[i] >
+                                           misses_per_scheme[maxElementIndex])
+                               maxElementIndex = i;
+                             if ((misses_per_scheme[i]
+                                      <=misses_per_scheme[maxElementIndex])&&
+                                       (misses_per_scheme[i]>
+                                    misses_per_scheme[secondMaxElementIndex]))
+                                  secondMaxElementIndex = i;
+                         }
+                         int num_of_total_cache_lines = tags->
+                                 get_VC_structure()->
+                                  hash_entry_to_use_get_num_of_cache_lines(
+                                  maxElementIndex);
 
-                           if (minElement && minElement < cacheline_threshold){
+                           if (num_of_total_cache_lines &&
+                                           (num_of_total_cache_lines <
+                                            cacheline_threshold)){
                                   hot_set_found=1;
-                                  conflict_scheme_entry = minElementIndex;
-                                  num_to_evict = minElement;
+                                  conflict_scheme_entry = maxElementIndex;
+                                  num_to_evict = num_of_total_cache_lines;
                                   num_of_inval_events_triggered++;
                                   evict_on_conflict_miss();
                                 }
