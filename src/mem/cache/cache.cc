@@ -79,6 +79,8 @@ using namespace std;
 map<uint64_t,uint64_t> set_number_conflicts;
 map<uint64_t,uint64_t> set_number_misses;
 map<uint64_t,uint64_t> set_number_misses_for_eviction;
+map<uint64_t,vector<uint64_t>> set_number_misses_per_scheme;
+
 uint64_t l1cache_size;
 int l1cache_assoc;
 
@@ -992,16 +994,34 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
             CPA_Vaddr = (CPA_VPN * Region_Size) + (pkt->req->getPaddr()
                           % Region_Size);
              mct_index = get_mct_index(pkt->req->getPaddr());
+             uint64_t virt_page = CPA_VPN^CPA_CR3;
+             uint64_t hashed_virt_page = computeHash(virt_page);
+             index_into_hash_table =
+                         (hashed_virt_page)&
+                         (tags->get_VC_structure()->
+                          get_hash_lookup_table_size()-1);
              if (set_number_misses.find(mct_index) ==
                            set_number_misses.end())
                  set_number_misses[mct_index] = 1;
              else
                  set_number_misses[mct_index] += 1;
+
              if (set_number_misses_for_eviction.find(mct_index) ==
                            set_number_misses_for_eviction.end())
                  set_number_misses_for_eviction[mct_index] = 1;
              else
                  set_number_misses_for_eviction[mct_index] += 1;
+
+             if (set_number_misses_per_scheme.find(mct_index) ==
+                           set_number_misses_per_scheme.end()) {
+                 set_number_misses_per_scheme[mct_index] =
+                         vector<uint64_t>(16);
+                 set_number_misses_per_scheme[mct_index]
+                         [index_into_hash_table] = 1;
+             }
+             else
+                 set_number_misses_per_scheme[mct_index]
+                         [index_into_hash_table] += 1;
              //uint64_t victim_tag = getVictimAddressTag(pkt);
              if (miss_classification_table.at(mct_index).getValid()){
              #ifdef  Smurthy_debug
@@ -1032,12 +1052,6 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                    num_conflict_misses++; // stat for num of conflicts
                    global_conflicts++;
 
-                   uint64_t virt_page = CPA_VPN^CPA_CR3;
-                   uint64_t hashed_virt_page = computeHash(virt_page);
-                   index_into_hash_table =
-                         (hashed_virt_page)&
-                         (tags->get_VC_structure()->
-                          get_hash_lookup_table_size()-1);
                    bool isUniqueConflict = tags->get_VC_structure()->
                    isUniqueConflictMiss(
                                 index_into_hash_table,CPA_Vaddr/64);
@@ -1213,14 +1227,14 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
         std::uint64_t, std::uint64_t>& p){return previous +p.second;});
                          int avg_misses_per_set =
                         total_misses/set_number_misses_for_eviction.size();
-                printf("avg misses per set = %d\n", avg_misses_per_set);
+                //printf("avg misses per set = %d\n", avg_misses_per_set);
                          bool hot_set_found = 0;
                         for (std::map<uint64_t,uint64_t>::iterator iter =
                                 set_number_misses_for_eviction.begin();
                         iter != set_number_misses_for_eviction.end(); ++iter){
                            if (iter->second > avg_misses_per_set) {
-                printf("misses on set no. %lu = %lu\n",
-                                iter->first, iter->second);
+                //printf("misses on set no. %lu = %lu\n",
+                  //              iter->first, iter->second);
                                    //1 hotset at a time or multiple hotsets?
                                 int minElementIndex = std::min_element(
                                   list_of_scheme_cacheline_counter.begin(),
@@ -1231,17 +1245,221 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                                   list_of_scheme_cacheline_counter.end());
 
                            if (minElement && minElement < cacheline_threshold){
-                         printf("minElement = %d\n", minElement);
+                  //    printf("minElement = %d, minIndex cachelines = %d\n",
+                //		minElement, list_of_scheme_cacheline_counter[
+                //		minElementIndex]);
                                   hot_set_found=1;
                                   conflict_scheme_entry = minElementIndex;
                                   num_to_evict = minElement;
                                   num_of_inval_events_triggered++;
                                   evict_on_conflict_miss();
-                                 // break;
+                //	  printf("Scheme no. %d evicted\n", minElementIndex);
+                                  break;
                                 }
                            }
 
                          }
+                         if (hot_set_found) {
+                         //make all set_number_misses=0
+                           set_number_misses_for_eviction.clear();
+                         }
+                       }
+                       break;
+                       case 9: { // evict the scheme with min
+                                       //cachelines and below threshold
+                         tags->get_VC_structure()->
+                               hash_entry_to_use_inc_conflict_misses(
+                                      index_into_hash_table);
+                         int total_misses = std::accumulate(
+                                std::begin(set_number_misses_for_eviction),
+                           std::end(set_number_misses_for_eviction), 0, [](
+                const std::uint64_t previous, const std::pair<const
+        std::uint64_t, std::uint64_t>& p){return previous +p.second;});
+                         int avg_misses_per_set =
+                        total_misses/set_number_misses_for_eviction.size();
+                         bool hot_set_found = 0;
+
+                        //find set with max misses
+                         std::pair<uint64_t,uint64_t> set_num_with_max_misses=
+                                 *std::max_element(
+                                std::begin(set_number_misses_for_eviction),
+                           std::end(set_number_misses_for_eviction), [](
+                const std::pair<const std::uint64_t, std::uint64_t>& p1,
+                const std::pair<const std::uint64_t, std::uint64_t>& p2 )
+                           {return p1.second < p2.second;});
+                           if ( set_num_with_max_misses.second >
+                                           1.5*avg_misses_per_set) {
+                                   //1 hotset at a time
+                        uint64_t set_num = set_num_with_max_misses.first;
+                        vector<uint64_t> misses_per_scheme =
+                                set_number_misses_per_scheme[set_num];
+                                int minElementIndex = std::min_element(
+                                  list_of_scheme_cacheline_counter.begin(),
+                                  list_of_scheme_cacheline_counter.end()) -
+                                      list_of_scheme_cacheline_counter.begin();
+                                int minElement = *std::min_element(
+                                  list_of_scheme_cacheline_counter.begin(),
+                                  list_of_scheme_cacheline_counter.end());
+
+                           if (minElement && minElement < cacheline_threshold){
+                                  hot_set_found=1;
+                                  conflict_scheme_entry = minElementIndex;
+                                  num_to_evict = minElement;
+                                  num_of_inval_events_triggered++;
+                                  evict_on_conflict_miss();
+                                  break;
+                                }
+                           }
+
+                         if (hot_set_found) {
+                         //make all set_number_misses=0
+                           set_number_misses_for_eviction.clear();
+                         }
+                       }
+                       break;
+                       case 10: {//evict scheme with max misses
+                         tags->get_VC_structure()->
+                               hash_entry_to_use_inc_conflict_misses(
+                                      index_into_hash_table);
+                         int total_misses = std::accumulate(
+                                std::begin(set_number_misses_for_eviction),
+                           std::end(set_number_misses_for_eviction), 0, [](
+                const std::uint64_t previous, const std::pair<const
+        std::uint64_t, std::uint64_t>& p){return previous +p.second;});
+                         int avg_misses_per_set =
+                        total_misses/set_number_misses_for_eviction.size();
+                         bool hot_set_found = 0;
+
+                        //find set with max misses
+                         std::pair<uint64_t,uint64_t> set_num_with_max_misses =
+                                 *std::max_element(
+                                std::begin(set_number_misses_for_eviction),
+                           std::end(set_number_misses_for_eviction), [](
+                const std::pair<const std::uint64_t, std::uint64_t>& p1,
+                const std::pair<const std::uint64_t, std::uint64_t>& p2 )
+                           {return p1.second < p2.second;});
+                           if ( set_num_with_max_misses.second >
+                                           1.5*avg_misses_per_set) {
+                                   //1 hotset at a time
+                        uint64_t set_num = set_num_with_max_misses.first;
+                        vector<uint64_t> misses_per_scheme =
+                                set_number_misses_per_scheme[set_num];
+                         int maxMissIndex = std::max_element(
+                                 misses_per_scheme.begin(),
+                                  misses_per_scheme.end()) -
+                                      misses_per_scheme.begin();
+                                int maxMissElement = *std::max_element(
+                                  misses_per_scheme.begin(),
+                                  misses_per_scheme.end());
+
+                                  hot_set_found=1;
+                                  conflict_scheme_entry = maxMissIndex;
+                                  num_to_evict = maxMissElement;
+                                  num_of_inval_events_triggered++;
+                                  evict_on_conflict_miss();
+
+                                }
+
+                         if (hot_set_found) {
+                         //make all set_number_misses=0
+                           set_number_misses_for_eviction.clear();
+                         }
+                       }
+                       break;
+                       case 11: { // evict scheme with min elements
+                                       //	in top 3 max misses
+                         tags->get_VC_structure()->
+                               hash_entry_to_use_inc_conflict_misses(
+                                      index_into_hash_table);
+                         int total_misses = std::accumulate(
+                                std::begin(set_number_misses_for_eviction),
+                           std::end(set_number_misses_for_eviction), 0, [](
+                const std::uint64_t previous, const std::pair<const
+        std::uint64_t, std::uint64_t>& p){return previous +p.second;});
+                         int avg_misses_per_set =
+                        total_misses/set_number_misses_for_eviction.size();
+                         bool hot_set_found = 0;
+                        //find set with max misses
+                         std::pair<uint64_t,uint64_t> set_num_with_max_misses =
+                                 *std::max_element(
+                                std::begin(set_number_misses_for_eviction),
+                           std::end(set_number_misses_for_eviction), [](
+                const std::pair<const std::uint64_t, std::uint64_t>& p1,
+                const std::pair<const std::uint64_t, std::uint64_t>& p2 )
+                           {return p1.second < p2.second;});
+                           if ( set_num_with_max_misses.second >
+                                           1.5*avg_misses_per_set) {
+                                   //1 hotset at a time
+                        uint64_t set_num = set_num_with_max_misses.first;
+                        vector<uint64_t> misses_per_scheme =
+                                set_number_misses_per_scheme[set_num];
+                         int minElementIndex = std::min_element(
+                                 misses_per_scheme.begin(),
+                                  misses_per_scheme.end()) -
+                                      misses_per_scheme.begin();
+                                int minElement = *std::min_element(
+                                  misses_per_scheme.begin(),
+                                  misses_per_scheme.end());
+
+                           if (minElement && minElement < cacheline_threshold){
+                                  hot_set_found=1;
+                                  conflict_scheme_entry = minElementIndex;
+                                  num_to_evict = minElement;
+                                  num_of_inval_events_triggered++;
+                                  evict_on_conflict_miss();
+                                }
+                           }
+
+                         if (hot_set_found) {
+                         //make all set_number_misses=0
+                           set_number_misses_for_eviction.clear();
+                         }
+                       }
+                       break;
+                       case 12: { // evict scheme in top3 misses with
+                                        //minElement within threshold
+                         tags->get_VC_structure()->
+                               hash_entry_to_use_inc_conflict_misses(
+                                      index_into_hash_table);
+                         int total_misses = std::accumulate(
+                                std::begin(set_number_misses_for_eviction),
+                           std::end(set_number_misses_for_eviction), 0, [](
+                const std::uint64_t previous, const std::pair<const
+        std::uint64_t, std::uint64_t>& p){return previous +p.second;});
+                         int avg_misses_per_set =
+                        total_misses/set_number_misses_for_eviction.size();
+                         bool hot_set_found = 0;
+                        //find set with max misses
+                         std::pair<uint64_t,uint64_t> set_num_with_max_misses =
+                                 *std::max_element(
+                                std::begin(set_number_misses_for_eviction),
+                           std::end(set_number_misses_for_eviction), [](
+                const std::pair<const std::uint64_t, std::uint64_t>& p1,
+                const std::pair<const std::uint64_t, std::uint64_t>& p2 )
+                           {return p1.second < p2.second;});
+                           if ( set_num_with_max_misses.second >
+                                           1.5*avg_misses_per_set) {
+                                   //1 hotset at a time
+                        uint64_t set_num = set_num_with_max_misses.first;
+                        vector<uint64_t> misses_per_scheme =
+                                set_number_misses_per_scheme[set_num];
+                         int minElementIndex = std::min_element(
+                                 misses_per_scheme.begin(),
+                                  misses_per_scheme.end()) -
+                                      misses_per_scheme.begin();
+                                int minElement = *std::min_element(
+                                  misses_per_scheme.begin(),
+                                  misses_per_scheme.end());
+
+                           if (minElement && minElement < cacheline_threshold){
+                                  hot_set_found=1;
+                                  conflict_scheme_entry = minElementIndex;
+                                  num_to_evict = minElement;
+                                  num_of_inval_events_triggered++;
+                                  evict_on_conflict_miss();
+                                }
+                           }
+
                          if (hot_set_found) {
                          //make all set_number_misses=0
                            set_number_misses_for_eviction.clear();

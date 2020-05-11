@@ -500,7 +500,8 @@ class BaseSetAssoc : public BaseTags
             override {
         for (CacheBlk& blk : blks) {
                 Addr VPN = blk.vtag/64;
-                uint64_t scheme_num = VPN & (get_VC_structure()
+                uint64_t hashed_virt_page = computeHash(VPN);
+                uint64_t scheme_num = hashed_virt_page & (get_VC_structure()
                                 ->get_hash_lookup_table_size()-1);
                 if (scheme_num == conflict_scheme_entry) {
                         if (blk.isDirty() && blk.isValid()) {
