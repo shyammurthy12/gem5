@@ -1456,7 +1456,7 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                             min_cache_lines = num_of_total_cache_lines_max;
                          }
                          if (min_cache_lines <
-                                         $num_of_total_cache_lines_third_max) {
+                                         num_of_total_cache_lines_third_max) {
                             min_scheme_num = thirdMaxElementIndex;
                             min_cache_lines =
                                     num_of_total_cache_lines_third_max;
@@ -1572,6 +1572,54 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                                   evict_on_conflict_miss();
                                 }
                            }
+
+                         if (hot_set_found) {
+                         //make all set_number_misses=0
+                           set_number_misses_for_eviction.clear();
+                         }
+                       }
+                       break;
+                       case 13: {//evict scheme with max misses
+                         tags->get_VC_structure()->
+                               hash_entry_to_use_inc_conflict_misses(
+                                      index_into_hash_table);
+                         int total_misses = std::accumulate(
+                                std::begin(set_number_misses_for_eviction),
+                           std::end(set_number_misses_for_eviction), 0, [](
+                const std::uint64_t previous, const std::pair<const
+        std::uint64_t, std::uint64_t>& p){return previous +p.second;});
+                         int avg_misses_per_set =
+                        total_misses/set_number_misses_for_eviction.size();
+                         bool hot_set_found = 0;
+
+                        //find set with max misses
+                         std::pair<uint64_t,uint64_t> set_num_with_max_misses =
+                                 *std::max_element(
+                                std::begin(set_number_misses_for_eviction),
+                           std::end(set_number_misses_for_eviction), [](
+                const std::pair<const std::uint64_t, std::uint64_t>& p1,
+                const std::pair<const std::uint64_t, std::uint64_t>& p2 )
+                           {return p1.second < p2.second;});
+                           if ( set_num_with_max_misses.second >
+                                           avg_misses_per_set+miss_threshold) {
+                                   //1 hotset at a time
+                        uint64_t set_num = set_num_with_max_misses.first;
+                        vector<uint64_t> misses_per_scheme =
+                                set_number_misses_per_scheme[set_num];
+                         int maxMissIndex = std::max_element(
+                                 misses_per_scheme.begin(),
+                                  misses_per_scheme.end()) -
+                                      misses_per_scheme.begin();
+                                int maxMiss_cachelines =
+                        list_of_scheme_cacheline_counter[maxMissIndex];
+                                if (maxMiss_cachelines < cacheline_threshold){
+                                  hot_set_found=1;
+                                  conflict_scheme_entry = maxMissIndex;
+                                  num_to_evict = maxMiss_cachelines;
+                                  num_of_inval_events_triggered++;
+                                  evict_on_conflict_miss();
+                                }
+                         }
 
                          if (hot_set_found) {
                          //make all set_number_misses=0
