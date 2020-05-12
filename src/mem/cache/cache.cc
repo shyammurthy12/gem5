@@ -84,6 +84,15 @@ map<uint64_t,vector<uint64_t>> set_number_misses_per_scheme;
 uint64_t l1cache_size;
 int l1cache_assoc;
 
+
+bool schemeCountComparator
+     (const schemeCount &a, const schemeCount &b)
+{
+    return a.conflict_count > b.conflict_count;
+}
+
+
+
 Cache::Cache(const CacheParams *p)
     : BaseCache(p, p->system->cacheLineSize()),
       doFastWrites(true)
@@ -1397,31 +1406,66 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                          //        misses_per_scheme.begin(),
                          //        misses_per_scheme.end()) -
                          //             misses_per_scheme.begin();
-                         int maxElementIndex = 0;
-                         int secondMaxElementIndex = 0;
-                         //wint thirdMaxElementIndex = 0;
-                         for (int i = 0;i<16;i++)
-                         {
-                             if (misses_per_scheme[i] >
-                                           misses_per_scheme[maxElementIndex])
-                               maxElementIndex = i;
-                             if ((misses_per_scheme[i]
-                                      <=misses_per_scheme[maxElementIndex])&&
-                                       (misses_per_scheme[i]>
-                                    misses_per_scheme[secondMaxElementIndex]))
-                                  secondMaxElementIndex = i;
+
+
+                       uint64_t srft_size = (tags->get_VC_structure()->
+                                          get_hash_lookup_table_size()-1);
+
+                          vector<schemeCount> scheme_miss_counts(srft_size);
+                         for (int i = 0;i < srft_size; i++){
+                             scheme_miss_counts[i].scheme_number = i;
+                             scheme_miss_counts[i].conflict_count =
+                                     misses_per_scheme[i];
                          }
-                         int num_of_total_cache_lines = tags->
+                         sort(scheme_miss_counts.begin(),
+                           scheme_miss_counts.end(), schemeCountComparator);
+                         int maxElementIndex =
+                                 scheme_miss_counts[0].scheme_number;
+                         int secondMaxElementIndex =
+                                 scheme_miss_counts[1].scheme_number;
+                         int thirdMaxElementIndex =
+                                 scheme_miss_counts[2].scheme_number;
+                         int num_of_total_cache_lines_max = tags->
+                                  get_VC_structure()->
+                                   hash_entry_to_use_get_num_of_cache_lines(
+                                   maxElementIndex);
+
+                         int num_of_total_cache_lines_second_max = tags->
                                  get_VC_structure()->
                                   hash_entry_to_use_get_num_of_cache_lines(
-                                  maxElementIndex);
+                                  secondMaxElementIndex);
+                         int num_of_total_cache_lines_third_max = tags->
+                                 get_VC_structure()->
+                                  hash_entry_to_use_get_num_of_cache_lines(
+                                  thirdMaxElementIndex);
+                         int min_cache_lines =
+                                 min(num_of_total_cache_lines_max,
+                                         num_of_total_cache_lines_second_max);
+                         min_cache_lines =
+                                 min(min_cache_lines
+                                    ,num_of_total_cache_lines_third_max);
+                         int min_scheme_num;
+                         if (num_of_total_cache_lines_max >
+                                         num_of_total_cache_lines_second_max){
+                            min_scheme_num = secondMaxElementIndex;
+                            min_cache_lines =
+                                    num_of_total_cache_lines_second_max;
+                         }
+                         else {
+                            min_scheme_num = maxElementIndex;
+                            min_cache_lines = num_of_total_cache_lines_max;
+                         }
+                         if (min_cache_lines <
+                                         $num_of_total_cache_lines_third_max) {
+                            min_scheme_num = thirdMaxElementIndex;
+                            min_cache_lines =
+                                    num_of_total_cache_lines_third_max;
+                         }
 
-                           if (num_of_total_cache_lines &&
-                                           (num_of_total_cache_lines <
-                                            cacheline_threshold)){
+                         if (min_cache_lines){
                                   hot_set_found=1;
-                                  conflict_scheme_entry = maxElementIndex;
-                                  num_to_evict = num_of_total_cache_lines;
+                                  conflict_scheme_entry = min_scheme_num;
+                                  num_to_evict = min_cache_lines;
                                   num_of_inval_events_triggered++;
                                   evict_on_conflict_miss();
                                 }
@@ -1460,18 +1504,70 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                         uint64_t set_num = set_num_with_max_misses.first;
                         vector<uint64_t> misses_per_scheme =
                                 set_number_misses_per_scheme[set_num];
-                         int minElementIndex = std::min_element(
-                                 misses_per_scheme.begin(),
-                                  misses_per_scheme.end()) -
-                                      misses_per_scheme.begin();
-                                int minElement = *std::min_element(
-                                  misses_per_scheme.begin(),
-                                  misses_per_scheme.end());
+                         //int maxElementIndex = std::max_element(
+                         //        misses_per_scheme.begin(),
+                         //        misses_per_scheme.end()) -
+                         //             misses_per_scheme.begin();
 
-                           if (minElement && minElement < cacheline_threshold){
+
+                       uint64_t srft_size = (tags->get_VC_structure()->
+                                          get_hash_lookup_table_size()-1);
+
+                          vector<schemeCount> scheme_miss_counts(srft_size);
+                         for (int i = 0;i < srft_size; i++){
+                             scheme_miss_counts[i].scheme_number = i;
+                             scheme_miss_counts[i].conflict_count =
+                                     misses_per_scheme[i];
+                         }
+                         sort(scheme_miss_counts.begin(),
+                           scheme_miss_counts.end(), schemeCountComparator);
+                         int maxElementIndex =
+                                 scheme_miss_counts[0].scheme_number;
+                         int secondMaxElementIndex =
+                                 scheme_miss_counts[1].scheme_number;
+                         int thirdMaxElementIndex =
+                                 scheme_miss_counts[2].scheme_number;
+                         int num_of_total_cache_lines_max = tags->
+                                  get_VC_structure()->
+                                   hash_entry_to_use_get_num_of_cache_lines(
+                                   maxElementIndex);
+
+                         int num_of_total_cache_lines_second_max = tags->
+                                 get_VC_structure()->
+                                  hash_entry_to_use_get_num_of_cache_lines(
+                                  secondMaxElementIndex);
+                         int num_of_total_cache_lines_third_max = tags->
+                                 get_VC_structure()->
+                                  hash_entry_to_use_get_num_of_cache_lines(
+                                  thirdMaxElementIndex);
+                         int min_cache_lines =
+                                 min(num_of_total_cache_lines_max,
+                                         num_of_total_cache_lines_second_max);
+                         min_cache_lines = min(min_cache_lines,
+                               num_of_total_cache_lines_third_max);
+                         int min_scheme_num;
+                         if (num_of_total_cache_lines_max >
+                                         num_of_total_cache_lines_second_max){
+                            min_scheme_num = secondMaxElementIndex;
+                            min_cache_lines =
+                                    num_of_total_cache_lines_second_max;
+                         }
+                         else {
+                            min_scheme_num = maxElementIndex;
+                            min_cache_lines = num_of_total_cache_lines_max;
+                         }
+                         if (min_cache_lines <
+                                         num_of_total_cache_lines_third_max) {
+                            min_scheme_num = thirdMaxElementIndex;
+                            min_cache_lines =
+                                    num_of_total_cache_lines_third_max;
+                         }
+
+                         if (min_cache_lines &&
+                                         min_cache_lines<cacheline_threshold){
                                   hot_set_found=1;
-                                  conflict_scheme_entry = minElementIndex;
-                                  num_to_evict = minElement;
+                                  conflict_scheme_entry = min_scheme_num;
+                                  num_to_evict = min_cache_lines;
                                   num_of_inval_events_triggered++;
                                   evict_on_conflict_miss();
                                 }

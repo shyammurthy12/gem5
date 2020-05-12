@@ -74,6 +74,11 @@ struct CacheParams;
 class MSHR;
 
 
+struct schemeCount
+{
+  int scheme_number;
+  int conflict_count;
+};
 
 //each entry of this table contains the
 //last evicted tag corresponding to a single
