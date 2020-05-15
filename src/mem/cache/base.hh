@@ -906,6 +906,10 @@ class BaseCache : public ClockedObject
     const AddrRangeList addrRanges;
 
   public:
+    set<uint64_t> prevEvictedBlocks;
+    set<uint64_t> curEvictedBlocks;
+    uint64_t prevEvictedScheme;
+
     /** System we are currently operating in. */
     System *system;
 
@@ -1128,6 +1132,8 @@ class BaseCache : public ClockedObject
     Stats::Scalar num_schemes_recycled;
     Stats::Scalar num_forced_writebacks;
     Stats::Scalar num_forced_invalidations;
+    Stats::Scalar num_evicted_blocks_previously_evicted;
+    Stats::Scalar num_reconflicting_evicted_schemes;
 //TODO    Stats::Formula avg_lifetime_schemes;
 
 

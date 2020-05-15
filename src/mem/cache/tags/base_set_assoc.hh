@@ -496,13 +496,15 @@ class BaseSetAssoc : public BaseTags
         return false;
     }
 
-    PacketPtr find_cacheline_to_evict(uint64_t conflict_scheme_entry)
+    PacketPtr find_cacheline_to_evict(uint64_t conflict_scheme_entry,
+                    set<uint64_t>& evicted_blocks)
             override {
         for (CacheBlk& blk : blks) {
                 Addr VPN = blk.vtag/64;
                 uint64_t hashed_virt_page = computeHash(VPN);
                 uint64_t scheme_num = hashed_virt_page & (get_VC_structure()
                                 ->get_hash_lookup_table_size()-1);
+
                 if (scheme_num == conflict_scheme_entry) {
                         if (blk.isDirty() && blk.isValid()) {
                                 RequestPtr request;
@@ -526,6 +528,7 @@ class BaseSetAssoc : public BaseTags
                                 Addr repl_addr = blk.paddr;
                                 get_VC_structure()->update_ASDT( 0,
                                 repl_addr, 0,false, 0, 0,false);
+                                evicted_blocks.insert(blk.vtag);
                                 invalidate(&blk);
                                 return packet;
                         }
@@ -534,6 +537,7 @@ class BaseSetAssoc : public BaseTags
                                 Addr repl_addr = blk.paddr;
                                 get_VC_structure()->update_ASDT( 0,
                                 repl_addr, 0,false, 0, 0,false);
+                                evicted_blocks.insert(blk.vtag);
                                 invalidate(&blk);
 #ifdef Smurthy_debug
                                 std::cout << "Blk invalidated" << std::endl;

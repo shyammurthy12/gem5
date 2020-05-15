@@ -133,8 +133,9 @@ BaseCache::BaseCache(const BaseCacheParams *p, unsigned blk_size)
     conflict_threshold = 200;
     miss_threshold = 200;
     cacheline_threshold = 20;
-    policy = 10;
-
+    policy = 13;
+    //garbage value to start off with
+    prevEvictedScheme = 100;
     for (int i = 1; i<cacheline_threshold; i++)
     {
       histogram_of_invalidations[i] = 0;
@@ -1735,7 +1736,26 @@ BaseCache::evict_on_conflict_miss()
     while (num_to_evict) {
     //	tags->anyBlk([this](CacheBlk &blk) {
     //	evict_on_conflict_miss_visitor(blk);});
-        PacketPtr pkt = tags->find_cacheline_to_evict(conflict_scheme_entry);
+        PacketPtr pkt = tags->find_cacheline_to_evict(conflict_scheme_entry,
+                        curEvictedBlocks);
+        std::set<uint64_t>::iterator it;
+
+
+        //check if the blocks we evicted in the last eviction events are
+        //again getting evicted.
+        for (it = curEvictedBlocks.begin();
+                        it != curEvictedBlocks.end(); ++it) {
+            if (prevEvictedBlocks.find(*it) != prevEvictedBlocks.end()){
+                    num_evicted_blocks_previously_evicted++;
+                    break;
+           }
+        }
+        prevEvictedBlocks.clear();
+        for (it = curEvictedBlocks.begin();
+                        it != curEvictedBlocks.end(); ++it) {
+               prevEvictedBlocks.insert(*it);
+        }
+        curEvictedBlocks.clear();
         if (pkt) {
            //     printf("Writeback happened\n");
                 num_forced_writebacks++;
@@ -1750,6 +1770,8 @@ BaseCache::evict_on_conflict_miss()
         }
         num_to_evict--;
     }
+    prevEvictedScheme = conflict_scheme_entry;
+
     if (writebacks_triggered_on_this_event)
         histogram_of_writebacks[writebacks_triggered_on_this_event]+=1;
     if (invalidation_triggered_on_this_event)
@@ -2824,6 +2846,10 @@ BaseCache::regStats()
         .name(name() + ".num_of_inval_events_triggered")
         .desc("num of inval events triggerred")
         ;
+   num_reconflicting_evicted_schemes
+        .name(name() + ".num_reconflicting_evicted_schemes")
+        .desc("num of reconflicting evicted schemes")
+        ;
     num_schemes_recycled
         .name(name() + ".num_schemes_recycled")
         .desc("num of times schemes were recycled")
@@ -2837,6 +2863,11 @@ BaseCache::regStats()
     num_forced_invalidations
         .name(name() + ".num_forced_invalidations")
         .desc("num of invalidations to penalize scheme")
+        ;
+
+    num_evicted_blocks_previously_evicted
+        .name(name() + ".num_repeat_evictions_from_last_eviction")
+        .desc("num of repeat evictions from last eviction")
         ;
 
 #endif

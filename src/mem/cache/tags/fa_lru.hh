@@ -274,7 +274,8 @@ class FALRU : public BaseTags
         return false;
     }
 
-    PacketPtr find_cacheline_to_evict(uint64_t conflict_scheme_entry)
+    PacketPtr find_cacheline_to_evict(uint64_t conflict_scheme_entry,
+                    set<uint64_t>& evicted_blocks)
             override{return NULL;}
   private:
     /**

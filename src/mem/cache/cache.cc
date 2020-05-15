@@ -83,7 +83,7 @@ map<uint64_t,vector<uint64_t>> set_number_misses_per_scheme;
 
 uint64_t l1cache_size;
 int l1cache_assoc;
-
+int total_dcache_misses = 0;
 
 bool schemeCountComparator
      (const schemeCount &a, const schemeCount &b)
@@ -199,6 +199,8 @@ Cache::Cache(const CacheParams *p)
         num_schemes_recycled = 0;
         num_forced_writebacks = 0;
         num_forced_invalidations = 0;
+        num_evicted_blocks_previously_evicted = 0;
+        num_reconflicting_evicted_schemes = 0;
 
     } else {
       set_is_l1cache(false);
@@ -1009,6 +1011,7 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                          (hashed_virt_page)&
                          (tags->get_VC_structure()->
                           get_hash_lookup_table_size()-1);
+             total_dcache_misses += 1;
              if (set_number_misses.find(mct_index) ==
                            set_number_misses.end())
                  set_number_misses[mct_index] = 1;
@@ -1523,48 +1526,57 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                            scheme_miss_counts.end(), schemeCountComparator);
                          int maxElementIndex =
                                  scheme_miss_counts[0].scheme_number;
-                         int secondMaxElementIndex =
-                                 scheme_miss_counts[1].scheme_number;
-                         int thirdMaxElementIndex =
-                                 scheme_miss_counts[2].scheme_number;
+                       //  int secondMaxElementIndex =
+                       //          scheme_miss_counts[1].scheme_number;
+                       //  int thirdMaxElementIndex =
+                       //          scheme_miss_counts[2].scheme_number;
                          int num_of_total_cache_lines_max = tags->
                                   get_VC_structure()->
                                    hash_entry_to_use_get_num_of_cache_lines(
                                    maxElementIndex);
-
-                         int num_of_total_cache_lines_second_max = tags->
-                                 get_VC_structure()->
-                                  hash_entry_to_use_get_num_of_cache_lines(
-                                  secondMaxElementIndex);
-                         int num_of_total_cache_lines_third_max = tags->
-                                 get_VC_structure()->
-                                  hash_entry_to_use_get_num_of_cache_lines(
-                                  thirdMaxElementIndex);
-                         int min_cache_lines =
-                                 min(num_of_total_cache_lines_max,
-                                         num_of_total_cache_lines_second_max);
-                         min_cache_lines = min(min_cache_lines,
-                               num_of_total_cache_lines_third_max);
-                         int min_scheme_num;
-                         if (num_of_total_cache_lines_max >
-                                         num_of_total_cache_lines_second_max){
-                            min_scheme_num = secondMaxElementIndex;
-                            min_cache_lines =
-                                    num_of_total_cache_lines_second_max;
-                         }
-                         else {
-                            min_scheme_num = maxElementIndex;
-                            min_cache_lines = num_of_total_cache_lines_max;
-                         }
-                         if (min_cache_lines <
-                                         num_of_total_cache_lines_third_max) {
-                            min_scheme_num = thirdMaxElementIndex;
-                            min_cache_lines =
-                                    num_of_total_cache_lines_third_max;
-                         }
+                        // int num_of_total_cache_lines_second_max = tags->
+                        //         get_VC_structure()->
+                        //          hash_entry_to_use_get_num_of_cache_lines(
+                        //          secondMaxElementIndex);
+                        // int num_of_total_cache_lines_third_max = tags->
+                        //         get_VC_structure()->
+                        //          hash_entry_to_use_get_num_of_cache_lines(
+                        //          thirdMaxElementIndex);
+                         int min_cache_lines = num_of_total_cache_lines_max;
+                        //min_cache_lines = min(num_of_total_cache_lines_max,
+                        //          num_of_total_cache_lines_second_max);
+                        // min_cache_lines = min(min_cache_lines,
+                        //       num_of_total_cache_lines_third_max);
+                         int min_scheme_num = maxElementIndex;
+                        // if (num_of_total_cache_lines_max >
+                        //        num_of_total_cache_lines_second_max){
+                        //    min_scheme_num = secondMaxElementIndex;
+                        //    min_cache_lines =
+                        //            num_of_total_cache_lines_second_max;
+                        // }
+                        // else {
+                        //    min_scheme_num = maxElementIndex;
+                        //    min_cache_lines = num_of_total_cache_lines_max;
+                        // }
+                        // if (min_cache_lines <
+                        //             num_of_total_cache_lines_third_max) {
+                        //    min_scheme_num = thirdMaxElementIndex;
+                        //    min_cache_lines =
+                        //            num_of_total_cache_lines_third_max;
+                        // }
 
                          if (min_cache_lines &&
                                          min_cache_lines<cacheline_threshold){
+
+                              if (maxElementIndex == prevEvictedScheme) {
+                              //secondMaxElementIndex == prevEvictedScheme ||
+                              //thirdMaxElementIndex == prevEvictedScheme){
+                                    printf("Eviction: One of the contender "
+                                 "contends with previously evicted scheme\n");
+                                     num_reconflicting_evicted_schemes++;
+                                  }
+                                  printf("MaxElementIndex:"
+                                        " %d\n",maxElementIndex);
                                   hot_set_found=1;
                                   conflict_scheme_entry = min_scheme_num;
                                   num_to_evict = min_cache_lines;
@@ -1580,7 +1592,9 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                        }
                        break;
                        case 13: {//evict scheme with max misses
-                         tags->get_VC_structure()->
+
+
+                        tags->get_VC_structure()->
                                hash_entry_to_use_inc_conflict_misses(
                                       index_into_hash_table);
                          int total_misses = std::accumulate(
@@ -1612,8 +1626,39 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                                       misses_per_scheme.begin();
                                 int maxMiss_cachelines =
                         list_of_scheme_cacheline_counter[maxMissIndex];
+
+                       uint64_t srft_size = (tags->get_VC_structure()->
+                                          get_hash_lookup_table_size()-1);
+
+                          vector<schemeCount> scheme_miss_counts(srft_size);
+                         for (int i = 0;i < srft_size; i++){
+                             scheme_miss_counts[i].scheme_number = i;
+                             scheme_miss_counts[i].conflict_count =
+                                     misses_per_scheme[i];
+                         }
+                         sort(scheme_miss_counts.begin(),
+                           scheme_miss_counts.end(), schemeCountComparator);
+                         int secondMaxElementIndex =
+                                 scheme_miss_counts[1].scheme_number;
+                         int thirdMaxElementIndex =
+                                 scheme_miss_counts[2].scheme_number;
+
+
                                 if (maxMiss_cachelines < cacheline_threshold){
+
+                              if (maxMissIndex == prevEvictedScheme ||
+                                 secondMaxElementIndex == prevEvictedScheme ||
+                                  thirdMaxElementIndex == prevEvictedScheme){
+                                  printf("Eviction: One of the contender "
+                                "contends with previously evicted scheme\n");
+                                     num_reconflicting_evicted_schemes++;
+                                    }
                                   hot_set_found=1;
+
+                                  printf("MaxElementIndex: %d\n",
+                                                  maxMissIndex);
+                                  cout << "Eviction at total miss count of " <<
+                                          total_dcache_misses <<endl;
                                   conflict_scheme_entry = maxMissIndex;
                                   num_to_evict = maxMiss_cachelines;
                                   num_of_inval_events_triggered++;

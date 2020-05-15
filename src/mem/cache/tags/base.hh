@@ -394,7 +394,8 @@ class BaseTags : public ClockedObject
      */
     virtual bool anyBlk(std::function<bool(CacheBlk &)> visitor) = 0;
     virtual PacketPtr find_cacheline_to_evict(uint64_t
-                    conflict_scheme_entry) = 0;
+                    conflict_scheme_entry,
+                    set<uint64_t>& evicted_blocks) = 0;
 
   private:
     /**
