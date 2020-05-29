@@ -79,7 +79,11 @@ using namespace std;
 map<uint64_t,uint64_t> set_number_conflicts;
 map<uint64_t,uint64_t> set_number_misses;
 map<uint64_t,uint64_t> set_number_misses_for_eviction;
+
+
+
 map<uint64_t,vector<uint64_t>> set_number_misses_per_scheme;
+
 
 uint64_t l1cache_size;
 int l1cache_assoc;
@@ -196,6 +200,7 @@ Cache::Cache(const CacheParams *p)
         scheme_conflict_with_block_evicted = 0;
         num_unique_conflict_misses = 0;
         num_of_inval_events_triggered = 0;
+        num_hot_sets_detected = 0;
         num_schemes_recycled = 0;
         num_forced_writebacks = 0;
         num_forced_invalidations = 0;
@@ -1036,6 +1041,12 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                  set_number_misses_per_scheme[mct_index]
                          [index_into_hash_table] += 1;
              //uint64_t victim_tag = getVictimAddressTag(pkt);
+
+             if ((mct_index == 152)|| (mct_index==193))
+               cout <<"MCT index is:" << mct_index<<" and"
+                      "the scheme number is: "<<
+                       index_into_hash_table<< " and the virtual "
+                       "address is "<< CPA_Vaddr<<endl;
              if (miss_classification_table.at(mct_index).getValid()){
              #ifdef  Smurthy_debug
                printf("The entry %ld is valid\n",mct_index);
@@ -1055,9 +1066,6 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                      set_number_conflicts[mct_index] = 1;
                   else
                      set_number_conflicts[mct_index] += 1;
-                 // if (mct_index == 118 || mct_index == 119)
-                 //   cout <<"MCT index is:" << mct_index<< " and the virtual"
-                 //           "address is "<< CPA_Vaddr<<endl;
 
                   #ifdef Smurthy_debug
                    printf("Conflict detected\n");
@@ -1491,7 +1499,7 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                 const std::uint64_t previous, const std::pair<const
         std::uint64_t, std::uint64_t>& p){return previous +p.second;});
                          int avg_misses_per_set =
-                        total_misses/set_number_misses_for_eviction.size();
+                        total_misses/m_cache_num_sets;
                          bool hot_set_found = 0;
                         //find set with max misses
                          std::pair<uint64_t,uint64_t> set_num_with_max_misses =
@@ -1501,16 +1509,37 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                 const std::pair<const std::uint64_t, std::uint64_t>& p1,
                 const std::pair<const std::uint64_t, std::uint64_t>& p2 )
                            {return p1.second < p2.second;});
-                           if ( set_num_with_max_misses.second >
-                                           avg_misses_per_set+miss_threshold) {
+
+                         int relatively_hotter_sets = 0;
+                         //need to classify relatively hotter sets.
+                         //(more than 2*assoc misses)
+                         for (auto it = set_number_misses_for_eviction.begin();
+                                  it != set_number_misses_for_eviction.end();
+                                  it++ )
+                        {
+                          if (it->second>=(4*m_cache_assoc))
+                              relatively_hotter_sets++;
+                        }
+                         //we want atleast some percentage of cold sets to
+                         //trigger an
+                         //eviction
+                         double percent_cold_sets =
+     ((double(m_cache_num_sets-relatively_hotter_sets))/m_cache_num_sets)*100;
+                         if ( (set_num_with_max_misses.second >
+                                           avg_misses_per_set+miss_threshold)&&
+                                     (avg_misses_per_set>=4*m_cache_assoc)&&
+                                    percent_cold_sets>=75.0) {
                                    //1 hotset at a time
-                        uint64_t set_num = set_num_with_max_misses.first;
-                        vector<uint64_t> misses_per_scheme =
-                                set_number_misses_per_scheme[set_num];
+                           num_hot_sets_detected++;
+                           uint64_t set_num = set_num_with_max_misses.first;
+                           cout << "Hot set is: " << set_num <<endl;
+                           vector<uint64_t> misses_per_scheme =
+                             set_number_misses_per_scheme[set_num];
                          //int maxElementIndex = std::max_element(
                          //        misses_per_scheme.begin(),
                          //        misses_per_scheme.end()) -
                          //             misses_per_scheme.begin();
+
 
 
                        uint64_t srft_size = (tags->get_VC_structure()->
@@ -1526,30 +1555,50 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                            scheme_miss_counts.end(), schemeCountComparator);
                          int maxElementIndex =
                                  scheme_miss_counts[0].scheme_number;
-                       //  int secondMaxElementIndex =
-                       //          scheme_miss_counts[1].scheme_number;
-                       //  int thirdMaxElementIndex =
-                       //          scheme_miss_counts[2].scheme_number;
+                         int secondMaxElementIndex =
+                                 scheme_miss_counts[1].scheme_number;
+                         int thirdMaxElementIndex =
+                                 scheme_miss_counts[2].scheme_number;
+                        // int fourthMaxElementIndex =
+                        //	 scheme_miss_counts[3].scheme_number;
+                        // int fifthMaxElementIndex =
+                        //	 scheme_miss_counts[4].scheme_number;
                          int num_of_total_cache_lines_max = tags->
                                   get_VC_structure()->
                                    hash_entry_to_use_get_num_of_cache_lines(
                                    maxElementIndex);
-                        // int num_of_total_cache_lines_second_max = tags->
-                        //         get_VC_structure()->
-                        //          hash_entry_to_use_get_num_of_cache_lines(
-                        //          secondMaxElementIndex);
+                         int num_of_total_cache_lines_second_max = tags->
+                                 get_VC_structure()->
+                                  hash_entry_to_use_get_num_of_cache_lines(
+                                  secondMaxElementIndex);
                         // int num_of_total_cache_lines_third_max = tags->
                         //         get_VC_structure()->
                         //          hash_entry_to_use_get_num_of_cache_lines(
                         //          thirdMaxElementIndex);
+                        // int num_of_total_cache_lines_fourth_max = tags->
+                        //	  get_VC_structure()->
+                        //          hash_entry_to_use_get_num_of_cache_lines(
+                        //          fourthMaxElementIndex);
+
+                        // int num_of_total_cache_lines_fifth_max = tags->
+                        //	  get_VC_structure()->
+                        //          hash_entry_to_use_get_num_of_cache_lines(
+                        //          fifthMaxElementIndex);
                          int min_cache_lines = num_of_total_cache_lines_max;
+                         int second_min_cache_lines =
+                                  num_of_total_cache_lines_second_max;
                         //min_cache_lines = min(num_of_total_cache_lines_max,
                         //          num_of_total_cache_lines_second_max);
                         // min_cache_lines = min(min_cache_lines,
                         //       num_of_total_cache_lines_third_max);
                          int min_scheme_num = maxElementIndex;
-                        // if (num_of_total_cache_lines_max >
-                        //        num_of_total_cache_lines_second_max){
+                         int second_min_scheme_num = secondMaxElementIndex;
+                         //pick the scheme out of the top 3 conflict
+                         //contenders, one with the least cache lines
+                         //
+                        // if ((num_of_total_cache_lines_max >
+                        //        num_of_total_cache_lines_second_max) &&
+                        //	(num_of_total_cache_lines_second_max!=0)){
                         //    min_scheme_num = secondMaxElementIndex;
                         //    min_cache_lines =
                         //            num_of_total_cache_lines_second_max;
@@ -1558,35 +1607,160 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                         //    min_scheme_num = maxElementIndex;
                         //    min_cache_lines = num_of_total_cache_lines_max;
                         // }
-                        // if (min_cache_lines <
-                        //             num_of_total_cache_lines_third_max) {
+                        // if ((min_cache_lines >
+                        //             num_of_total_cache_lines_third_max) &&
+                        //	     (num_of_total_cache_lines_third_max!=0)) {
                         //    min_scheme_num = thirdMaxElementIndex;
                         //    min_cache_lines =
                         //            num_of_total_cache_lines_third_max;
                         // }
+                        // if ((min_cache_lines >
+                        //             num_of_total_cache_lines_fourth_max)&&
+                        //       (num_of_total_cache_lines_fourth_max!=0))
+                        //		 {
+                        //    min_scheme_num = fourthMaxElementIndex;
+                        //    min_cache_lines =
+                        //            num_of_total_cache_lines_fourth_max;
+                        // }
 
+                        // if ((min_cache_lines >
+                        //             num_of_total_cache_lines_fifth_max)&&
+                        //(num_of_total_cache_lines_fifth_max!=0))
+                        //		 {
+                        //    min_scheme_num = fifthMaxElementIndex;
+                        //    min_cache_lines =
+                        //            num_of_total_cache_lines_fifth_max;
+                        // },
+                        // limit the number of cache lines we evict
                          if (min_cache_lines &&
-                                         min_cache_lines<cacheline_threshold){
+                                (min_cache_lines<cacheline_threshold)){
 
-                              if (maxElementIndex == prevEvictedScheme) {
-                              //secondMaxElementIndex == prevEvictedScheme ||
-                              //thirdMaxElementIndex == prevEvictedScheme){
+                              if (maxElementIndex == prevEvictedScheme ||
+                              secondMaxElementIndex == prevEvictedScheme ||
+                              thirdMaxElementIndex == prevEvictedScheme){
                                     printf("Eviction: One of the contender "
                                  "contends with previously evicted scheme\n");
                                      num_reconflicting_evicted_schemes++;
                                   }
-                                  printf("MaxElementIndex:"
-                                        " %d\n",maxElementIndex);
+                              printf("Eviction Total misses :%d "
+                                   "Average misses: %d\n",
+                                  total_misses, avg_misses_per_set);
+                                  printf("Set number: %lu MaxSrftIndex:"
+                                        " %d SecondMaxSrftIndex: %d"
+                                        " ThirdMaxSrftIndex: %d\n",
+                                        set_num,
+                                        maxElementIndex,secondMaxElementIndex,
+                                        thirdMaxElementIndex);
+                                 printf("The number of lines held by the"
+                                                 "different schemes are\n");
+                                  for (int i = 0;i<16;i++){
+                                    cout << "Scheme " << i <<": "<<tags->
+                                     get_VC_structure()->
+                                     hash_entry_to_use_get_num_of_cache_lines(
+                                   i)<<" ";
+                                  }
+                                  cout <<endl;
+                                  printf("The number of conflicts from top"
+                                                  "schemes"
+                                  " are %d, %d, %d, %d, and %d\n",
+                                  scheme_miss_counts[0].conflict_count,
+                                  scheme_miss_counts[1].conflict_count,
+                                  scheme_miss_counts[2].conflict_count,
+                                  scheme_miss_counts[3].conflict_count,
+                                  scheme_miss_counts[4].conflict_count);
                                   hot_set_found=1;
                                   conflict_scheme_entry = min_scheme_num;
                                   num_to_evict = min_cache_lines;
                                   num_of_inval_events_triggered++;
                                   evict_on_conflict_miss();
                                 }
-                           }
+                          else if (second_min_cache_lines &&
+                                          (second_min_cache_lines <
+                                           cacheline_threshold)){
 
+                              if (maxElementIndex == prevEvictedScheme ||
+                              secondMaxElementIndex == prevEvictedScheme ||
+                              thirdMaxElementIndex == prevEvictedScheme){
+                                    printf("Eviction: One of the contender "
+                                 "contends with previously evicted scheme\n");
+                                     num_reconflicting_evicted_schemes++;
+                                  }
+                                  printf("Eviction Total misses :%d"
+                                                 " Average misses: %d\n",
+                                                  total_misses,
+                                                  avg_misses_per_set);
+                                  printf("Set number: %lu MaxSrftIndex:"
+                                        " %d SecondMaxSrftIndex: %d"
+                                        " ThirdMaxSrftIndex: %d\n",
+                                        set_num,
+                                        maxElementIndex,secondMaxElementIndex,
+                                        thirdMaxElementIndex);
+                                 printf("The number of lines held by the"
+                                                 "different schemes are\n");
+                                  for (int i = 0;i<16;i++){
+                                    cout << "Scheme " << i <<": "<<tags->
+                                     get_VC_structure()->
+                                     hash_entry_to_use_get_num_of_cache_lines(
+                                   i)<<" ";
+                                  }
+                                  cout <<endl;
+                                  printf("The number of conflicts from"
+                                                 " top schemes"
+                                  " are %d, %d, %d, %d, and %d\n",
+                                  scheme_miss_counts[0].conflict_count,
+                                  scheme_miss_counts[1].conflict_count,
+                                  scheme_miss_counts[2].conflict_count,
+                                  scheme_miss_counts[3].conflict_count,
+                                  scheme_miss_counts[4].conflict_count);
+                                  hot_set_found=1;
+                                  conflict_scheme_entry =
+                                          second_min_scheme_num;
+                                  num_to_evict = second_min_cache_lines;
+                                  num_of_inval_events_triggered++;
+                                  evict_on_conflict_miss();
+
+                          }
+                         //2nd eviction if it has been long (average misses
+                         //exceed a particular
+                         //threshold)
+                         //adaptively have more evictions if we don't detect
+                         //hot sets very frequently,
+                         //in which case the average misses per set ought to be
+                         //higher, since
+                         //we would not have cleared the structure in sometime
+                        // if (avg_misses_per_set >= 4*m_cache_assoc){
+                        // min_cache_lines =
+                        // num_of_total_cache_lines_second_max;
+                        // min_scheme_num = secondMaxElementIndex;
+                        // if (min_cache_lines){
+                        //          conflict_scheme_entry = min_scheme_num;
+                        //          num_to_evict = min_cache_lines;
+                        //          //this stat indicates the number of schemes
+                        //          evicted
+                        //	  num_of_inval_events_triggered++;
+                        //          evict_on_conflict_miss();
+                        //   }
+                        // }
+                        // //3rd eviction if it has been even longer (average
+                        // misses exceed an even higher
+                        // //threshold).
+                        // if (avg_misses_per_set >= 6*m_cache_assoc){
+                        // min_cache_lines =
+                        // num_of_total_cache_lines_third_max;
+                        // min_scheme_num = thirdMaxElementIndex;
+                        // if (min_cache_lines){
+                        //          conflict_scheme_entry = min_scheme_num;
+                        //          num_to_evict = min_cache_lines;
+                        //          //this stat indicates the number of schemes
+                        //          evicted
+                        //	  num_of_inval_events_triggered++;
+                        //          evict_on_conflict_miss();
+                        //   }
+                        // }
+                         }
                          if (hot_set_found) {
                          //make all set_number_misses=0
+                           set_number_misses_per_scheme.clear();
                            set_number_misses_for_eviction.clear();
                          }
                        }
@@ -1644,7 +1818,8 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                                  scheme_miss_counts[2].scheme_number;
 
 
-                                if (maxMiss_cachelines < cacheline_threshold){
+                                if (maxMiss_cachelines && maxMiss_cachelines <
+                                                cacheline_threshold){
 
                               if (maxMissIndex == prevEvictedScheme ||
                                  secondMaxElementIndex == prevEvictedScheme ||
@@ -1675,17 +1850,23 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                      }
                    }
                 }
-                 bool hash_recycled = false;
+
+                 hashRecycled retVal;
+                 retVal._isRecycled = false;
                  #ifdef Ongal_VC
                  #ifdef ASDT_Set_Associative_Array
                  ASDT_Invalidation_Check(pkt->req->getPaddr(), writebacks);
                  #endif
-                 hash_recycled = Add_NEW_ASDT_map_entry(pkt);
+                 retVal = Add_NEW_ASDT_map_entry(pkt);
                  #endif
                  asdt_invalidation_check_done = true;
-                 if (hash_recycled) {
+                 if (retVal._isRecycled) {
                          num_schemes_recycled++;
-                  // cout <<"Hash recycled"<<endl;
+                   cout <<"Hash recycling and scheme recycled is:"
+                           <<retVal.schemeNumRecycled<<endl;
+                  //on a natural recycle also clear these
+                  set_number_misses_per_scheme.clear();
+                  set_number_misses_for_eviction.clear();
                  }
                  //are doing an ASDT invalidation check additionally here
                  //because we haven't updated the asdt entry to say
@@ -1707,16 +1888,24 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
         int64_t victim_tag;
         if (!asdt_invalidation_check_done)
         {
-          bool hash_recycled = false;
+
+          hashRecycled retVal;
+          retVal._isRecycled = false;
           #ifdef Ongal_VC
           #ifdef ASDT_Set_Associative_Array
           ASDT_Invalidation_Check(pkt->req->getPaddr(), writebacks);
           #endif
-          hash_recycled = Add_NEW_ASDT_map_entry(pkt);
+          retVal = Add_NEW_ASDT_map_entry(pkt);
           #endif
           asdt_invalidation_check_done = true;
-          if (hash_recycled)
+          if (retVal._isRecycled){
                  num_schemes_recycled++;
+                 cout <<"Hash recycling and scheme recycled is:"
+                           <<retVal.schemeNumRecycled<<endl;
+                 //on a natural recycle also clear these
+                 set_number_misses_per_scheme.clear();
+                 set_number_misses_for_eviction.clear();
+          }
         }
         victim_tag = getVictimAddressTag(pkt);
         uint64_t victim_index_into_hash_table = 0;

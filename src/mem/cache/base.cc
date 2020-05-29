@@ -131,9 +131,9 @@ BaseCache::BaseCache(const BaseCacheParams *p, unsigned blk_size)
     //for invalidates and writebacks
 
     conflict_threshold = 200;
-    miss_threshold = 200;
-    cacheline_threshold = 20;
-    policy = 13;
+    miss_threshold = 100;
+    cacheline_threshold = 128;
+    policy = 12;
     //garbage value to start off with
     prevEvictedScheme = 100;
     for (int i = 1; i<cacheline_threshold; i++)
@@ -2846,6 +2846,10 @@ BaseCache::regStats()
         .name(name() + ".num_of_inval_events_triggered")
         .desc("num of inval events triggerred")
         ;
+   num_hot_sets_detected
+         .name(name() + ".num_hot_sets_detected")
+         .desc("num of hot sets detected")
+         ;
    num_reconflicting_evicted_schemes
         .name(name() + ".num_reconflicting_evicted_schemes")
         .desc("num of reconflicting evicted schemes")

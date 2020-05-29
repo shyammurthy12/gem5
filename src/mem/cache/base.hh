@@ -1129,6 +1129,7 @@ class BaseCache : public ClockedObject
     //evict_cache_lines
     Stats::Scalar num_of_inval_events_triggered;
 
+    Stats::Scalar num_hot_sets_detected;
     Stats::Scalar num_schemes_recycled;
     Stats::Scalar num_forced_writebacks;
     Stats::Scalar num_forced_invalidations;

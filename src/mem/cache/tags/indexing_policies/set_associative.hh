@@ -123,7 +123,7 @@ class SetAssociative : public BaseIndexingPolicy
                                                                      override;
 
     //Ongal
-
+    uint32_t hashTable[512];
 #ifdef RANDOM_CONSTANTS
     uint32_t extractSet_Vaddr_with_hashing(Addr addr, uint32_t
                     random_constant_to_xor_with) const;

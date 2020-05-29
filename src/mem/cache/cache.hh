@@ -80,6 +80,12 @@ struct schemeCount
   int conflict_count;
 };
 
+struct hashRecycled
+{
+  int schemeNumRecycled;
+  bool _isRecycled;
+};
+
 //each entry of this table contains the
 //last evicted tag corresponding to a single
 //cache set or a group of cache sets.
@@ -596,11 +602,14 @@ class Cache : public BaseCache
 
    //return true if we added a new scheme as part of
    //this function
-   bool Add_NEW_ASDT_map_entry(PacketPtr pkt){
+   hashRecycled Add_NEW_ASDT_map_entry(PacketPtr pkt){
 
+      hashRecycled retVal;
+      retVal._isRecycled = 0;
+      retVal.schemeNumRecycled = -1;
       // do it only for L1 Virtual Cache
       if ( get_is_l1cache() != true )
-        return false;
+        return retVal;
 
       uint64_t PPN = pkt->getAddr() / m_vc_structure->get_region_size();
 #ifdef Smurthy_debug
@@ -634,10 +643,12 @@ class Cache : public BaseCache
         {
          m_vc_structure->hash_entry_to_use_setValid(temp);
          m_vc_structure->set_hash_entry_to_use_helper(temp);
-         return true;
+         retVal.schemeNumRecycled = temp;
+         retVal._isRecycled = 1;
+         return retVal;
         }
       }
-     return false;
+     return retVal;
     }
 
   // This can be deleted never used.

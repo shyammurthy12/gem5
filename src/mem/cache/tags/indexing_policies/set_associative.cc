@@ -58,6 +58,15 @@ using namespace std;
 SetAssociative::SetAssociative(const Params *p)
     : BaseIndexingPolicy(p)
 {
+ //hashTable that is indexed using the
+ //9 bits after the bits used for SRFT indexing
+ //used when indexing the cache
+ //
+ cout << "Hash table entries" <<endl;
+ for (int i = 0;i<512;i++){
+   hashTable[i] = rand();
+   cout << hashTable[i] << " " <<endl;
+ }
 }
 
 uint32_t
@@ -88,7 +97,9 @@ SetAssociative::extractSet_Vaddr_with_hashing(Addr addr, uint32_t
       printf("The setNumber is %lu\n",
                    (((addr >> setShift)^random_constant_to_xor_with))&setMask);
 #endif
-      return (((addr >> setShift)^random_constant_to_xor_with))&setMask;
+      //uint32_t lowerTagRandomNumber = hashTable[(addr >>
+      //(setShift+9+4))%512];
+      return ((addr >> setShift)^random_constant_to_xor_with)&setMask;
 }
 #endif
 
