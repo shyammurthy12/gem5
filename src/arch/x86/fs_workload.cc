@@ -42,6 +42,7 @@
 #include "arch/x86/bios/smbios.hh"
 #include "arch/x86/faults.hh"
 #include "arch/x86/isa_traits.hh"
+#include "arch/x86/utility.hh"
 #include "base/loader/object_file.hh"
 #include "cpu/thread_context.hh"
 #include "params/X86FsWorkload.hh"
@@ -57,49 +58,49 @@ FsWorkload::FsWorkload(Params *p) : KernelWorkload(*p),
     rsdp(p->acpi_description_table_pointer)
 {}
 
-void
-installSegDesc(ThreadContext *tc, SegmentRegIndex seg,
-               SegDescriptor desc, bool longmode)
-{
-    bool honorBase = !longmode || seg == SEGMENT_REG_FS ||
-                                  seg == SEGMENT_REG_GS ||
-                                  seg == SEGMENT_REG_TSL ||
-                                  seg == SYS_SEGMENT_REG_TR;
-
-    SegAttr attr = 0;
-
-    attr.dpl = desc.dpl;
-    attr.unusable = 0;
-    attr.defaultSize = desc.d;
-    attr.longMode = desc.l;
-    attr.avl = desc.avl;
-    attr.granularity = desc.g;
-    attr.present = desc.p;
-    attr.system = desc.s;
-    attr.type = desc.type;
-    if (desc.s) {
-        if (desc.type.codeOrData) {
-            // Code segment
-            attr.expandDown = 0;
-            attr.readable = desc.type.r;
-            attr.writable = 0;
-        } else {
-            // Data segment
-            attr.expandDown = desc.type.e;
-            attr.readable = 1;
-            attr.writable = desc.type.w;
-        }
-    } else {
-        attr.readable = 1;
-        attr.writable = 1;
-        attr.expandDown = 0;
-    }
-
-    tc->setMiscReg(MISCREG_SEG_BASE(seg), desc.base);
-    tc->setMiscReg(MISCREG_SEG_EFF_BASE(seg), honorBase ? desc.base : 0);
-    tc->setMiscReg(MISCREG_SEG_LIMIT(seg), desc.limit);
-    tc->setMiscReg(MISCREG_SEG_ATTR(seg), (RegVal)attr);
-}
+//void
+//installSegDesc(ThreadContext *tc, SegmentRegIndex seg,
+//               SegDescriptor desc, bool longmode)
+//{
+//    bool honorBase = !longmode || seg == SEGMENT_REG_FS ||
+//                                  seg == SEGMENT_REG_GS ||
+//                                  seg == SEGMENT_REG_TSL ||
+//                                  seg == SYS_SEGMENT_REG_TR;
+//
+//    SegAttr attr = 0;
+//
+//    attr.dpl = desc.dpl;
+//    attr.unusable = 0;
+//    attr.defaultSize = desc.d;
+//    attr.longMode = desc.l;
+//    attr.avl = desc.avl;
+//    attr.granularity = desc.g;
+//    attr.present = desc.p;
+//    attr.system = desc.s;
+//    attr.type = desc.type;
+//    if (desc.s) {
+//        if (desc.type.codeOrData) {
+//            // Code segment
+//            attr.expandDown = 0;
+//            attr.readable = desc.type.r;
+//            attr.writable = 0;
+//        } else {
+//            // Data segment
+//            attr.expandDown = desc.type.e;
+//            attr.readable = 1;
+//            attr.writable = desc.type.w;
+//        }
+//    } else {
+//        attr.readable = 1;
+//        attr.writable = 1;
+//        attr.expandDown = 0;
+//    }
+//
+//    tc->setMiscReg(MISCREG_SEG_BASE(seg), desc.base);
+//    tc->setMiscReg(MISCREG_SEG_EFF_BASE(seg), honorBase ? desc.base : 0);
+//    tc->setMiscReg(MISCREG_SEG_LIMIT(seg), desc.limit);
+//    tc->setMiscReg(MISCREG_SEG_ATTR(seg), (RegVal)attr);
+//}
 
 void
 FsWorkload::initState()
@@ -156,23 +157,26 @@ FsWorkload::initState()
     phys_proxy.writeBlob(GDTBase + numGDTEntries * 8, &nullDescriptor, 8);
     numGDTEntries++;
 
-    SegDescriptor initDesc = 0;
-    initDesc.type.codeOrData = 0; // code or data type
-    initDesc.type.c = 0;          // conforming
-    initDesc.type.r = 1;          // readable
-    initDesc.dpl = 0;             // privilege
-    initDesc.p = 1;               // present
-    initDesc.l = 1;               // longmode - 64 bit
-    initDesc.d = 0;               // operand size
-    initDesc.g = 1;               // granularity
-    initDesc.s = 1;               // system segment
-    initDesc.limit = 0xFFFFFFFF;
-    initDesc.base = 0;
+//    SegDescriptor initDesc = 0;
+//    initDesc.type.codeOrData = 0; // code or data type
+//    initDesc.type.c = 0;          // conforming
+//    initDesc.type.r = 1;          // readable
+//    initDesc.dpl = 0;             // privilege
+//    initDesc.p = 1;               // present
+//    initDesc.l = 1;               // longmode - 64 bit
+//    initDesc.d = 0;               // operand size
+//    initDesc.g = 1;               // granularity
+//    initDesc.s = 1;               // system segment
+//    initDesc.limit = 0xFFFFFFFF;
+//    initDesc.base = 0;
+//
+//    // 64 bit code segment
+//    SegDescriptor csDesc = initDesc;
+//    csDesc.type.codeOrData = 1;
+//    csDesc.dpl = 0;
 
-    // 64 bit code segment
-    SegDescriptor csDesc = initDesc;
-    csDesc.type.codeOrData = 1;
-    csDesc.dpl = 0;
+    // 64 bit code segment.
+    SegDescriptor csDesc = codeSegDesc64();
     // Because we're dealing with a pointer and I don't think it's
     // guaranteed that there isn't anything in a nonvirtual class between
     // it's beginning in memory and it's actual data, we'll use an
@@ -180,45 +184,83 @@ FsWorkload::initState()
     uint64_t csDescVal = csDesc;
     phys_proxy.writeBlob(GDTBase + numGDTEntries * 8, (&csDescVal), 8);
 
-    numGDTEntries++;
+//    numGDTEntries++;
 
     SegSelector cs = 0;
-    cs.si = numGDTEntries - 1;
+//    cs.si = numGDTEntries - 1;
 
-    tc->setMiscReg(MISCREG_CS, (RegVal)cs);
+    cs.si = numGDTEntries;
 
-    // 32 bit data segment
-    SegDescriptor dsDesc = initDesc;
+//    tc->setMiscReg(MISCREG_CS, (RegVal)cs);
+
+    numGDTEntries++;
+
+    tc->setMiscReg(MISCREG_CS, cs);
+//    // 32 bit data segment
+//    SegDescriptor dsDesc = initDesc;
+
+    // 32 bit data segment.
+    SegDescriptor dsDesc = dataSegDesc();
+
     uint64_t dsDescVal = dsDesc;
     phys_proxy.writeBlob(GDTBase + numGDTEntries * 8, (&dsDescVal), 8);
 
-    numGDTEntries++;
+//    numGDTEntries++;
 
     SegSelector ds = 0;
-    ds.si = numGDTEntries - 1;
+//    ds.si = numGDTEntries - 1;
 
-    tc->setMiscReg(MISCREG_DS, (RegVal)ds);
-    tc->setMiscReg(MISCREG_ES, (RegVal)ds);
-    tc->setMiscReg(MISCREG_FS, (RegVal)ds);
-    tc->setMiscReg(MISCREG_GS, (RegVal)ds);
-    tc->setMiscReg(MISCREG_SS, (RegVal)ds);
+    ds.si = numGDTEntries;
+
+//    tc->setMiscReg(MISCREG_DS, (RegVal)ds);
+//    tc->setMiscReg(MISCREG_ES, (RegVal)ds);
+//    tc->setMiscReg(MISCREG_FS, (RegVal)ds);
+//    tc->setMiscReg(MISCREG_GS, (RegVal)ds);
+//    tc->setMiscReg(MISCREG_SS, (RegVal)ds);
+
+    numGDTEntries++;
+
+//    tc->setMiscReg(MISCREG_TSL, 0);
+//    tc->setMiscReg(MISCREG_TSG_BASE, GDTBase);
+//    tc->setMiscReg(MISCREG_TSG_LIMIT, 8 * numGDTEntries - 1);
+
+    tc->setMiscReg(MISCREG_DS, ds);
+    tc->setMiscReg(MISCREG_ES, ds);
+    tc->setMiscReg(MISCREG_FS, ds);
+    tc->setMiscReg(MISCREG_GS, ds);
+    tc->setMiscReg(MISCREG_SS, ds);
+
+//    SegDescriptor tssDesc = initDesc;
+//    uint64_t tssDescVal = tssDesc;
+
+    Tss64Desc tssDesc;
+    tssSegDesc64(tssDesc, 0x0, 0xFFFFFFFF);
+
+    phys_proxy.writeBlob(GDTBase + numGDTEntries * 8,
+//		    (&tssDescVal), 8);
+                        (uint8_t *)(&tssDesc), 16);
+//    numGDTEntries++;
+
+    SegSelector tss = 0;
+//    tss.si = numGDTEntries - 1;
+
+    tss.si = numGDTEntries;
+
+    numGDTEntries += 2;
 
     tc->setMiscReg(MISCREG_TSL, 0);
+    SegAttr ldtAttr = 0;
+    ldtAttr.unusable = 1;
+    tc->setMiscReg(MISCREG_TSL_ATTR, ldtAttr);
     tc->setMiscReg(MISCREG_TSG_BASE, GDTBase);
     tc->setMiscReg(MISCREG_TSG_LIMIT, 8 * numGDTEntries - 1);
 
-    SegDescriptor tssDesc = initDesc;
-    uint64_t tssDescVal = tssDesc;
-    phys_proxy.writeBlob(GDTBase + numGDTEntries * 8, (&tssDescVal), 8);
 
-    numGDTEntries++;
+//    tc->setMiscReg(MISCREG_TR, (RegVal)tss);
+//    installSegDesc(tc, SYS_SEGMENT_REG_TR, tssDesc, true);
 
-    SegSelector tss = 0;
-    tss.si = numGDTEntries - 1;
-
-    tc->setMiscReg(MISCREG_TR, (RegVal)tss);
-    installSegDesc(tc, SYS_SEGMENT_REG_TR, tssDesc, true);
-
+    tc->setMiscReg(MISCREG_TR, tss);
+    installSegDesc(tc, SYS_SEGMENT_REG_TR, tssDesc.low, true);
     /*
      * Identity map the first 4GB of memory. In order to map this region
      * of memory in long mode, there needs to be one actual page map level

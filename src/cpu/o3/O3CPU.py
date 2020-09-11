@@ -93,13 +93,13 @@ class DerivO3CPU(BaseCPU):
     iewToDecodeDelay = Param.Cycles(1, "Issue/Execute/Writeback to decode "
                                     "delay")
     commitToDecodeDelay = Param.Cycles(1, "Commit to decode delay")
-    fetchToDecodeDelay = Param.Cycles(1, "Fetch to decode delay")
+    fetchToDecodeDelay = Param.Cycles(3, "Fetch to decode delay")
     decodeWidth = Param.Unsigned(8, "Decode width")
 
     iewToRenameDelay = Param.Cycles(1, "Issue/Execute/Writeback to rename "
                                     "delay")
     commitToRenameDelay = Param.Cycles(1, "Commit to rename delay")
-    decodeToRenameDelay = Param.Cycles(1, "Decode to rename delay")
+    decodeToRenameDelay = Param.Cycles(4, "Decode to rename delay")
     renameWidth = Param.Unsigned(8, "Rename width")
 
     commitToIEWDelay = Param.Cycles(1, "Commit to "

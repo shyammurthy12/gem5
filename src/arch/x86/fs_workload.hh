@@ -76,8 +76,8 @@ const Addr PFHandlerVirtAddr = 0xffff800000005000;
 const Addr MMIORegionVirtAddr = 0xffffc90000000000;
 const Addr MMIORegionPhysAddr = 0xffff0000;
 
-void installSegDesc(ThreadContext *tc, SegmentRegIndex seg,
-                    SegDescriptor desc, bool longmode);
+//void installSegDesc(ThreadContext *tc, SegmentRegIndex seg,
+//                    SegDescriptor desc, bool longmode);
 
 class FsWorkload : public KernelWorkload
 {

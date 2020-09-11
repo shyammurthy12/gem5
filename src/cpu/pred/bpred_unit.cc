@@ -177,7 +177,6 @@ BPredUnit::predict(const StaticInstPtr &inst, const InstSeqNum &seqNum,
 
     bool pred_taken = false;
     TheISA::PCState target = pc;
-
     ++lookups;
     ppBranches->notify(1);
 
@@ -247,10 +246,17 @@ BPredUnit::predict(const StaticInstPtr &inst, const InstSeqNum &seqNum,
                         "%s to the RAS index: %i\n",
                         tid, seqNum, pc, pc, RAS[tid].topIdx());
             }
-
+            if (inst->isIndirectCtrl())
+                 DPRINTF(Branch,
+                          "Indirect branch\n");
+            if (inst->isDirectCtrl())
+                 DPRINTF(Branch,
+                          "Direct branch\n");
             if (inst->isDirectCtrl() || !iPred) {
                 ++BTBLookups;
                 // Check BTB on direct branches
+                DPRINTF(Branch,
+                        "Looking up BTB\n");
                 if (BTB.valid(pc.instAddr(), tid)) {
                     ++BTBHits;
                     // If it's not a return, use the BTB to get target addr.
@@ -495,6 +501,11 @@ BPredUnit::squash(const InstSeqNum &squashed_sn,
             }
             if (hist_it->wasIndirect) {
                 ++indirectMispredicted;
+                DPRINTF(Branch, "[tid:%i] [squash sn:%llu] "
+                       "Incorrectly predicted "
+                       "indirect [sn:%llu] PC: %#x\n", tid, squashed_sn,
+                       hist_it->seqNum,
+                       hist_it->pc);
                 if (iPred) {
                     iPred->recordTarget(
                         hist_it->seqNum, pred_hist.front().indirectHistory,

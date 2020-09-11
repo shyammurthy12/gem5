@@ -392,6 +392,7 @@ let {{
             self.op2 = op2
             self.flags = flags
             self.dataSize = dataSize
+            self.instFlags = ""
             if flags is None:
                 self.ext = 0
             else:
@@ -405,6 +406,10 @@ let {{
                 className = self.className
                 if self.mnemonic == self.base_mnemonic + 'i':
                     className += "Imm"
+                if self.className == "Wrip":
+                    print(self.className)
+                elif self.mnemonic == "WripImm":
+                    print(self.className)
                 allocString = '''
                     (%(dataSize)s >= 4) ?
                         (StaticInstPtr)(new %(class_name)sBig(machInst,
@@ -426,11 +431,23 @@ let {{
                 className = self.className
                 if self.mnemonic == self.base_mnemonic + 'i':
                     className += "Imm"
+                if className == "Wrip":
+                    print(className)
+                    self.instFlags += " | (1ULL << \
+StaticInst::IsDirectControl)"
+                elif className == "WripImm":
+                    print(className)
+                    self.instFlags += " | (1ULL << \
+StaticInst::IsIndirectControl)"
+                elif className == "WripFlags":
+                    print(className)
+                    self.instFlags += " | (1ULL << \
+StaticInst::IsDirectControl)"
                 allocator = '''new %(class_name)s(machInst, macrocodeBlock,
                         %(flags)s, %(src1)s, %(op2)s, %(dest)s,
                         %(dataSize)s, %(ext)s)''' % {
                     "class_name" : className,
-                    "flags" : self.microFlagsText(microFlags),
+                    "flags" : self.microFlagsText(microFlags) + self.instFlags,
                     "src1" : self.src1, "op2" : self.op2,
                     "dest" : self.dest,
                     "dataSize" : self.dataSize,
@@ -1205,6 +1222,10 @@ let {{
     class Wrip(WrRegOp, CondRegOp):
         code = 'NRIP = psrc1 + sop2 + CSBase;'
         else_code = "NRIP = NRIP;"
+        def __init__(self, src1, src2, flags=None, dataSize="env.dataSize"):
+            super(WrRegOp, self).__init__("InstRegIndex(NUM_INTREGS)", \
+                    src1, src2, flags, dataSize)
+            className = self.className
 
     class Wruflags(WrRegOp):
         code = '''

@@ -1132,7 +1132,7 @@ BaseKvmCPU::doMMIOAccess(Addr paddr, void *data, int size, bool write)
         // different event queue when doing local accesses. Currently, they
         // are only used for m5ops, so it should be a valid assumption.
         const Cycles ipr_delay = mmio_req->localAccessor(tc, pkt);
-        threadContextDirty = true;
+        //threadContextDirty = true;
         delete pkt;
         return clockPeriod() * ipr_delay;
     } else {

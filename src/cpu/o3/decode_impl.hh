@@ -732,28 +732,29 @@ DefaultDecode<Impl>::decodeInsts(ThreadID tid)
         // Go ahead and compute any PC-relative branches.
         // This includes direct unconditional control and
         // direct conditional control that is predicted taken.
-        if (inst->isDirectCtrl() &&
-           (inst->isUncondCtrl() || inst->readPredTaken()))
-        {
-            ++decodeBranchResolved;
+       // if (inst->isDirectCtrl() &&
+       //    (inst->isUncondCtrl() || inst->readPredTaken()))
+       // {
+       //     ++decodeBranchResolved;
+       //     printf("Inst->sequence number is %lu\n",inst->seqNum);
+       //     printf("Predicted target is %lu\n",inst->readPredTarg());
+       //     if (!(inst->branchTarget() == inst->readPredTarg())) {
+       //         ++decodeBranchMispred;
 
-            if (!(inst->branchTarget() == inst->readPredTarg())) {
-                ++decodeBranchMispred;
+       //         // Might want to set some sort of boolean and just do
+       //         // a check at the end
+       //         squash(inst, inst->threadNumber);
+       //         TheISA::PCState target = inst->branchTarget();
 
-                // Might want to set some sort of boolean and just do
-                // a check at the end
-                squash(inst, inst->threadNumber);
-                TheISA::PCState target = inst->branchTarget();
-
-                DPRINTF(Decode,
-                        "[tid:%i] [sn:%llu] "
-                        "Updating predictions: PredPC: %s\n",
-                        tid, inst->seqNum, target);
-                //The micro pc after an instruction level branch should be 0
-                inst->setPredTarg(target);
-                break;
-            }
-        }
+       //         DPRINTF(Decode,
+       //                 "[tid:%i] [sn:%llu] "
+       //                 "Updating predictions: PredPC: %s\n",
+       //                 tid, inst->seqNum, target);
+       //         //The micro pc after an instruction level branch should be 0
+       //         inst->setPredTarg(target);
+       //         break;
+       //     }
+       // }
     }
 
     // If we didn't process all instructions, then we will need to block
